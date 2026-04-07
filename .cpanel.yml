@@ -8,7 +8,9 @@ deployment:
     - /bin/cp composer.lock $DEPLOYPATH
     - /bin/cp -R config $DEPLOYPATH
     - /bin/cp -R database $DEPLOYPATH
-    - /bin/cp -R public/* /home/sfcoly/erp/
+    - /bin/cp public/.htaccess /home/sfcoly/erp/.htaccess
+    - /bin/cp -R public/build /home/sfcoly/erp/build
+    - /bin/cp -R public/storage /home/sfcoly/erp/storage
     - /bin/cp -R resources $DEPLOYPATH
     - /bin/cp -R routes $DEPLOYPATH
     - /bin/cp -R storage $DEPLOYPATH
