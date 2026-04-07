@@ -1,0 +1,104 @@
+@font-face {
+    font-family: 'Gilroy';
+    src: url('/fonts/gilroy/Gilroy-Light.otf') format('opentype');
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Gilroy';
+    src: url('/fonts/gilroy/Gilroy-ExtraBold.otf') format('opentype');
+    font-weight: 800;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* الخط العام للمنظومة */
+html,
+body,
+.fi-body,
+.fi-layout,
+.fi-main,
+.fi-page,
+.fi-topbar,
+.fi-sidebar,
+.fi-ta,
+.fi-in,
+.fi-fo,
+.fi-section,
+.fi-modal,
+.fi-dropdown,
+.fi-badge,
+.fi-btn,
+.fi-input,
+.fi-select-input,
+.fi-textarea,
+.fi-checkbox-list,
+.fi-radio,
+.fi-tabs,
+.fi-table,
+.fi-card {
+    font-family: 'Gilroy', sans-serif !important;
+    font-weight: 300;
+}
+
+/* العناوين الكبيرة */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.fi-header-heading,
+.fi-section-header-heading,
+.fi-ta-header-heading,
+.fi-page-subheading,
+.fi-in-entry-label,
+.fi-fo-field-wrp-label,
+.fi-tabs-item-label,
+.fi-sidebar-item-label,
+.fi-topbar-item-btn,
+.fi-btn {
+    font-family: 'Gilroy', sans-serif !important;
+    font-weight: 800 !important;
+}
+
+/* نصوص الحقول والمحتوى */
+.fi-in-entry-content,
+.fi-ta-text,
+.fi-input-wrp,
+.fi-select-input,
+.fi-textarea,
+.fi-badge,
+.fi-pagination,
+table,
+th,
+td,
+span,
+p,
+label,
+a,
+button,
+input,
+select,
+textarea {
+    font-family: 'Gilroy', sans-serif !important;
+}
+
+/* شوية إبراز أحسن لصفحة الـ view */
+.fi-section {
+    border-radius: 16px;
+}
+
+.fi-section-header-heading {
+    letter-spacing: 0.2px;
+}
+
+.fi-badge {
+    font-weight: 800 !important;
+}
+
+.fi-btn {
+    border-radius: 12px;
+}

@@ -1,0 +1,295 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Job;
+use App\Models\JobApplication;
+use App\Models\JobApplicationValue;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+
+class JobApplicationController extends Controller
+{
+    public function create(Job $job)
+    {
+        if (
+            ! $job->is_active
+            || $job->is_archived
+            || (
+                filled($job->closing_date)
+                && $job->closing_date->lt(today())
+            )
+        ) {
+            abort(404);
+        }
+
+        $template = $job->template;
+
+        if (! $template) {
+            $fields = collect();
+
+            return view('jobs.apply', compact('job', 'fields'));
+        }
+
+        $fields = $template->fields()
+            ->where('job_application_fields.is_active', true)
+            ->orderByRaw("
+                CASE 
+                    WHEN job_application_fields.field_group = 'basic' THEN 1
+                    WHEN job_application_fields.field_group = 'additional' THEN 2
+                    ELSE 3
+                END
+            ")
+            ->orderBy('job_application_fields.sort_order')
+            ->get();
+
+        return view('jobs.apply', compact('job', 'fields'));
+    }
+
+    public function store(Request $request, Job $job)
+    {
+        if (
+            ! $job->is_active
+            || $job->is_archived
+            || (
+                filled($job->closing_date)
+                && $job->closing_date->lt(today())
+            )
+        ) {
+            abort(404);
+        }
+
+        if ($job->closing_date && now()->gt($job->closing_date)) {
+            return back()
+                ->withErrors(['expired' => 'This job is no longer accepting applications.'])
+                ->withInput();
+        }
+
+        $template = $job->template;
+
+        if (! $template) {
+            return back()
+                ->withErrors(['template' => 'No application template is assigned to this job.'])
+                ->withInput();
+        }
+
+        $fields = $template->fields()
+            ->where('job_application_fields.is_active', true)
+            ->orderByRaw("
+                CASE 
+                    WHEN job_application_fields.field_group = 'basic' THEN 1
+                    WHEN job_application_fields.field_group = 'additional' THEN 2
+                    ELSE 3
+                END
+            ")
+            ->orderBy('job_application_fields.sort_order')
+            ->get();
+
+        $rules = [];
+
+        foreach ($fields as $field) {
+            $rule = [];
+
+            if ($field->is_required) {
+                $rule[] = 'required';
+            } else {
+                $rule[] = 'nullable';
+            }
+
+            if ($field->field_type === 'file') {
+                $rule[] = 'file';
+            }
+
+            if ($field->field_type === 'number') {
+                $rule[] = 'numeric';
+            }
+
+            if ($field->field_type === 'email' || $field->field_key === 'email') {
+                $rule[] = 'email:rfc,dns';
+            }
+
+            $rules[$field->field_key] = implode('|', $rule);
+        }
+
+        $rules['phone_country_code'] = 'nullable|string|max:20';
+        $rules['phone_number'] = 'nullable|string|max:50';
+        $rules['whatsapp_country_code'] = 'nullable|string|max:20';
+        $rules['whatsapp_number'] = 'nullable|string|max:50';
+
+        $validated = $request->validate($rules);
+
+        $fullName = $request->input('full_name');
+        $email = $request->input('email');
+
+        if (! $fullName || ! $email) {
+            return back()
+                ->withErrors(['basic' => 'Full name and email are required.'])
+                ->withInput();
+        }
+
+        $phoneCountry = $request->input('phone_country_code');
+        $phoneNumber = $request->input('phone_number');
+        $phone = null;
+
+        if ($phoneCountry && $phoneNumber) {
+            $phone = $phoneCountry . $phoneNumber;
+        }
+
+        $whatsappCountry = $request->input('whatsapp_country_code');
+        $whatsappNumber = $request->input('whatsapp_number');
+        $whatsapp = null;
+
+        if ($whatsappCountry && $whatsappNumber) {
+            $whatsapp = $whatsappCountry . $whatsappNumber;
+        }
+
+        $alreadyApplied = JobApplication::query()
+            ->where('job_id', $job->id)
+            ->where(function ($query) use ($email, $phone) {
+                $query->where('email', $email);
+
+                if ($phone) {
+                    $query->orWhere('phone', $phone);
+                }
+            })
+            ->exists();
+
+        if ($alreadyApplied) {
+            return back()
+                ->withErrors(['duplicate' => 'You have already applied for this job.'])
+                ->withInput();
+        }
+
+        $cvPath = null;
+
+        if ($request->hasFile('cv_file')) {
+            $file = $request->file('cv_file');
+            $extension = $file->getClientOriginalExtension();
+            $safeName = Str::slug($fullName) . '-cv.' . $extension;
+            $cvPath = $file->storeAs('cvs', $safeName, 'public');
+        }
+
+        $application = JobApplication::create([
+            'job_id' => $job->id,
+            'full_name' => $fullName,
+            'email' => $email,
+            'phone' => $phone,
+            'phone_country_code' => $phoneCountry,
+            'phone_number' => $phoneNumber,
+            'whatsapp_country_code' => $whatsappCountry,
+            'whatsapp_number' => $whatsappNumber,
+            'cv_path' => $cvPath,
+            'status' => 'new',
+        ]);
+
+        foreach ($fields as $field) {
+            $value = $request->input($field->field_key);
+
+            if ($field->field_type === 'checkbox') {
+                $value = $request->has($field->field_key)
+                    ? implode(',', (array) $request->input($field->field_key))
+                    : null;
+            }
+
+            if ($field->field_type === 'file') {
+                if ($field->field_key === 'cv_file' && $cvPath) {
+                    $value = $cvPath;
+                } elseif ($request->hasFile($field->field_key)) {
+                    $dynamicFile = $request->file($field->field_key);
+                    $dynamicExtension = $dynamicFile->getClientOriginalExtension();
+                    $dynamicName = Str::slug($fullName) . '-' . Str::slug($field->field_key) . '.' . $dynamicExtension;
+
+                    $value = $dynamicFile->storeAs('applications', $dynamicName, 'public');
+                }
+            }
+
+            if ($field->field_key === 'phone_number') {
+                $value = $phone;
+            }
+
+            if ($field->field_key === 'whatsapp_number') {
+                $value = $whatsapp;
+            }
+
+            JobApplicationValue::create([
+                'job_application_id' => $application->id,
+                'field_id' => $field->id,
+                'value' => $value,
+            ]);
+        }
+
+        return redirect()->route('jobs.apply.success', $job);
+    }
+
+    public function success(Job $job)
+    {
+        return view('jobs.apply-success', compact('job'));
+    }
+
+    public function openCv(JobApplication $jobApplication): RedirectResponse
+    {
+        if (blank($jobApplication->cv_path)) {
+            abort(404, 'CV not found.');
+        }
+
+        $this->moveToScreeningIfNew($jobApplication);
+
+        return redirect(asset('storage/' . $jobApplication->cv_path));
+    }
+
+    public function openPassport(JobApplication $jobApplication): RedirectResponse
+    {
+        $passportPath = $this->getDocumentPath($jobApplication, ['passport_path', 'passport_file']);
+
+        if (blank($passportPath)) {
+            abort(404, 'Passport not found.');
+        }
+
+        $this->moveToScreeningIfNew($jobApplication);
+
+        return redirect(asset('storage/' . $passportPath));
+    }
+
+    public function openCertificates(JobApplication $jobApplication): RedirectResponse
+    {
+        $certificatesPath = $this->getDocumentPath($jobApplication, ['certificates_path', 'certificate_path']);
+
+        if (blank($certificatesPath)) {
+            abort(404, 'Certificates not found.');
+        }
+
+        $this->moveToScreeningIfNew($jobApplication);
+
+        return redirect(asset('storage/' . $certificatesPath));
+    }
+
+    protected function moveToScreeningIfNew(JobApplication $jobApplication): void
+    {
+        if ($jobApplication->status === 'new') {
+            $jobApplication->update([
+                'status' => 'screening',
+            ]);
+        }
+    }
+
+    protected function getDocumentPath(JobApplication $jobApplication, array $fieldKeys): ?string
+    {
+        foreach ($fieldKeys as $fieldKey) {
+            if (! blank($jobApplication->{$fieldKey})) {
+                return $jobApplication->{$fieldKey};
+            }
+        }
+
+        $value = JobApplicationValue::query()
+            ->where('job_application_id', $jobApplication->id)
+            ->whereHas('field', function ($query) use ($fieldKeys) {
+                $query->whereIn('field_key', $fieldKeys);
+            })
+            ->whereNotNull('value')
+            ->orderByDesc('id')
+            ->value('value');
+
+        return $value ?: null;
+    }
+}

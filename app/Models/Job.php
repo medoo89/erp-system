@@ -1,0 +1,50 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class Job extends Model
+{
+    protected $table = 'job_openings';
+
+    protected $fillable = [
+        'title',
+        'department',
+        'location',
+        'employment_type',
+        'description',
+        'requirements',
+        'is_active',
+        'closing_date',
+        'template_id',
+
+        // archive fields
+        'is_archived',
+        'archive_reason',
+        'archived_at',
+    ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
+        'is_archived' => 'boolean',
+        'closing_date' => 'date',
+        'archived_at' => 'datetime',
+    ];
+
+    public function applications()
+    {
+        return $this->hasMany(\App\Models\JobApplication::class, 'job_id');
+    }
+
+    public function applicationFields()
+    {
+        return $this->hasMany(\App\Models\JobApplicationField::class, 'job_id')
+            ->orderBy('sort_order');
+    }
+
+    public function template()
+    {
+        return $this->belongsTo(\App\Models\JobApplicationTemplate::class, 'template_id', 'id');
+    }
+}
