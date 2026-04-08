@@ -4,11 +4,16 @@ namespace App\Filament\Resources\JobApplications\Pages;
 
 use App\Filament\Resources\ArchivedJobApplications\ArchivedJobApplicationResource;
 use App\Filament\Resources\JobApplications\JobApplicationResource;
+use App\Mail\JobApplicationDeclinedMail;
+use App\Mail\JobApplicationStatusUpdatedMail;
 use Filament\Actions;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Illuminate\Support\Facades\Mail;
 
 class ViewJobApplication extends ViewRecord
 {
@@ -28,41 +33,33 @@ class ViewJobApplication extends ViewRecord
                 ->modalSubmitActionLabel('Yes, Move')
                 ->action(fn () => $this->updateStatus('screening')),
 
-            Actions\Action::make('set_under_review')
-                ->label('Under Review')
-                ->color('info')
-                ->requiresConfirmation()
-                ->modalHeading('Move to Under Review')
-                ->modalDescription('Are you sure you want to move this applicant to Under Review?')
-                ->modalSubmitActionLabel('Yes, Move')
-                ->action(fn () => $this->updateStatus('under_review')),
+            $this->makeStatusAction(
+                name: 'set_under_review',
+                label: 'Under Review',
+                color: 'info',
+                status: 'under_review',
+            ),
 
-            Actions\Action::make('set_client_submitted')
-                ->label('Client Submitted')
-                ->color('primary')
-                ->requiresConfirmation()
-                ->modalHeading('Move to Client Submitted')
-                ->modalDescription('Are you sure you want to mark this applicant as Client Submitted?')
-                ->modalSubmitActionLabel('Yes, Move')
-                ->action(fn () => $this->updateStatus('client_submitted')),
+            $this->makeStatusAction(
+                name: 'set_client_submitted',
+                label: 'Client Submitted',
+                color: 'primary',
+                status: 'client_submitted',
+            ),
 
-            Actions\Action::make('set_qualified')
-                ->label('Qualified')
-                ->color('gray')
-                ->requiresConfirmation()
-                ->modalHeading('Move to Qualified')
-                ->modalDescription('Are you sure you want to move this applicant to Qualified?')
-                ->modalSubmitActionLabel('Yes, Move')
-                ->action(fn () => $this->updateStatus('qualified')),
+            $this->makeStatusAction(
+                name: 'set_qualified',
+                label: 'Qualified',
+                color: 'gray',
+                status: 'qualified',
+            ),
 
-            Actions\Action::make('set_hired')
-                ->label('Hired')
-                ->color('success')
-                ->requiresConfirmation()
-                ->modalHeading('Move to Hired')
-                ->modalDescription('Are you sure you want to move this applicant to Hired?')
-                ->modalSubmitActionLabel('Yes, Move')
-                ->action(fn () => $this->updateStatus('hired')),
+            $this->makeStatusAction(
+                name: 'set_hired',
+                label: 'Hired',
+                color: 'success',
+                status: 'hired',
+            ),
 
             Actions\Action::make('set_declined')
                 ->label('Declined')
@@ -83,14 +80,30 @@ class ViewJobApplication extends ViewRecord
                             'position_closed' => 'Position Closed',
                             'other' => 'Other',
                         ]),
+
                     Textarea::make('decline_notes')
                         ->label('Decline Notes')
-                        ->rows(4)
-                        ->nullable(),
+                        ->rows(4),
+
+                    Toggle::make('send_email')
+                        ->label('Send email notification')
+                        ->default(true),
+
+                    Placeholder::make('email_preview_declined')
+                        ->label('Email Preview')
+                        ->content(function () {
+                            $jobTitle = optional($this->record->job)->title ?: '-';
+
+                            return "To: {$this->record->email}\n"
+                                . "Applicant: {$this->record->full_name}\n"
+                                . "Job: {$jobTitle}\n"
+                                . "Status: Declined\n"
+                                . "Subject: Update on Your Job Application";
+                        }),
                 ])
                 ->requiresConfirmation()
                 ->modalHeading('Decline Application')
-                ->modalDescription('Select the decline reason and confirm moving this application to archive.')
+                ->modalDescription('Select the decline reason, review the email option, and confirm moving this application to archive.')
                 ->modalSubmitActionLabel('Yes, Decline')
                 ->action(function (array $data) {
                     $this->updateStatus('declined', $data);
@@ -116,6 +129,38 @@ class ViewJobApplication extends ViewRecord
         return array_merge($statusActions, $baseActions);
     }
 
+    protected function makeStatusAction(string $name, string $label, string $color, string $status): Actions\Action
+    {
+        return Actions\Action::make($name)
+            ->label($label)
+            ->color($color)
+            ->form([
+                Toggle::make('send_email')
+                    ->label('Send email notification')
+                    ->default(true),
+
+                Placeholder::make('email_preview')
+                    ->label('Email Preview')
+                    ->content(function () use ($status) {
+                        $jobTitle = optional($this->record->job)->title ?: '-';
+
+                        return "To: {$this->record->email}\n"
+                            . "Applicant: {$this->record->full_name}\n"
+                            . "Job: {$jobTitle}\n"
+                            . "Status: {$this->getStatusLabel($status)}\n"
+                            . "Subject: {$this->getStatusEmailSubject($status)}\n\n"
+                            . $this->getStatusEmailMessage($status);
+                    }),
+            ])
+            ->requiresConfirmation()
+            ->modalHeading("Move to {$label}")
+            ->modalDescription("Review the action and choose whether to send an email notification.")
+            ->modalSubmitActionLabel('Confirm')
+            ->action(function (array $data) use ($status) {
+                $this->updateStatus($status, $data);
+            });
+    }
+
     protected function updateStatus(string $status, array $extraData = []): void
     {
         $oldStatus = $this->record->status;
@@ -137,8 +182,11 @@ class ViewJobApplication extends ViewRecord
         }
 
         $this->record->update($data);
+        $this->record->refresh();
 
-        $this->sendStatusEmailIfNeeded($status, $oldStatus);
+        $sendEmail = (bool) ($extraData['send_email'] ?? false);
+
+        $this->sendStatusEmailIfNeeded($status, $oldStatus, $sendEmail);
 
         if ($status === 'declined') {
             Notification::make()
@@ -150,8 +198,6 @@ class ViewJobApplication extends ViewRecord
 
             return;
         }
-
-        $this->record->refresh();
 
         Notification::make()
             ->title(match ($status) {
@@ -166,9 +212,13 @@ class ViewJobApplication extends ViewRecord
             ->send();
     }
 
-    protected function sendStatusEmailIfNeeded(string $newStatus, ?string $oldStatus = null): void
+    protected function sendStatusEmailIfNeeded(string $newStatus, ?string $oldStatus = null, bool $sendEmail = false): void
     {
         if ($newStatus === 'screening') {
+            return;
+        }
+
+        if (! $sendEmail) {
             return;
         }
 
@@ -176,6 +226,80 @@ class ViewJobApplication extends ViewRecord
             return;
         }
 
-        // سنربط هنا الإيميل في الخطوة القادمة
+        if (blank($this->record->email)) {
+            return;
+        }
+
+        if ($newStatus === 'declined') {
+            Mail::to($this->record->email)->send(
+                new JobApplicationDeclinedMail(
+                    $this->record,
+                    $this->getDeclineReasonLabel($this->record->decline_reason),
+                    $this->record->decline_notes,
+                )
+            );
+
+            return;
+        }
+
+        Mail::to($this->record->email)->send(
+            new JobApplicationStatusUpdatedMail(
+                $this->record,
+                $this->getStatusLabel($newStatus),
+                $this->getStatusEmailSubject($newStatus),
+                $this->getStatusEmailMessage($newStatus),
+            )
+        );
+    }
+
+    protected function getStatusLabel(string $status): string
+    {
+        return match ($status) {
+            'under_review' => 'Under Review',
+            'client_submitted' => 'Client Submitted',
+            'qualified' => 'Qualified',
+            'hired' => 'Hired',
+            'declined' => 'Declined',
+            default => ucfirst(str_replace('_', ' ', $status)),
+        };
+    }
+
+    protected function getStatusEmailSubject(string $status): string
+    {
+        return match ($status) {
+            'under_review' => 'Your Job Application Is Under Review',
+            'client_submitted' => 'Your Job Application Has Been Submitted to Client',
+            'qualified' => 'Update on Your Job Application',
+            'hired' => 'Congratulations - Job Application Update',
+            default => 'Update on Your Job Application',
+        };
+    }
+
+    protected function getStatusEmailMessage(string $status): string
+    {
+        return match ($status) {
+            'under_review' => 'We would like to inform you that your application is currently under review by our recruitment team.',
+            'client_submitted' => 'Your application has been submitted to the client for further consideration.',
+            'qualified' => 'Your profile has been marked as qualified and may be considered for this or future opportunities.',
+            'hired' => 'Congratulations. Your application has been marked as hired, and our team will contact you regarding the next steps.',
+            default => 'Your application status has been updated.',
+        };
+    }
+
+    protected function getDeclineReasonLabel(?string $reason): string
+    {
+        return match ($reason) {
+            'internal_rejected' => 'Internal Rejected',
+            'client_rejected' => 'Rejected by Client',
+            'applicant_withdrew' => 'Applicant Withdrew',
+            'applicant_refused_salary' => 'Applicant Refused Salary',
+            'applicant_refused_offer' => 'Applicant Refused Offer',
+            'applicant_refused_contract' => 'Applicant Refused Contract',
+            'no_response' => 'No Response',
+            'failed_requirements' => 'Failed Requirements',
+            'position_closed' => 'Position Closed',
+            'other' => 'Other',
+            default => 'Declined',
+        };
     }
 }
