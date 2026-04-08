@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ArchivedJobs\Tables;
 
+use App\Filament\Resources\Jobs\JobResource;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\DeleteAction;
@@ -65,6 +66,7 @@ class ArchivedJobsTable
                     ->dateTime('M j, Y H:i')
                     ->sortable(),
             ])
+            ->recordUrl(fn ($record) => JobResource::getUrl('edit', ['record' => $record]))
             ->filters([
                 Tables\Filters\SelectFilter::make('department')
                     ->label('Department')

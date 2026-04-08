@@ -19,6 +19,20 @@ class JobApplication extends Model
         'cv_path',
         'status',
         'notes',
+
+        // archive fields
+        'is_archived',
+        'archive_reason',
+        'archived_at',
+
+        // decline fields
+        'decline_reason',
+        'decline_notes',
+    ];
+
+    protected $casts = [
+        'is_archived' => 'boolean',
+        'archived_at' => 'datetime',
     ];
 
     public function job()

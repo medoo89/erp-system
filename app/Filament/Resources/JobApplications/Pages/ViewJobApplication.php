@@ -2,8 +2,11 @@
 
 namespace App\Filament\Resources\JobApplications\Pages;
 
+use App\Filament\Resources\ArchivedJobApplications\ArchivedJobApplicationResource;
 use App\Filament\Resources\JobApplications\JobApplicationResource;
 use Filament\Actions;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 
@@ -13,7 +16,9 @@ class ViewJobApplication extends ViewRecord
 
     protected function getHeaderActions(): array
     {
-        return [
+        $isArchived = (bool) ($this->record->is_archived ?? false);
+
+        $statusActions = [
             Actions\Action::make('set_screening')
                 ->label('Screening')
                 ->color('warning')
@@ -62,12 +67,37 @@ class ViewJobApplication extends ViewRecord
             Actions\Action::make('set_declined')
                 ->label('Declined')
                 ->color('warning')
+                ->form([
+                    Select::make('decline_reason')
+                        ->label('Decline Reason')
+                        ->required()
+                        ->options([
+                            'internal_rejected' => 'Internal Rejected',
+                            'client_rejected' => 'Rejected by Client',
+                            'applicant_withdrew' => 'Applicant Withdrew',
+                            'applicant_refused_salary' => 'Applicant Refused Salary',
+                            'applicant_refused_offer' => 'Applicant Refused Offer',
+                            'applicant_refused_contract' => 'Applicant Refused Contract',
+                            'no_response' => 'No Response',
+                            'failed_requirements' => 'Failed Requirements',
+                            'position_closed' => 'Position Closed',
+                            'other' => 'Other',
+                        ]),
+                    Textarea::make('decline_notes')
+                        ->label('Decline Notes')
+                        ->rows(4)
+                        ->nullable(),
+                ])
                 ->requiresConfirmation()
                 ->modalHeading('Decline Application')
-                ->modalDescription('Are you sure you want to decline this applicant and move the application to archive?')
+                ->modalDescription('Select the decline reason and confirm moving this application to archive.')
                 ->modalSubmitActionLabel('Yes, Decline')
-                ->action(fn () => $this->updateStatus('declined')),
+                ->action(function (array $data) {
+                    $this->updateStatus('declined', $data);
+                }),
+        ];
 
+        $baseActions = [
             Actions\EditAction::make(),
 
             Actions\DeleteAction::make()
@@ -78,10 +108,18 @@ class ViewJobApplication extends ViewRecord
                 ->modalDescription('Are you sure you want to permanently delete this application?')
                 ->modalSubmitActionLabel('Yes, Delete'),
         ];
+
+        if ($isArchived) {
+            return $baseActions;
+        }
+
+        return array_merge($statusActions, $baseActions);
     }
 
-    protected function updateStatus(string $status): void
+    protected function updateStatus(string $status, array $extraData = []): void
     {
+        $oldStatus = $this->record->status;
+
         $data = [
             'status' => $status,
         ];
@@ -90,9 +128,28 @@ class ViewJobApplication extends ViewRecord
             $data['is_archived'] = true;
             $data['archive_reason'] = 'declined';
             $data['archived_at'] = now();
+            $data['decline_reason'] = $extraData['decline_reason'] ?? null;
+            $data['decline_notes'] = $extraData['decline_notes'] ?? null;
+        } else {
+            $data['is_archived'] = false;
+            $data['archive_reason'] = null;
+            $data['archived_at'] = null;
         }
 
         $this->record->update($data);
+
+        $this->sendStatusEmailIfNeeded($status, $oldStatus);
+
+        if ($status === 'declined') {
+            Notification::make()
+                ->title('Applicant declined and archived')
+                ->success()
+                ->send();
+
+            $this->redirect(ArchivedJobApplicationResource::getUrl('index'));
+
+            return;
+        }
 
         $this->record->refresh();
 
@@ -103,10 +160,22 @@ class ViewJobApplication extends ViewRecord
                 'client_submitted' => 'Applicant moved to Client Submitted',
                 'qualified' => 'Applicant moved to Qualified',
                 'hired' => 'Applicant moved to Hired',
-                'declined' => 'Applicant declined and archived',
                 default => 'Status updated successfully',
             })
             ->success()
             ->send();
+    }
+
+    protected function sendStatusEmailIfNeeded(string $newStatus, ?string $oldStatus = null): void
+    {
+        if ($newStatus === 'screening') {
+            return;
+        }
+
+        if ($oldStatus === $newStatus) {
+            return;
+        }
+
+        // سنربط هنا الإيميل في الخطوة القادمة
     }
 }

@@ -68,6 +68,8 @@ class JobApplicationResource extends Resource
                                 'interview' => 'purple',
                                 'interview_scheduled' => 'purple',
                                 'approved' => 'success',
+                                'qualified' => 'gray',
+                                'hired' => 'success',
                                 'on_hold' => 'warning',
                                 'talent_pool' => 'gray',
                                 'backup_pool' => 'gray',
@@ -83,6 +85,8 @@ class JobApplicationResource extends Resource
                                 'interview' => 'Interview',
                                 'interview_scheduled' => 'Interview Scheduled',
                                 'approved' => 'Approved',
+                                'qualified' => 'Qualified',
+                                'hired' => 'Hired',
                                 'on_hold' => 'On Hold',
                                 'talent_pool' => 'Talent Pool',
                                 'backup_pool' => 'Backup Pool',
@@ -90,8 +94,41 @@ class JobApplicationResource extends Resource
                                 'declined' => 'Declined',
                                 default => ucfirst(str_replace('_', ' ', (string) $state)),
                             }),
+
+                        TextEntry::make('decline_reason')
+                            ->label('Decline Reason')
+                            ->badge()
+                            ->weight('bold')
+                            ->color(fn (?string $state): string => match ($state) {
+                                'internal_rejected' => 'gray',
+                                'client_rejected' => 'danger',
+                                'applicant_withdrew' => 'warning',
+                                'applicant_refused_salary' => 'warning',
+                                'applicant_refused_offer' => 'warning',
+                                'applicant_refused_contract' => 'warning',
+                                'no_response' => 'warning',
+                                'failed_requirements' => 'danger',
+                                'position_closed' => 'gray',
+                                'other' => 'gray',
+                                default => 'gray',
+                            })
+                            ->formatStateUsing(fn (?string $state): string => match ($state) {
+                                'internal_rejected' => 'Internal Rejected',
+                                'client_rejected' => 'Rejected by Client',
+                                'applicant_withdrew' => 'Applicant Withdrew',
+                                'applicant_refused_salary' => 'Applicant Refused Salary',
+                                'applicant_refused_offer' => 'Applicant Refused Offer',
+                                'applicant_refused_contract' => 'Applicant Refused Contract',
+                                'no_response' => 'No Response',
+                                'failed_requirements' => 'Failed Requirements',
+                                'position_closed' => 'Position Closed',
+                                'other' => 'Other',
+                                null, '' => '-',
+                                default => ucfirst(str_replace('_', ' ', (string) $state)),
+                            })
+                            ->visible(fn (JobApplication $record): bool => $record->status === 'declined' && filled($record->decline_reason)),
                     ])
-                    ->columns(2)
+                    ->columns(3)
                     ->columnSpanFull(),
 
                 Section::make('Overview')

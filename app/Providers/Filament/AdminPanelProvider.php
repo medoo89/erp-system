@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Resources\ArchivedJobApplications\ArchivedJobApplicationResource;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -41,6 +42,9 @@ class AdminPanelProvider extends PanelProvider
                 'info' => Color::Blue,
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
+            ->resources([
+                ArchivedJobApplicationResource::class,
+            ])
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([
                 Pages\Dashboard::class,
@@ -333,6 +337,7 @@ a{
 .fi-section-header-heading{
     font-size: 1.02rem !important;
 }
+
 /* Status badges أجمل */
 .fi-badge {
     font-weight: 800 !important;
@@ -406,77 +411,6 @@ a{
     color: #bfdbfe !important;
 }
 
-/* Status badges */
-.fi-badge {
-    font-weight: 800 !important;
-    border-radius: 999px !important;
-    padding-inline: 0.8rem !important;
-    min-height: 1.9rem !important;
-}
-
-.fi-color-gray .fi-badge,
-.fi-badge-color-gray {
-    background: #f3f4f6 !important;
-    color: #374151 !important;
-}
-
-.dark .fi-color-gray .fi-badge,
-.dark .fi-badge-color-gray {
-    background: #1f2937 !important;
-    color: #e5e7eb !important;
-}
-
-.fi-color-success .fi-badge,
-.fi-badge-color-success {
-    background: #dcfce7 !important;
-    color: #166534 !important;
-}
-
-.dark .fi-color-success .fi-badge,
-.dark .fi-badge-color-success {
-    background: rgba(34, 197, 94, 0.18) !important;
-    color: #bbf7d0 !important;
-}
-
-.fi-color-danger .fi-badge,
-.fi-badge-color-danger {
-    background: #fee2e2 !important;
-    color: #991b1b !important;
-}
-
-.dark .fi-color-danger .fi-badge,
-.dark .fi-badge-color-danger {
-    background: rgba(239, 68, 68, 0.18) !important;
-    color: #fecaca !important;
-}
-
-.fi-color-warning .fi-badge,
-.fi-badge-color-warning {
-    background: #fef3c7 !important;
-    color: #92400e !important;
-}
-
-.dark .fi-color-warning .fi-badge,
-.dark .fi-badge-color-warning {
-    background: rgba(245, 158, 11, 0.18) !important;
-    color: #fde68a !important;
-}
-
-.fi-color-info .fi-badge,
-.fi-badge-color-info,
-.fi-color-primary .fi-badge,
-.fi-badge-color-primary {
-    background: #dbeafe !important;
-    color: #1d4ed8 !important;
-}
-
-.dark .fi-color-info .fi-badge,
-.dark .fi-badge-color-info,
-.dark .fi-color-primary .fi-badge,
-.dark .fi-badge-color-primary {
-    background: rgba(59, 130, 246, 0.18) !important;
-    color: #bfdbfe !important;
-}
 /* Purple status for Interview */
 .fi-color-purple .fi-badge,
 .fi-badge-color-purple {
@@ -489,6 +423,7 @@ a{
     background: rgba(139, 92, 246, 0.18) !important;
     color: #ddd6fe !important;
 }
+
 /* Interview / Purple status */
 .fi-badge-color-purple,
 .fi-color-purple .fi-badge,
