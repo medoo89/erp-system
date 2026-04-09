@@ -44,4 +44,9 @@ class JobApplication extends Model
     {
         return $this->hasMany(\App\Models\JobApplicationValue::class, 'job_application_id');
     }
+
+    public function preEmployments()
+    {
+        return $this->hasMany(\App\Models\PreEmployment::class);
+    }
 }
