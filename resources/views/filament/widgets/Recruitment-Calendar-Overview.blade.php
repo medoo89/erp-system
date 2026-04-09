@@ -187,17 +187,6 @@
         .recruitment-calendar-wrap .fc-daygrid-event-dot {
             display: none !important;
         }
-
-        @media (max-width: 768px) {
-            .recruitment-calendar-title {
-                font-size: 1.5rem;
-                padding: 12px 18px;
-            }
-
-            .recruitment-calendar-wrap .fc-toolbar-title {
-                font-size: 1.8rem !important;
-            }
-        }
     </style>
 
     <div class="recruitment-calendar-shell">
