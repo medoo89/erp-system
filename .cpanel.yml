@@ -45,6 +45,6 @@ deployment:
     - /bin/cp -R public/css $PUBLICPATH/css || true
 
     - php /home/sfcoly/erp-system/artisan migrate --force || true
-- /opt/cpanel/composer/bin/composer dump-autoload -o -d /home/sfcoly/erp-system || true
+    - /opt/cpanel/composer/bin/composer dump-autoload -o -d /home/sfcoly/erp-system || true
     - php /home/sfcoly/erp-system/artisan optimize:clear || true
     - php /home/sfcoly/erp-system/artisan optimize || true
