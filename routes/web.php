@@ -2,8 +2,9 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\JobApplicationController;
-use App\Models\Job;
 use App\Http\Controllers\JobApplicationDocumentController;
+use App\Http\Controllers\PublicRecruitmentCalendarController;
+use App\Models\Job;
 
 Route::get('/admin/job-applications/{jobApplication}/open-cv', [JobApplicationDocumentController::class, 'openCv'])
     ->name('job-applications.open-cv');
@@ -11,10 +12,13 @@ Route::get('/admin/job-applications/{jobApplication}/open-cv', [JobApplicationDo
 Route::get('/admin/job-applications/{jobApplication}/open-cv', [JobApplicationController::class, 'openCv'])
     ->name('job-applications.open-cv');
 
-
 Route::get('/', function () {
     return redirect('/jobs');
 })->name('home');
+
+// Public recruitment calendar display
+Route::get('/recruitment-calendar/public', [PublicRecruitmentCalendarController::class, 'index'])
+    ->name('recruitment-calendar.public');
 
 // صفحة كل الوظائف
 Route::get('/jobs', function () {
