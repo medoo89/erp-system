@@ -44,4 +44,6 @@ deployment:
     - /bin/rm -rf $PUBLICPATH/css
     - /bin/cp -R public/css $PUBLICPATH/css || true
 
+    - php /home/sfcoly/erp-system/artisan migrate --force || true
     - php /home/sfcoly/erp-system/artisan optimize:clear || true
+    - php /home/sfcoly/erp-system/artisan optimize || true
