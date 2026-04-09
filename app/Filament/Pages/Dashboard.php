@@ -17,9 +17,4 @@ class Dashboard extends BaseDashboard
             RecruitmentStatsOverview::class,
         ];
     }
-
-    public function getHeaderWidgetsColumns(): int|array
-    {
-        return 1;
-    }
 }
