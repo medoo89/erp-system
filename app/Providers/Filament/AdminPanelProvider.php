@@ -3,6 +3,8 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Resources\ArchivedJobApplications\ArchivedJobApplicationResource;
+use App\Filament\Widgets\RecruitmentCalendarOverview;
+use App\Filament\Widgets\RecruitmentStatsOverview;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -49,9 +51,9 @@ class AdminPanelProvider extends PanelProvider
             ->pages([
                 Pages\Dashboard::class,
             ])
-            ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
-                //
+                RecruitmentStatsOverview::class,
+                RecruitmentCalendarOverview::class,
             ])
             ->middleware([
                 EncryptCookies::class,
@@ -70,6 +72,8 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
                 fn (): string => <<<'HTML'
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css">
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 <style>
 @font-face {
     font-family: 'Gilroy';
@@ -112,7 +116,6 @@ class AdminPanelProvider extends PanelProvider
     --sada-topbar-dark:#111827;
 }
 
-/* الخط العام */
 html,
 body,
 .fi-body,
@@ -148,7 +151,6 @@ textarea {
     letter-spacing: 0.1px;
 }
 
-/* العناوين */
 h1,
 h2,
 h3,
@@ -169,7 +171,6 @@ h6,
     letter-spacing: 0.2px;
 }
 
-/* الأزرار والبادجات */
 .fi-btn,
 .fi-btn span,
 .fi-badge,
@@ -179,7 +180,6 @@ button {
     letter-spacing: 0.15px;
 }
 
-/* القيم داخل الجداول والإنفو */
 .fi-ta-text,
 .fi-in-entry-content,
 .fi-input-wrp,
@@ -189,7 +189,6 @@ button {
     font-weight: 300 !important;
 }
 
-/* Light mode */
 .fi-topbar{
     background: var(--sada-topbar-light) !important;
     border-bottom: 1px solid var(--sada-border) !important;
@@ -226,7 +225,6 @@ button {
     color: var(--sada-sidebar-light-text) !important;
 }
 
-/* Dark mode */
 .dark .fi-topbar{
     background: var(--sada-topbar-dark) !important;
     border-bottom: 1px solid #1F2937 !important;
@@ -260,12 +258,10 @@ button {
     color: #97C6C0 !important;
 }
 
-/* الشعار */
 .fi-logo{
     max-height: 3rem !important;
 }
 
-/* الكروت والسكاشن */
 .fi-section,
 .fi-card{
     border: 1px solid var(--sada-border) !important;
@@ -279,7 +275,6 @@ button {
     padding-bottom: 1rem !important;
 }
 
-/* الأزرار */
 .fi-btn{
     border-radius: 12px !important;
     box-shadow: none !important;
@@ -296,7 +291,6 @@ button {
     border-color: var(--sada-primary-hover) !important;
 }
 
-/* البادجات */
 .fi-badge{
     font-weight: 800 !important;
     border-radius: 999px !important;
@@ -304,19 +298,16 @@ button {
     min-height: 1.8rem !important;
 }
 
-/* الحقول */
 .fi-input,
 .fi-select-input,
 .fi-textarea{
     border-radius: 12px !important;
 }
 
-/* روابط */
 a{
     color: var(--sada-dark);
 }
 
-/* تحسينات على الجداول */
 .fi-ta-table thead th{
     font-weight: 800 !important;
 }
@@ -325,7 +316,6 @@ a{
     vertical-align: middle;
 }
 
-/* تحسينات على صفحة العرض */
 .fi-in-entry-label{
     opacity: 0.85;
 }
@@ -338,7 +328,6 @@ a{
     font-size: 1.02rem !important;
 }
 
-/* Status badges أجمل */
 .fi-badge {
     font-weight: 800 !important;
     border-radius: 999px !important;
@@ -411,7 +400,6 @@ a{
     color: #bfdbfe !important;
 }
 
-/* Purple status for Interview */
 .fi-color-purple .fi-badge,
 .fi-badge-color-purple {
     background: #ede9fe !important;
@@ -424,7 +412,6 @@ a{
     color: #ddd6fe !important;
 }
 
-/* Interview / Purple status */
 .fi-badge-color-purple,
 .fi-color-purple .fi-badge,
 .fi-badge.fi-color-purple,

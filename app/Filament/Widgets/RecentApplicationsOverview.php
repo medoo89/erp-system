@@ -13,6 +13,11 @@ class RecentApplicationsOverview extends BaseWidget
 
     protected int|string|array $columnSpan = 'full';
 
+    public static function canView(): bool
+    {
+        return false;
+    }
+
     public function table(Table $table): Table
     {
         return $table
@@ -23,24 +28,11 @@ class RecentApplicationsOverview extends BaseWidget
                     ->limit(10)
             )
             ->columns([
-                Tables\Columns\TextColumn::make('full_name')
-                    ->label('Full Name')
-                    ->searchable(),
-
-                Tables\Columns\TextColumn::make('email')
-                    ->label('Email')
-                    ->searchable(),
-
-                Tables\Columns\TextColumn::make('job.title')
-                    ->label('Job'),
-
-                Tables\Columns\TextColumn::make('status')
-                    ->label('Status')
-                    ->badge(),
-
-                Tables\Columns\TextColumn::make('created_at')
-                    ->label('Applied At')
-                    ->dateTime('M j, Y - H:i'),
+                Tables\Columns\TextColumn::make('full_name')->label('Full Name')->searchable(),
+                Tables\Columns\TextColumn::make('email')->label('Email')->searchable(),
+                Tables\Columns\TextColumn::make('job.title')->label('Job'),
+                Tables\Columns\TextColumn::make('status')->label('Status')->badge(),
+                Tables\Columns\TextColumn::make('created_at')->label('Applied At')->dateTime('M j, Y - H:i'),
             ])
             ->paginated(false);
     }
