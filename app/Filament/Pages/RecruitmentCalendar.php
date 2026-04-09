@@ -2,28 +2,22 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\CalendarEvent;
 use App\Models\Job;
-use App\Support\RecruitmentCalendarEvents;
 use Carbon\Carbon;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Auth;
-use App\Models\CalendarEvent;
 
 class RecruitmentCalendar extends Page
 {
     protected string $view = 'filament.pages.recruitment-calendar';
 
     public array $calendarEvents = [];
-
     public array $upcomingTaskGroups = [];
-
     public ?string $selectedDate = null;
-
     public ?string $selectedDateLabel = null;
-
     public array $selectedDateEvents = [];
-
     public bool $showAddEventForm = false;
 
     public array $eventForm = [
@@ -152,7 +146,7 @@ class RecruitmentCalendar extends Page
 
     protected function refreshCalendarData(): void
     {
-        $events = RecruitmentCalendarEvents::make();
+        $events = $this->buildCalendarEvents();
 
         $this->calendarEvents = $events;
         $this->upcomingTaskGroups = $this->buildUpcomingTaskGroups($events);
@@ -179,6 +173,76 @@ class RecruitmentCalendar extends Page
             $this->calendarEvents,
             fn (array $event) => ($event['start'] ?? null) === $date
         ));
+    }
+
+    protected function buildCalendarEvents(): array
+    {
+        $events = [];
+
+        $jobs = Job::query()
+            ->whereNotNull('closing_date')
+            ->where('is_archived', false)
+            ->get();
+
+        foreach ($jobs as $job) {
+            $date = Carbon::parse($job->closing_date)->toDateString();
+
+            $events[] = [
+                'title' => 'Job Expiry: ' . $job->title,
+                'start' => $date,
+                'allDay' => true,
+                'backgroundColor' => '#f59e0b',
+                'borderColor' => '#f59e0b',
+                'textColor' => '#ffffff',
+                'event_type' => 'job_expiry',
+                'sort_date' => $date,
+                'linked_type' => 'job_opening',
+                'linked_id' => $job->id,
+                'job_id' => $job->id,
+                'job_title' => $job->title,
+                'notes' => null,
+                'source' => 'job_opening',
+            ];
+        }
+
+        $manualEvents = CalendarEvent::query()
+            ->with('job')
+            ->where('is_active', true)
+            ->orderBy('event_date')
+            ->get();
+
+        foreach ($manualEvents as $event) {
+            $date = Carbon::parse($event->event_date)->toDateString();
+
+            $events[] = [
+                'title' => $event->title,
+                'start' => $date,
+                'allDay' => true,
+                'backgroundColor' => $event->color ?: '#2563eb',
+                'borderColor' => $event->color ?: '#2563eb',
+                'textColor' => '#ffffff',
+                'event_type' => $event->event_type ?: 'task',
+                'sort_date' => $date,
+                'linked_type' => $event->linked_type ?: 'general',
+                'linked_id' => $event->linked_id,
+                'job_id' => $event->job_id,
+                'job_title' => $event->job?->title,
+                'notes' => $event->notes,
+                'source' => 'manual',
+            ];
+        }
+
+        usort($events, function (array $a, array $b) {
+            $dateCompare = strcmp($a['sort_date'], $b['sort_date']);
+
+            if ($dateCompare !== 0) {
+                return $dateCompare;
+            }
+
+            return strcmp($a['title'], $b['title']);
+        });
+
+        return $events;
     }
 
     protected function buildUpcomingTaskGroups(array $events): array
