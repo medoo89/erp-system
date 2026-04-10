@@ -165,9 +165,25 @@ class JobApplicationResource extends Resource
                                     ->default('-'),
                             ]),
 
-                        Section::make('Job')
+                        Section::make('Position')
                             ->schema([
                                 TextEntry::make('job.title')
+                                    ->hiddenLabel()
+                                    ->weight('bold')
+                                    ->default('-'),
+                            ]),
+
+                        Section::make('Project')
+                            ->schema([
+                                TextEntry::make('job.project.name')
+                                    ->hiddenLabel()
+                                    ->weight('bold')
+                                    ->default('-'),
+                            ]),
+
+                        Section::make('Client')
+                            ->schema([
+                                TextEntry::make('job.project.client.name')
                                     ->hiddenLabel()
                                     ->weight('bold')
                                     ->default('-'),
@@ -181,7 +197,7 @@ class JobApplicationResource extends Resource
                                     ->dateTime('M j, Y - H:i'),
                             ]),
                     ])
-                    ->columns(3)
+                    ->columns(4)
                     ->columnSpanFull(),
 
                 Section::make('Application Answers')

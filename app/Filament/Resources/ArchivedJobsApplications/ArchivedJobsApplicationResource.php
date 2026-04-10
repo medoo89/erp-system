@@ -15,7 +15,7 @@ class ArchivedJobApplicationResource extends Resource
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-archive-box';
 
-    protected static ?string $navigationLabel = 'Archived Job Applications';
+    protected static ?string $navigationLabel = 'Job Applications';
 
     protected static string|\UnitEnum|null $navigationGroup = 'Archive';
 
@@ -24,7 +24,13 @@ class ArchivedJobApplicationResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->where('is_archived', true);
+            ->where('is_archived', true)
+            ->where(function (Builder $query) {
+                $query
+                    ->where('archive_reason', 'declined')
+                    ->orWhere('archive_reason', 'archived_manually')
+                    ->orWhereNull('archive_reason');
+            });
     }
 
     public static function table(Table $table): Table

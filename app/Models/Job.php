@@ -18,6 +18,7 @@ class Job extends Model
         'is_active',
         'closing_date',
         'template_id',
+        'project_id',
 
         // archive fields
         'is_archived',
@@ -46,5 +47,10 @@ class Job extends Model
     public function template()
     {
         return $this->belongsTo(\App\Models\JobApplicationTemplate::class, 'template_id', 'id');
+    }
+
+    public function project()
+    {
+        return $this->belongsTo(\App\Models\Project::class, 'project_id');
     }
 }

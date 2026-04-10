@@ -348,6 +348,17 @@
             display: none !important;
         }
 
+        .recruitment-calendar-card .fc-daygrid-day.selected-calendar-day {
+            background: rgba(59, 130, 246, 0.10) !important;
+            box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.45);
+            border-radius: 12px;
+        }
+
+        .dark .recruitment-calendar-card .fc-daygrid-day.selected-calendar-day {
+            background: rgba(59, 130, 246, 0.16) !important;
+            box-shadow: inset 0 0 0 2px rgba(96, 165, 250, 0.55);
+        }
+
         @media (max-width: 1280px) {
             .recruitment-calendar-layout {
                 grid-template-columns: 1fr;
@@ -383,6 +394,21 @@
         x-data="{
             calendar: null,
             events: @js($calendarEvents),
+            selectedDate: @entangle('selectedDate'),
+            updateSelectedDateHighlight() {
+                if (!this.$refs.calendar) return;
+
+                this.$refs.calendar.querySelectorAll('.fc-daygrid-day').forEach((cell) => {
+                    cell.classList.remove('selected-calendar-day');
+                });
+
+                if (!this.selectedDate) return;
+
+                const cell = this.$refs.calendar.querySelector(`[data-date='${this.selectedDate}']`);
+                if (cell) {
+                    cell.classList.add('selected-calendar-day');
+                }
+            },
             initCalendar() {
                 const boot = () => {
                     if (typeof FullCalendar === 'undefined') {
@@ -415,11 +441,14 @@
                         dayMaxEventRows: 3,
                         events: this.events,
                         dateClick: (info) => {
+                            this.selectedDate = info.dateStr;
                             $wire.onCalendarDateClick(info.dateStr);
+                            setTimeout(() => this.updateSelectedDateHighlight(), 50);
                         },
                     });
 
                     this.calendar.render();
+                    setTimeout(() => this.updateSelectedDateHighlight(), 50);
                 };
 
                 boot();
@@ -431,7 +460,12 @@
                     if (this.calendar) {
                         this.calendar.removeAllEvents();
                         this.calendar.addEventSource(incoming);
+                        setTimeout(() => this.updateSelectedDateHighlight(), 50);
                     }
+                });
+
+                this.$watch('selectedDate', () => {
+                    setTimeout(() => this.updateSelectedDateHighlight(), 30);
                 });
 
                 document.addEventListener('livewire:navigated', () => {

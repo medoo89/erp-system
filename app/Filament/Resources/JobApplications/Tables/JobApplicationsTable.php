@@ -5,7 +5,6 @@ namespace App\Filament\Resources\JobApplications\Tables;
 use App\Filament\Resources\JobApplications\JobApplicationResource;
 use App\Models\Job;
 use App\Models\JobApplication;
-use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\EditAction;
 use Filament\Notifications\Notification;
@@ -19,7 +18,7 @@ class JobApplicationsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn ($query) => $query->with(['job', 'values.field'])->where('is_archived', false))
+            ->modifyQueryUsing(fn ($query) => $query->with(['job.project.client', 'values.field'])->where('is_archived', false))
             ->columns([
                 Tables\Columns\TextColumn::make('full_name')
                     ->label('Full Name')
@@ -27,9 +26,21 @@ class JobApplicationsTable
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('job.title')
-                    ->label('Job')
+                    ->label('Position')
                     ->searchable()
                     ->sortable(),
+
+                Tables\Columns\TextColumn::make('job.project.name')
+                    ->label('Project')
+                    ->searchable()
+                    ->sortable()
+                    ->formatStateUsing(fn ($state) => filled($state) ? $state : '-'),
+
+                Tables\Columns\TextColumn::make('job.project.client.name')
+                    ->label('Client')
+                    ->searchable()
+                    ->sortable()
+                    ->formatStateUsing(fn ($state) => filled($state) ? $state : '-'),
 
                 Tables\Columns\TextColumn::make('years_of_experience_display')
                     ->label('Years of Experience')
@@ -86,7 +97,7 @@ class JobApplicationsTable
                     ]),
 
                 Tables\Filters\SelectFilter::make('job_id')
-                    ->label('Job')
+                    ->label('Position')
                     ->options(
                         Job::query()
                             ->orderBy('title')
@@ -99,7 +110,7 @@ class JobApplicationsTable
                 EditAction::make(),
             ])
             ->headerActions([
-                // intentionally empty
+                //
             ])
             ->bulkActions([
                 BulkAction::make('export_selected_csv')
@@ -108,7 +119,7 @@ class JobApplicationsTable
                     ->icon('heroicon-o-arrow-down-tray')
                     ->action(function (Collection $records): StreamedResponse {
                         $query = JobApplication::query()
-                            ->with(['job', 'values.field'])
+                            ->with(['job.project.client', 'values.field'])
                             ->whereIn('id', $records->pluck('id'));
 
                         return self::streamCsvDownload($query, 'job_applications_selected_' . now()->format('Y_m_d_H_i_s') . '.csv');
@@ -279,7 +290,9 @@ class JobApplicationsTable
                 'Email',
                 'Phone',
                 'WhatsApp',
-                'Job',
+                'Position',
+                'Project',
+                'Client',
                 'Status',
                 'Years of Experience',
                 'Applied At',
@@ -339,6 +352,8 @@ class JobApplicationsTable
                         $application->phone,
                         $application->whatsapp_number,
                         optional($application->job)->title,
+                        optional($application->job?->project)->name,
+                        optional($application->job?->project?->client)->name,
                         $application->status,
                         self::resolveYearsOfExperience($application),
                         optional($application->created_at)?->format('Y-m-d H:i:s'),

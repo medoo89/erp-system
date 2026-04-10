@@ -55,12 +55,12 @@ class PreEmployment extends Model
 
     public function jobApplication()
     {
-        return $this->belongsTo(JobApplication::class);
+        return $this->belongsTo(JobApplication::class, 'job_application_id');
     }
 
     public function job()
     {
-        return $this->belongsTo(Job::class);
+        return $this->belongsTo(Job::class, 'job_id');
     }
 
     public function assignedHrUser()

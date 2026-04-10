@@ -6,6 +6,8 @@ use App\Filament\Resources\ArchivedJobApplications\ArchivedJobApplicationResourc
 use App\Filament\Resources\JobApplications\JobApplicationResource;
 use App\Mail\JobApplicationDeclinedMail;
 use App\Mail\JobApplicationStatusUpdatedMail;
+use App\Mail\PreEmploymentStartedMail;
+use App\Models\PreEmployment;
 use Filament\Actions;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
@@ -13,6 +15,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class ViewJobApplication extends ViewRecord
@@ -54,12 +57,36 @@ class ViewJobApplication extends ViewRecord
                 status: 'qualified',
             ),
 
-            $this->makeStatusAction(
-                name: 'set_hired',
-                label: 'Hired',
-                color: 'success',
-                status: 'hired',
-            ),
+            Actions\Action::make('set_hired')
+                ->label('Hired')
+                ->color('success')
+                ->form([
+                    Toggle::make('create_pre_employment')
+                        ->label('Create Pre-Employment record automatically')
+                        ->default(true),
+
+                    Toggle::make('send_pre_employment_email')
+                        ->label('Send Pre-Employment email notification')
+                        ->default(false)
+                        ->visible(fn (callable $get) => (bool) $get('create_pre_employment')),
+
+                    Placeholder::make('pre_employment_preview')
+                        ->label('Pre-Employment Preview')
+                        ->content(function () {
+                            $jobTitle = optional($this->record->job)->title ?: '-';
+
+                            return "Applicant: {$this->record->full_name}\n"
+                                . "Job: {$jobTitle}\n"
+                                . "Action: Mark as Hired + create Pre-Employment record";
+                        }),
+                ])
+                ->requiresConfirmation()
+                ->modalHeading('Move to Hired')
+                ->modalDescription('This can automatically create a Pre-Employment record and notify the candidate.')
+                ->modalSubmitActionLabel('Confirm')
+                ->action(function (array $data) {
+                    $this->updateStatus('hired', $data);
+                }),
 
             Actions\Action::make('set_declined')
                 ->label('Declined')
@@ -184,6 +211,45 @@ class ViewJobApplication extends ViewRecord
         $this->record->update($data);
         $this->record->refresh();
 
+        if ($status === 'hired' && (bool) ($extraData['create_pre_employment'] ?? false)) {
+            $preEmployment = $this->createOrGetPreEmployment();
+
+            if ((bool) ($extraData['send_pre_employment_email'] ?? false) && filled($this->record->email)) {
+                try {
+                    Mail::to($this->record->email)->queue(
+                        new PreEmploymentStartedMail($preEmployment)
+                    );
+                } catch (\Throwable $e) {
+                    Log::error('Pre-employment email queue failed', [
+                        'job_application_id' => $this->record->id,
+                        'pre_employment_id' => $preEmployment->id ?? null,
+                        'email' => $this->record->email,
+                        'message' => $e->getMessage(),
+                    ]);
+
+                    Notification::make()
+                        ->title('Pre-Employment created, but email could not be queued')
+                        ->warning()
+                        ->send();
+                }
+            }
+
+            $this->record->update([
+                'is_archived' => true,
+                'archive_reason' => 'converted_to_pre_employment',
+                'archived_at' => now(),
+            ]);
+
+            $this->record->refresh();
+
+            Notification::make()
+                ->title('Applicant moved to Hired and converted to Pre-Employment')
+                ->success()
+                ->send();
+
+            return;
+        }
+
         $sendEmail = (bool) ($extraData['send_email'] ?? false);
 
         $this->sendStatusEmailIfNeeded($status, $oldStatus, $sendEmail);
@@ -212,6 +278,27 @@ class ViewJobApplication extends ViewRecord
             ->send();
     }
 
+    protected function createOrGetPreEmployment(): PreEmployment
+    {
+        $existing = PreEmployment::query()
+            ->where('job_application_id', $this->record->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        return PreEmployment::create([
+            'job_application_id' => $this->record->id,
+            'job_id' => $this->record->job_id,
+            'candidate_name' => $this->record->full_name,
+            'candidate_email' => $this->record->email,
+            'candidate_phone' => $this->record->phone ?: $this->record->whatsapp_number,
+            'status' => 'initiated',
+            'notes' => $this->record->notes,
+        ]);
+    }
+
     protected function sendStatusEmailIfNeeded(string $newStatus, ?string $oldStatus = null, bool $sendEmail = false): void
     {
         if ($newStatus === 'screening') {
@@ -230,26 +317,40 @@ class ViewJobApplication extends ViewRecord
             return;
         }
 
-        if ($newStatus === 'declined') {
-            Mail::to($this->record->email)->send(
-                new JobApplicationDeclinedMail(
+        try {
+            if ($newStatus === 'declined') {
+                Mail::to($this->record->email)->queue(
+                    new JobApplicationDeclinedMail(
+                        $this->record,
+                        $this->getDeclineReasonLabel($this->record->decline_reason),
+                        $this->record->decline_notes,
+                    )
+                );
+
+                return;
+            }
+
+            Mail::to($this->record->email)->queue(
+                new JobApplicationStatusUpdatedMail(
                     $this->record,
-                    $this->getDeclineReasonLabel($this->record->decline_reason),
-                    $this->record->decline_notes,
+                    $this->getStatusLabel($newStatus),
+                    $this->getStatusEmailSubject($newStatus),
+                    $this->getStatusEmailMessage($newStatus),
                 )
             );
+        } catch (\Throwable $e) {
+            Log::error('Status email queue failed', [
+                'job_application_id' => $this->record->id,
+                'status' => $newStatus,
+                'email' => $this->record->email,
+                'message' => $e->getMessage(),
+            ]);
 
-            return;
+            Notification::make()
+                ->title('Status updated, but email could not be queued')
+                ->warning()
+                ->send();
         }
-
-        Mail::to($this->record->email)->send(
-            new JobApplicationStatusUpdatedMail(
-                $this->record,
-                $this->getStatusLabel($newStatus),
-                $this->getStatusEmailSubject($newStatus),
-                $this->getStatusEmailMessage($newStatus),
-            )
-        );
     }
 
     protected function getStatusLabel(string $status): string

@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\JobApplicationSubmittedMail;
 use App\Models\Job;
 use App\Models\JobApplication;
 use App\Models\JobApplicationValue;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class JobApplicationController extends Controller
@@ -188,7 +189,7 @@ class JobApplicationController extends Controller
 
             if ($field->field_type === 'checkbox') {
                 $value = $request->has($field->field_key)
-                    ? implode(',', (array) $request->input($field->field_key))
+                    ? implode(', ', (array) $request->input($field->field_key))
                     : null;
             }
 
@@ -219,77 +220,44 @@ class JobApplicationController extends Controller
             ]);
         }
 
-        return redirect()->route('jobs.apply.success', $job);
+        $application->load(['job', 'values.field']);
+
+        $applicationAnswers = $application->values
+            ->filter(function ($value) {
+                return $value->field
+                    && $value->field->field_type !== 'file'
+                    && filled($value->value);
+            })
+            ->map(function ($value) {
+                return [
+                    'label' => $value->field->label ?? '-',
+                    'value' => $value->value,
+                ];
+            })
+            ->values()
+            ->toArray();
+
+        if (filled($application->email)) {
+            try {
+                Mail::to($application->email)->queue(
+                    new JobApplicationSubmittedMail($application, $applicationAnswers)
+                );
+            } catch (\Throwable $e) {
+                \Log::error('Application submitted email queue failed', [
+                    'job_application_id' => $application->id,
+                    'email' => $application->email,
+                    'message' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return redirect()
+            ->route('jobs.apply.success', $job)
+            ->with('application_id', $application->id);
     }
 
     public function success(Job $job)
     {
         return view('jobs.apply-success', compact('job'));
-    }
-
-    public function openCv(JobApplication $jobApplication): RedirectResponse
-    {
-        if (blank($jobApplication->cv_path)) {
-            abort(404, 'CV not found.');
-        }
-
-        $this->moveToScreeningIfNew($jobApplication);
-
-        return redirect(asset('storage/' . $jobApplication->cv_path));
-    }
-
-    public function openPassport(JobApplication $jobApplication): RedirectResponse
-    {
-        $passportPath = $this->getDocumentPath($jobApplication, ['passport_path', 'passport_file']);
-
-        if (blank($passportPath)) {
-            abort(404, 'Passport not found.');
-        }
-
-        $this->moveToScreeningIfNew($jobApplication);
-
-        return redirect(asset('storage/' . $passportPath));
-    }
-
-    public function openCertificates(JobApplication $jobApplication): RedirectResponse
-    {
-        $certificatesPath = $this->getDocumentPath($jobApplication, ['certificates_path', 'certificate_path']);
-
-        if (blank($certificatesPath)) {
-            abort(404, 'Certificates not found.');
-        }
-
-        $this->moveToScreeningIfNew($jobApplication);
-
-        return redirect(asset('storage/' . $certificatesPath));
-    }
-
-    protected function moveToScreeningIfNew(JobApplication $jobApplication): void
-    {
-        if ($jobApplication->status === 'new') {
-            $jobApplication->update([
-                'status' => 'screening',
-            ]);
-        }
-    }
-
-    protected function getDocumentPath(JobApplication $jobApplication, array $fieldKeys): ?string
-    {
-        foreach ($fieldKeys as $fieldKey) {
-            if (! blank($jobApplication->{$fieldKey})) {
-                return $jobApplication->{$fieldKey};
-            }
-        }
-
-        $value = JobApplicationValue::query()
-            ->where('job_application_id', $jobApplication->id)
-            ->whereHas('field', function ($query) use ($fieldKeys) {
-                $query->whereIn('field_key', $fieldKeys);
-            })
-            ->whereNotNull('value')
-            ->orderByDesc('id')
-            ->value('value');
-
-        return $value ?: null;
     }
 }

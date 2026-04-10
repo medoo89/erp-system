@@ -15,6 +15,12 @@ class ListArchivedJobApplications extends ListRecords
     {
         return JobApplication::query()
             ->with(['job', 'values.field'])
-            ->where('is_archived', true);
+            ->where('is_archived', true)
+            ->where(function (Builder $query) {
+                $query
+                    ->where('archive_reason', 'declined')
+                    ->orWhere('archive_reason', 'archived_manually')
+                    ->orWhereNull('archive_reason');
+            });
     }
 }

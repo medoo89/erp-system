@@ -4,11 +4,13 @@ namespace App\Filament\Resources\ArchivedJobApplications\Tables;
 
 use App\Filament\Resources\JobApplications\JobApplicationResource;
 use App\Models\Job;
+use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\DeleteAction;
 use Filament\Notifications\Notification;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
 class ArchivedJobApplicationsTable
@@ -16,33 +18,30 @@ class ArchivedJobApplicationsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn ($query) => $query->with(['job', 'values.field'])->where('is_archived', true))
+            ->modifyQueryUsing(fn (Builder $query) => $query
+                ->with(['job', 'values.field'])
+                ->where('is_archived', true)
+                ->where(function (Builder $subQuery) {
+                    $subQuery
+                        ->where('archive_reason', 'declined')
+                        ->orWhere('archive_reason', 'archived_manually')
+                        ->orWhereNull('archive_reason');
+                }))
             ->columns([
                 Tables\Columns\TextColumn::make('full_name')
-                    ->label('Full Name')
+                    ->label('Candidate')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->weight('bold'),
 
                 Tables\Columns\TextColumn::make('job.title')
                     ->label('Job')
                     ->searchable()
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('status')
-                    ->label('Status')
-                    ->badge()
-                    ->color(fn (?string $state): string => match ($state) {
-                        'declined' => 'danger',
-                        default => 'gray',
-                    })
-                    ->formatStateUsing(fn (?string $state): string => match ($state) {
-                        'declined' => 'Declined',
-                        default => ucfirst(str_replace('_', ' ', (string) $state)),
-                    })
-                    ->sortable(),
+                    ->sortable()
+                    ->formatStateUsing(fn ($state) => filled($state) ? $state : '-'),
 
                 Tables\Columns\TextColumn::make('decline_reason_display')
-                    ->label('Archive Reason')
+                    ->label('Decline Reason')
                     ->getStateUsing(function ($record): string {
                         return match ($record->decline_reason) {
                             'internal_rejected' => 'Internal Rejected',
@@ -84,10 +83,41 @@ class ArchivedJobApplicationsTable
                         };
                     }),
 
+                Tables\Columns\TextColumn::make('decline_notes')
+                    ->label('Decline Notes')
+                    ->limit(60)
+                    ->tooltip(fn ($record) => filled($record->decline_notes) ? $record->decline_notes : null)
+                    ->wrap()
+                    ->formatStateUsing(fn ($state) => filled($state) ? $state : '-')
+                    ->toggleable(),
+
                 Tables\Columns\TextColumn::make('archived_at')
                     ->label('Archived At')
                     ->dateTime('M j, Y H:i')
-                    ->sortable(),
+                    ->sortable()
+                    ->placeholder('-'),
+
+                Tables\Columns\TextColumn::make('archive_reason')
+                    ->label('Archive Type')
+                    ->badge()
+                    ->formatStateUsing(function ($state) {
+                        return match ($state) {
+                            'declined' => 'Declined',
+                            'archived_manually' => 'Archived Manually',
+                            'converted_to_pre_employment' => 'Converted to Pre-Employment',
+                            null, '' => '-',
+                            default => ucfirst(str_replace('_', ' ', (string) $state)),
+                        };
+                    })
+                    ->color(function ($state) {
+                        return match ($state) {
+                            'declined' => 'danger',
+                            'archived_manually' => 'gray',
+                            'converted_to_pre_employment' => 'info',
+                            default => 'gray',
+                        };
+                    })
+                    ->toggleable(),
             ])
             ->recordUrl(fn ($record) => JobApplicationResource::getUrl('view', ['record' => $record]))
             ->filters([
@@ -117,6 +147,27 @@ class ArchivedJobApplicationsTable
                     ]),
             ])
             ->recordActions([
+                Action::make('restore')
+                    ->label('Restore')
+                    ->icon('heroicon-o-arrow-uturn-left')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->action(function ($record) {
+                        $record->update([
+                            'is_archived' => false,
+                            'archive_reason' => null,
+                            'archived_at' => null,
+                            'decline_reason' => null,
+                            'decline_notes' => null,
+                            'status' => 'screening',
+                        ]);
+
+                        Notification::make()
+                            ->title('Job application restored successfully')
+                            ->success()
+                            ->send();
+                    }),
+
                 DeleteAction::make()
                     ->label('Permanent Delete')
                     ->color('danger')

@@ -12,8 +12,7 @@ return new class extends Migration
             $table->id();
 
             $table->foreignId('job_application_id')->nullable()->constrained('job_applications')->nullOnDelete();
-            $table->foreignId('job_id')->nullable()->constrained('jobs')->nullOnDelete();
-
+            $table->foreignId('job_id')->nullable()->constrained('job_openings')->nullOnDelete();
             $table->string('candidate_name');
             $table->string('candidate_email')->nullable();
             $table->string('candidate_phone')->nullable();
