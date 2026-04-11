@@ -2,9 +2,10 @@
 
 namespace App\Filament\Resources\PreEmployments\Tables;
 
+use App\Filament\Resources\PreEmployments\PreEmploymentResource;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
 use Filament\Tables;
 use Filament\Tables\Table;
 
@@ -14,6 +15,7 @@ class PreEmploymentsTable
     {
         return $table
             ->defaultSort('id', 'desc')
+            ->recordUrl(fn ($record) => PreEmploymentResource::getUrl('view', ['record' => $record]))
             ->columns([
                 Tables\Columns\TextColumn::make('candidate_name')
                     ->label('Candidate')
@@ -90,7 +92,7 @@ class PreEmploymentsTable
                 //
             ])
             ->recordActions([
-                EditAction::make(),
+                ViewAction::make(),
             ])
             ->bulkActions([
                 BulkActionGroup::make([

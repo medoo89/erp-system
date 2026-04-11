@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\JobApplicationController;
 use App\Http\Controllers\JobApplicationDocumentController;
 use App\Http\Controllers\PublicRecruitmentCalendarController;
+use App\Http\Controllers\PreEmploymentPortalController;
 use App\Models\Job;
 
 Route::get('/admin/job-applications/{jobApplication}/open-cv', [JobApplicationDocumentController::class, 'openCv'])
@@ -19,6 +20,13 @@ Route::get('/', function () {
 // Public recruitment calendar display
 Route::get('/recruitment-calendar/public', [PublicRecruitmentCalendarController::class, 'index'])
     ->name('recruitment-calendar.public');
+
+// Public pre-employment portal
+Route::get('/pre-employment/portal/{token}', [PreEmploymentPortalController::class, 'show'])
+    ->name('pre-employment.portal.show');
+
+Route::post('/pre-employment/portal/{token}', [PreEmploymentPortalController::class, 'submit'])
+    ->name('pre-employment.portal.submit');
 
 // صفحة كل الوظائف
 Route::get('/jobs', function () {

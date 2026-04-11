@@ -2,17 +2,16 @@
 
 namespace App\Filament\Resources\PreEmployments\Schemas;
 
-use App\Models\Job;
-use App\Models\JobApplication;
 use App\Models\User;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Illuminate\Support\HtmlString;
 
 class PreEmploymentForm
 {
@@ -20,97 +19,36 @@ class PreEmploymentForm
     {
         return $schema
             ->components([
-                Section::make('Candidate & Position')
+                Section::make('Overview')
                     ->schema([
-                        Select::make('job_application_id')
-                            ->label('Job Application')
-                            ->options(
-                                JobApplication::query()
-                                    ->with(['job.project.client'])
-                                    ->orderByDesc('id')
-                                    ->get()
-                                    ->mapWithKeys(function (JobApplication $application) {
-                                        $position = $application->job?->title ?: '-';
-                                        $project = $application->job?->project?->name ?: null;
-                                        $client = $application->job?->project?->client?->name ?: null;
+                        Placeholder::make('overview_candidate')
+                            ->label('Candidate')
+                            ->content(fn ($record) => $record?->candidate_name ?: '-'),
 
-                                        $label = '#' . $application->id . ' - ' . $application->full_name;
-
-                                        if ($position) {
-                                            $label .= ' / ' . $position;
-                                        }
-
-                                        if ($client || $project) {
-                                            $label .= ' / ' . trim(($client ? $client . ' / ' : '') . ($project ?: ''), ' /');
-                                        }
-
-                                        return [$application->id => $label];
-                                    })
-                                    ->toArray()
-                            )
-                            ->searchable()
-                            ->preload()
-                            ->reactive()
-                            ->afterStateUpdated(function ($state, callable $set) {
-                                if (! $state) {
-                                    return;
-                                }
-
-                                $application = JobApplication::with(['job.project.client'])->find($state);
-
-                                if (! $application) {
-                                    return;
-                                }
-
-                                $set('job_id', $application->job_id);
-                                $set('candidate_name', $application->full_name);
-                                $set('candidate_email', $application->email);
-                                $set('candidate_phone', $application->phone ?: $application->whatsapp_number);
-                            }),
-
-                        Select::make('job_id')
+                        Placeholder::make('overview_position')
                             ->label('Position')
-                            ->options(
-                                Job::query()
-                                    ->with(['project.client'])
-                                    ->orderBy('title')
-                                    ->get()
-                                    ->mapWithKeys(function (Job $job) {
-                                        $label = $job->title;
+                            ->content(fn ($record) => $record?->job?->title ?: '-'),
 
-                                        if ($job->project?->name) {
-                                            $label .= ' / ' . $job->project->name;
-                                        }
+                        Placeholder::make('overview_project')
+                            ->label('Project')
+                            ->content(fn ($record) => $record?->job?->project?->name ?: '-'),
 
-                                        if ($job->project?->client?->name) {
-                                            $label = $job->project->client->name . ' / ' . $label;
-                                        }
+                        Placeholder::make('overview_client')
+                            ->label('Client')
+                            ->content(fn ($record) => $record?->job?->project?->client?->name ?: '-'),
 
-                                        return [$job->id => $label];
-                                    })
-                                    ->toArray()
-                            )
-                            ->searchable()
-                            ->preload(),
+                        Placeholder::make('overview_status')
+                            ->label('Current Status')
+                            ->content(fn ($record) => self::label($record?->status)),
 
-                        TextInput::make('candidate_name')
-                            ->label('Candidate Name')
-                            ->required()
-                            ->maxLength(255),
-
-                        TextInput::make('candidate_email')
-                            ->label('Email')
-                            ->email()
-                            ->maxLength(255),
-
-                        TextInput::make('candidate_phone')
-                            ->label('Phone')
-                            ->tel()
-                            ->maxLength(255),
+                        Placeholder::make('overview_officer')
+                            ->label('Operation Officer')
+                            ->content(fn ($record) => $record?->assignedHrUser?->name ?: '-'),
                     ])
-                    ->columns(2),
+                    ->columns(3)
+                    ->columnSpanFull(),
 
-                Section::make('Process Overview')
+                Section::make('Process Control')
                     ->schema([
                         Select::make('status')
                             ->label('Status')
@@ -128,7 +66,6 @@ class PreEmploymentForm
                                 'ready_for_employment' => 'Ready for Employment',
                                 'converted_to_employment' => 'Converted to Employment',
                                 'declined' => 'Declined',
-                                'archived' => 'Archived',
                             ])
                             ->native(false),
 
@@ -141,27 +78,56 @@ class PreEmploymentForm
                                     ->toArray()
                             )
                             ->searchable()
-                            ->preload(),
+                            ->preload()
+                            ->native(false),
 
-                        Placeholder::make('portal_token_display')
-                            ->label('Candidate Portal Token')
-                            ->content(fn ($record) => $record?->portal_token ?: 'Will be generated automatically after save'),
+                        Placeholder::make('portal_link_box')
+                            ->label('Public Link')
+                            ->content(function ($record) {
+                                if (! $record?->portal_token) {
+                                    return new HtmlString('<span style="color:#64748b;">Will be available after save.</span>');
+                                }
+
+                                $url = url('/pre-employment/portal/' . $record->portal_token);
+                                $escapedUrl = e($url);
+
+                                return new HtmlString(
+                                    '<div style="
+                                        border:1px solid #dbe3ee;
+                                        background:#f8fafc;
+                                        border-radius:14px;
+                                        padding:14px;
+                                        line-height:1.6;
+                                    ">
+                                        <div style="
+                                            font-size:12px;
+                                            color:#64748b;
+                                            margin-bottom:8px;
+                                            font-weight:600;
+                                        ">Candidate portal link</div>
+                                        <div style="
+                                            word-break:break-word;
+                                            font-size:14px;
+                                            color:#0f172a;
+                                        ">' . $escapedUrl . '</div>
+                                    </div>'
+                                );
+                            })
+                            ->columnSpanFull(),
+
+                        Placeholder::make('portal_last_sent_at_display')
+                            ->label('Last Sent')
+                            ->content(fn ($record) => $record?->portal_last_sent_at?->format('M j, Y H:i') ?: '-'),
+
+                        Placeholder::make('portal_last_submitted_at_display')
+                            ->label('Last Submitted')
+                            ->content(fn ($record) => $record?->portal_last_submitted_at?->format('M j, Y H:i') ?: '-'),
                     ])
-                    ->columns(2),
+                    ->columns(3)
+                    ->columnSpanFull(),
 
-                Section::make('Commercial & Process Details')
+                Section::make('Client Tracking')
                     ->schema([
-                        TextInput::make('expected_rate')
-                            ->label('Expected Rate / Salary')
-                            ->maxLength(255),
-
-                        TextInput::make('final_rate')
-                            ->label('Final Approved Rate / Salary')
-                            ->maxLength(255),
-
-                        DatePicker::make('availability_date')
-                            ->label('Availability Date'),
-
                         Select::make('contract_status')
                             ->label('Contract Status')
                             ->options([
@@ -173,6 +139,64 @@ class PreEmploymentForm
                             ])
                             ->native(false),
 
+                        Select::make('caf_status')
+                            ->label('CAF Status')
+                            ->options([
+                                'not_started' => 'Not Started',
+                                'draft' => 'Draft',
+                                'sent' => 'Sent',
+                                'received_signed' => 'Received Signed',
+                                'approved' => 'Approved',
+                            ])
+                            ->native(false),
+
+                        FileUpload::make('caf_file_path')
+                            ->label('CAF File')
+                            ->disk('public')
+                            ->directory(fn ($record) => 'pre-employment/' . ($record?->id ?: 'draft') . '/client')
+                            ->downloadable()
+                            ->openable()
+                            ->acceptedFileTypes([
+                                'application/pdf',
+                                'image/png',
+                                'image/jpeg',
+                                'image/jpg',
+                            ]),
+
+                        Select::make('gl_status')
+                            ->label('General Letter Status')
+                            ->options([
+                                'not_started' => 'Not Started',
+                                'draft' => 'Draft',
+                                'sent' => 'Sent',
+                                'received_signed' => 'Received Signed',
+                                'approved' => 'Approved',
+                            ])
+                            ->native(false),
+
+                        FileUpload::make('gl_file_path')
+                            ->label('General Letter File')
+                            ->disk('public')
+                            ->directory(fn ($record) => 'pre-employment/' . ($record?->id ?: 'draft') . '/client')
+                            ->downloadable()
+                            ->openable()
+                            ->acceptedFileTypes([
+                                'application/pdf',
+                                'image/png',
+                                'image/jpeg',
+                                'image/jpg',
+                            ]),
+
+                        Textarea::make('client_tracking_notes')
+                            ->label('Client Tracking Notes')
+                            ->rows(4)
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(2)
+                    ->columnSpanFull(),
+
+                Section::make('Candidate Tracking')
+                    ->schema([
                         Select::make('medical_status')
                             ->label('Medical Status')
                             ->options([
@@ -204,9 +228,32 @@ class PreEmploymentForm
                                 'cancelled' => 'Cancelled',
                             ])
                             ->native(false),
+
+                        DatePicker::make('availability_date')
+                            ->label('Availability Date'),
+
+                        Textarea::make('candidate_tracking_notes')
+                            ->label('Candidate Tracking Notes')
+                            ->rows(4)
+                            ->columnSpanFull(),
                     ])
                     ->columns(2)
-                    ->collapsed(),
+                    ->columnSpanFull(),
+
+                Section::make('Commercial')
+                    ->schema([
+                        TextInput::make('expected_rate')
+                            ->label('Expected Rate / Salary')
+                            ->maxLength(255),
+
+                        TextInput::make('final_rate')
+                            ->label('Final Approved Rate / Salary')
+                            ->maxLength(255),
+                    ])
+                    ->columns(2)
+                    ->visible(fn () => self::canSeeCommercial())
+                    ->collapsed()
+                    ->columnSpanFull(),
 
                 Section::make('Notes')
                     ->schema([
@@ -217,53 +264,47 @@ class PreEmploymentForm
 
                         Textarea::make('internal_notes')
                             ->label('Internal Notes')
-                            ->rows(5)
+                            ->rows(6)
                             ->columnSpanFull(),
                     ])
-                    ->collapsed(),
-
-                Section::make('Decline & Archive')
-                    ->schema([
-                        Toggle::make('is_declined')
-                            ->label('Declined')
-                            ->live(),
-
-                        Select::make('decline_reason')
-                            ->label('Decline Reason')
-                            ->options([
-                                'internal_rejected' => 'Internal Rejected',
-                                'client_rejected' => 'Rejected by Client',
-                                'candidate_withdrew' => 'Candidate Withdrew',
-                                'candidate_unresponsive' => 'Candidate Unresponsive',
-                                'failed_documentation' => 'Failed Documentation',
-                                'failed_medical' => 'Failed Medical',
-                                'visa_rejected' => 'Visa Rejected',
-                                'travel_issue' => 'Travel Issue',
-                                'salary_not_agreed' => 'Salary Not Agreed',
-                                'contract_not_agreed' => 'Contract Not Agreed',
-                                'position_closed' => 'Position Closed',
-                                'other' => 'Other',
-                            ])
-                            ->native(false)
-                            ->visible(fn (callable $get) => (bool) $get('is_declined')),
-
-                        Textarea::make('decline_notes')
-                            ->label('Decline Notes')
-                            ->rows(4)
-                            ->columnSpanFull()
-                            ->visible(fn (callable $get) => (bool) $get('is_declined')),
-
-                        Toggle::make('is_archived')
-                            ->label('Archived')
-                            ->live(),
-
-                        TextInput::make('archive_reason')
-                            ->label('Archive Reason')
-                            ->maxLength(255)
-                            ->visible(fn (callable $get) => (bool) $get('is_archived')),
-                    ])
-                    ->columns(2)
-                    ->collapsed(),
+                    ->columnSpanFull(),
             ]);
+    }
+
+    protected static function label(?string $value): string
+    {
+        return match ($value) {
+            'initiated' => 'Initiated',
+            'under_preparation' => 'Under Preparation',
+            'awaiting_candidate_upload' => 'Awaiting Candidate Upload',
+            'documents_under_review' => 'Documents Under Review',
+            'additional_documents_required' => 'Additional Documents Required',
+            'pending_medical' => 'Pending Medical',
+            'pending_visa' => 'Pending Visa',
+            'pending_travel' => 'Pending Travel',
+            'ready_for_employment' => 'Ready for Employment',
+            'converted_to_employment' => 'Converted to Employment',
+            'declined' => 'Declined',
+            default => $value ? ucfirst(str_replace('_', ' ', $value)) : '-',
+        };
+    }
+
+    protected static function canSeeCommercial(): bool
+    {
+        $user = auth()->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        if (method_exists($user, 'hasAnyRole')) {
+            return $user->hasAnyRole(['admin', 'finance']);
+        }
+
+        if (method_exists($user, 'hasRole')) {
+            return $user->hasRole('admin') || $user->hasRole('finance');
+        }
+
+        return true;
     }
 }

@@ -15,6 +15,9 @@ class PreEmployment extends Model
         'candidate_phone',
         'status',
         'portal_token',
+        'portal_status',
+        'portal_last_sent_at',
+        'portal_last_submitted_at',
         'availability_date',
         'expected_rate',
         'final_rate',
@@ -22,6 +25,12 @@ class PreEmployment extends Model
         'medical_status',
         'visa_status',
         'travel_status',
+        'caf_status',
+        'caf_file_path',
+        'gl_status',
+        'gl_file_path',
+        'client_tracking_notes',
+        'candidate_tracking_notes',
         'assigned_hr_user_id',
         'notes',
         'internal_notes',
@@ -36,6 +45,8 @@ class PreEmployment extends Model
     ];
 
     protected $casts = [
+        'portal_last_sent_at' => 'datetime',
+        'portal_last_submitted_at' => 'datetime',
         'availability_date' => 'date',
         'is_declined' => 'boolean',
         'declined_at' => 'datetime',
@@ -49,6 +60,10 @@ class PreEmployment extends Model
         static::creating(function (self $preEmployment) {
             if (blank($preEmployment->portal_token)) {
                 $preEmployment->portal_token = Str::random(64);
+            }
+
+            if (blank($preEmployment->portal_status)) {
+                $preEmployment->portal_status = 'not_sent';
             }
         });
     }
@@ -76,5 +91,23 @@ class PreEmployment extends Model
     public function uploads()
     {
         return $this->hasMany(PreEmploymentUpload::class);
+    }
+
+    public function portalFields()
+    {
+        return $this->hasMany(PreEmploymentPortalField::class)
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
+
+    public function portalValues()
+    {
+        return $this->hasMany(PreEmploymentPortalValue::class);
+    }
+
+    public function files()
+    {
+        return $this->hasMany(PreEmploymentFile::class)
+            ->latest();
     }
 }

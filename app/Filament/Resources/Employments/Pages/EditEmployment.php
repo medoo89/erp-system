@@ -1,20 +1,20 @@
 <?php
 
-namespace App\Filament\Resources\PreEmployments\Pages;
+namespace App\Filament\Resources\Employments\Pages;
 
-use App\Filament\Resources\PreEmployments\PreEmploymentResource;
+use App\Filament\Resources\Employments\EmploymentResource;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 
-class EditPreEmployment extends EditRecord
+class EditEmployment extends EditRecord
 {
-    protected static string $resource = PreEmploymentResource::class;
+    protected static string $resource = EmploymentResource::class;
 
     public function getTitle(): string
     {
-        return 'Edit Pre-Employment Profile';
+        return 'Edit Employment Profile';
     }
 
     protected function getHeaderActions(): array
@@ -23,7 +23,7 @@ class EditPreEmployment extends EditRecord
             Action::make('backToProfile')
                 ->label('Back to Profile')
                 ->color('gray')
-                ->url(fn () => PreEmploymentResource::getUrl('view', ['record' => $this->record])),
+                ->url(fn () => EmploymentResource::getUrl('view', ['record' => $this->record])),
 
             Action::make('saveChanges')
                 ->label('Save Changes')
@@ -43,7 +43,6 @@ class EditPreEmployment extends EditRecord
 
             DeleteAction::make()
                 ->label('Delete')
-                ->color('danger')
                 ->requiresConfirmation()
                 ->modalHeading('Permanent delete')
                 ->modalDescription('This record will be permanently deleted and cannot be recovered. Are you sure?')
