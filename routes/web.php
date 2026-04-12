@@ -11,8 +11,11 @@ use App\Models\Job as JobModel;
 use App\Models\PreEmployment;
 use App\Services\CodeGeneratorService;
 use App\Http\Controllers\EmploymentPrintController;
+use App\Http\Controllers\JobApplicationDocumentController;
 
-
+Route::get('/admin/job-applications/{jobApplication}/open-cv', [JobApplicationDocumentController::class, 'openCv'])
+    ->name('job-applications.open-cv');
+    
 Route::get('/employment/{employment}/print-profile', [EmploymentPrintController::class, 'profile'])
     ->name('employment.print.profile');
 
