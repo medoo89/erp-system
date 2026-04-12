@@ -354,6 +354,11 @@ class EmploymentResource extends Resource
                             ->default('-')
                             ->weight('bold'),
 
+                        TextEntry::make('employee_code')
+                            ->label('Employee Code')
+                            ->default('-')
+                            ->weight('bold'),
+
                         TextEntry::make('position_title')
                             ->label('Position')
                             ->default('-')

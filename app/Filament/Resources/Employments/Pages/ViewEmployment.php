@@ -13,12 +13,26 @@ class ViewEmployment extends ViewRecord
 
     public function getTitle(): string
     {
-        return 'Employment Profile';
+        $name = $this->record?->employee_name ?: 'Employee';
+
+        return "Employment Profile — {$name}";
     }
 
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('printProfile')
+                ->label('Print Profile')
+                ->color('gray')
+                ->url(fn () => route('employment.print.profile', ['employment' => $this->record]))
+                ->openUrlInNewTab(),
+
+            Action::make('printRotationHistory')
+                ->label('Print Rotation History')
+                ->color('gray')
+                ->url(fn () => route('employment.print.rotation-history', ['employment' => $this->record]))
+                ->openUrlInNewTab(),
+
             Action::make('editProfile')
                 ->label('Edit')
                 ->color('primary')

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\CodeGeneratorService;
 use Illuminate\Database\Eloquent\Model;
 
 class Client extends Model
@@ -25,6 +26,23 @@ class Client extends Model
         'is_archived' => 'boolean',
         'archived_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $client) {
+            if (blank($client->code) && filled($client->name)) {
+                $client->code = app(CodeGeneratorService::class)
+                    ->generateClientCode($client->name);
+            }
+        });
+
+        static::updating(function (self $client) {
+            if (blank($client->code) && filled($client->name)) {
+                $client->code = app(CodeGeneratorService::class)
+                    ->generateClientCode($client->name, $client->id);
+            }
+        });
+    }
 
     public function projects()
     {

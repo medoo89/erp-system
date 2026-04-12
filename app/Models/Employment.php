@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\CodeGeneratorService;
 use Illuminate\Database\Eloquent\Model;
 
 class Employment extends Model
@@ -53,6 +54,53 @@ class Employment extends Model
         'demobilization_date' => 'date',
         'converted_from_pre_employment_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $employment) {
+            if (filled($employment->employee_code)) {
+                return;
+            }
+
+            if ($employment->pre_employment_id) {
+                $preEmployment = PreEmployment::find($employment->pre_employment_id);
+
+                if ($preEmployment?->employee_code) {
+                    $employment->employee_code = $preEmployment->employee_code;
+                }
+            }
+
+            if (blank($employment->employee_code) && $employment->job_id) {
+                $job = Job::with('project.client')->find($employment->job_id);
+
+                if (! $job) {
+                    return;
+                }
+
+                $clientCode = $job->project?->client?->code;
+
+                $projectCode = $job->project?->project_code
+                    ?: $job->project?->code;
+
+                if (blank($projectCode) && filled($job->project?->name)) {
+                    $projectCode = app(CodeGeneratorService::class)
+                        ->generateProjectCode($job->project->name, $job->project->client_id, $job->project->id);
+
+                    $job->project->project_code = $projectCode;
+                    $job->project->save();
+                }
+
+                if ($clientCode && $projectCode) {
+                    $employment->employee_code = app(CodeGeneratorService::class)
+                        ->generateEmployeeCode($clientCode, $projectCode);
+                }
+
+                $employment->position_title = $employment->position_title ?: $job->title;
+                $employment->project_name = $employment->project_name ?: $job->project?->name;
+                $employment->client_name = $employment->client_name ?: $job->project?->client?->name;
+            }
+        });
+    }
 
     public function preEmployment()
     {

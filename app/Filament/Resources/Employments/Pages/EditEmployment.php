@@ -14,7 +14,9 @@ class EditEmployment extends EditRecord
 
     public function getTitle(): string
     {
-        return 'Edit Employment Profile';
+        $name = $this->record?->employee_name ?: 'Employee';
+
+        return "Edit Employment Profile — {$name}";
     }
 
     protected function getHeaderActions(): array

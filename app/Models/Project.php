@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\CodeGeneratorService;
 use Illuminate\Database\Eloquent\Model;
 
 class Project extends Model
@@ -9,12 +10,9 @@ class Project extends Model
     protected $fillable = [
         'client_id',
         'name',
+        'project_code',
         'code',
         'location',
-        'site_type',
-        'status',
-        'start_date',
-        'end_date',
         'description',
         'notes',
         'is_active',
@@ -24,12 +22,27 @@ class Project extends Model
     ];
 
     protected $casts = [
-        'start_date' => 'date',
-        'end_date' => 'date',
         'is_active' => 'boolean',
         'is_archived' => 'boolean',
         'archived_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $project) {
+            if (blank($project->project_code) && filled($project->name)) {
+                $project->project_code = app(CodeGeneratorService::class)
+                    ->generateProjectCode($project->name, $project->client_id);
+            }
+        });
+
+        static::updating(function (self $project) {
+            if (blank($project->project_code) && filled($project->name)) {
+                $project->project_code = app(CodeGeneratorService::class)
+                    ->generateProjectCode($project->name, $project->client_id, $project->id);
+            }
+        });
+    }
 
     public function client()
     {
@@ -38,6 +51,6 @@ class Project extends Model
 
     public function jobs()
     {
-        return $this->hasMany(Job::class, 'project_id');
+        return $this->hasMany(Job::class);
     }
 }

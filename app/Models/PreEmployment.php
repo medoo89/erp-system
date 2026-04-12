@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\CodeGeneratorService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
@@ -13,6 +14,7 @@ class PreEmployment extends Model
         'candidate_name',
         'candidate_email',
         'candidate_phone',
+        'employee_code',
         'status',
         'portal_token',
         'portal_status',
@@ -65,6 +67,24 @@ class PreEmployment extends Model
             if (blank($preEmployment->portal_status)) {
                 $preEmployment->portal_status = 'not_sent';
             }
+
+            if (filled($preEmployment->employee_code) || blank($preEmployment->job_id)) {
+                return;
+            }
+
+            $job = Job::with('project.client')->find($preEmployment->job_id);
+
+            if (! $job) {
+                return;
+            }
+
+            $clientCode = $job->project?->client?->code;
+            $projectCode = $job->project?->project_code;
+
+            if ($clientCode && $projectCode) {
+                $preEmployment->employee_code = app(CodeGeneratorService::class)
+                    ->generateEmployeeCode($clientCode, $projectCode);
+            }
         });
     }
 
@@ -107,7 +127,6 @@ class PreEmployment extends Model
 
     public function files()
     {
-        return $this->hasMany(PreEmploymentFile::class)
-            ->latest();
+        return $this->hasMany(PreEmploymentFile::class)->latest();
     }
 }

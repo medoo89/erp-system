@@ -2,7 +2,9 @@
 
 namespace App\Filament\Resources\Employments\Schemas;
 
+use App\Models\Job;
 use App\Models\User;
+use App\Services\CodeGeneratorService;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
@@ -35,19 +37,78 @@ class EmploymentForm
 
                         TextInput::make('employee_code')
                             ->label('Employee Code')
-                            ->maxLength(255),
+                            ->readOnly()
+                            ->dehydrated()
+                            ->helperText('Generated automatically from Sada Fezzan + Client Code + Project Code + Sequence.'),
+
+                        Select::make('job_id')
+                            ->label('Position / Job')
+                            ->options(function () {
+                                return Job::query()
+                                    ->with(['project.client'])
+                                    ->orderBy('title')
+                                    ->get()
+                                    ->mapWithKeys(function ($job) {
+                                        $client = $job->project?->client?->name ?: '-';
+                                        $project = $job->project?->name ?: '-';
+
+                                        return [
+                                            $job->id => "{$job->title} — {$client} / {$project}",
+                                        ];
+                                    })
+                                    ->toArray();
+                            })
+                            ->searchable()
+                            ->preload()
+                            ->native(false)
+                            ->live()
+                            ->required(fn ($record) => blank($record))
+                            ->visible(fn ($record) => blank($record))
+                            ->dehydrated(fn ($record) => blank($record))
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                if (! $state) {
+                                    $set('position_title', null);
+                                    $set('client_name', null);
+                                    $set('project_name', null);
+                                    $set('employee_code', null);
+                                    return;
+                                }
+
+                                $job = Job::with('project.client')->find($state);
+
+                                if (! $job) {
+                                    return;
+                                }
+
+                                $set('position_title', $job->title);
+                                $set('client_name', $job->project?->client?->name);
+                                $set('project_name', $job->project?->name);
+
+                                $clientCode = $job->project?->client?->code;
+                                $projectCode = $job->project?->project_code ?: $job->project?->code;
+
+                                if ($clientCode && $projectCode) {
+                                    $set(
+                                        'employee_code',
+                                        app(CodeGeneratorService::class)->generateEmployeeCode($clientCode, $projectCode)
+                                    );
+                                }
+                            }),
 
                         TextInput::make('position_title')
                             ->label('Position')
-                            ->maxLength(255),
+                            ->readOnly()
+                            ->dehydrated(),
 
                         TextInput::make('client_name')
                             ->label('Client')
-                            ->maxLength(255),
+                            ->readOnly()
+                            ->dehydrated(),
 
                         TextInput::make('project_name')
                             ->label('Project')
-                            ->maxLength(255),
+                            ->readOnly()
+                            ->dehydrated(),
 
                         Select::make('assigned_hr_user_id')
                             ->label('Operation Officer')
@@ -59,12 +120,34 @@ class EmploymentForm
                             )
                             ->searchable()
                             ->preload()
-                            ->native(false),
+                            ->native(false)
+                            ->live()
+                            ->afterStateHydrated(function ($state, callable $set, $record) {
+                                if (blank($record?->operation_officer_name) && filled($state)) {
+                                    $user = User::find($state);
+
+                                    if ($user) {
+                                        $set('operation_officer_name', $user->name);
+                                    }
+                                }
+                            })
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                if (! $state) {
+                                    $set('operation_officer_name', null);
+                                    return;
+                                }
+
+                                $user = User::find($state);
+
+                                if ($user) {
+                                    $set('operation_officer_name', $user->name);
+                                }
+                            }),
 
                         TextInput::make('operation_officer_name')
                             ->label('Operation Officer Name')
-                            ->maxLength(255)
-                            ->helperText('Stored text snapshot from conversion or can be adjusted manually.'),
+                            ->readOnly()
+                            ->dehydrated(),
                     ])
                     ->columns(3)
                     ->columnSpanFull(),
