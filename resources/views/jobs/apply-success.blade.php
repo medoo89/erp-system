@@ -258,8 +258,8 @@
         </p>
 
         <div class="actions">
-            <a href="/jobs" class="btn btn-primary">Browse Jobs</a>
-            <a href="/" class="btn btn-secondary">Home</a>
+            <a href="{{ \App\Support\PublicUrl::route('jobs.index') }}" class="btn btn-primary">Browse Jobs</a>
+            <a href="{{ rtrim(config('app.public_app_url'), '/') }}/" class="btn btn-secondary">Home</a>
         </div>
     </div>
 </div>

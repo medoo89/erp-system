@@ -137,8 +137,8 @@
         <p>{{ $job->requirements ?: 'No requirements available.' }}</p>
 
         <div class="actions">
-            <a class="btn-primary" href="{{ route('jobs.apply', $job) }}">Apply for this Job</a>
-            <a class="btn-secondary" href="{{ route('jobs.index') }}">Back to Jobs</a>
+            <a class="btn-primary" href="{{ \App\Support\PublicUrl::route('jobs.apply', ['job' => $job]) }}">Apply for this Job</a>
+            <a class="btn-secondary" href="{{ \App\Support\PublicUrl::route('jobs.index') }}">Back to Jobs</a>
         </div>
     </div>
 </div>

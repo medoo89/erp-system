@@ -59,7 +59,7 @@
                         No application fields are connected to this job yet.
                     </div>
                 @else
-                    <form method="POST" action="{{ route('jobs.apply.store', $job) }}" enctype="multipart/form-data" id="applicationForm">
+                    <form method="POST" action="{{ \App\Support\PublicUrl::route('jobs.apply.store', ['job' => $job]) }}" enctype="multipart/form-data" id="applicationForm">
                         @csrf
 
                         @php
@@ -75,7 +75,7 @@
                     </form>
                 @endif
 
-                <a class="back-link" href="/jobs">← Back to Jobs</a>
+                <a class="back-link" href="{{ \App\Support\PublicUrl::route('jobs.index') }}">← Back to Jobs</a>
             </div>
         </div>
     </div>

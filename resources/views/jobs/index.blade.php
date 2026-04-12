@@ -114,7 +114,7 @@
                         <div><strong>Employment Type:</strong> {{ ucfirst(str_replace('_', ' ', $job->employment_type)) }}</div>
                     </div>
 
-                    <a class="job-link" href="{{ route('jobs.show', $job) }}">View Details</a>
+                    <a class="job-link" href="{{ \App\Support\PublicUrl::route('jobs.show', ['job' => $job]) }}">View Details</a>
                 </div>
             @endforeach
         </div>

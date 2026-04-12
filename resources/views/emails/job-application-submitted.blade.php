@@ -1,5 +1,5 @@
 @php
-    $logoUrl = rtrim(config('app.url'), '/') . '/images/sada-horizontal.png';
+    $logoUrl = rtrim(config('app.public_app_url'), '/') . '/images/sada-horizontal.png';
     $jobTitle = optional($jobApplication->job)->title ?? '-';
 @endphp
 
