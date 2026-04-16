@@ -1,41 +1,43 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Submission Received</title>
-</head>
-<body style="margin:0;padding:0;background:#f4f7fb;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
-    <div style="padding:32px 20px;">
-        <div style="max-width:760px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:20px;overflow:hidden;">
-            <div style="padding:28px 32px;background:#f9fafb;border-bottom:1px solid #e5e7eb;">
-                <h1 style="margin:0;font-size:30px;color:#0f172a;">Submission Received</h1>
-            </div>
+@include('emails.partials.premium-layout', [
+    'mailEyebrow' => 'Submission Received',
+    'mailTitle' => 'We Received Your Pre-Employment Submission',
+    'mailIntro' => 'Your pre-employment information has been submitted successfully and is now under review by our team.',
+    'mailBadgeText' => 'Submission Confirmed',
+    'mailButtonText' => 'View Portal',
+    'mailButtonUrl' => $portalUrl,
+    'mailFooter' => 'Sada Fezzan Pre-Employment Team',
+])
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+        <tr>
+            <td>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#fbfdfe;border:1px solid #e6edf1;border-radius:20px;">
+                    <tr>
+                        <td style="padding:20px;">
+                            <p style="margin:0 0 10px 0;font-size:15px;line-height:1.8;color:#18212b;">
+                                <strong>Name:</strong> {{ $preEmployment->candidate_name ?? optional($preEmployment->jobApplication)->full_name ?? 'Candidate' }}
+                            </p>
 
-            <div style="padding:32px;">
-                <p style="margin:0 0 18px 0;font-size:16px;line-height:1.8;">
-                    Dear {{ $preEmployment->candidate_name ?: 'Candidate' }},
+                            @if(optional($preEmployment->jobApplication?->job)->title)
+                                <p style="margin:0 0 10px 0;font-size:15px;line-height:1.8;color:#18212b;">
+                                    <strong>Position:</strong> {{ optional($preEmployment->jobApplication?->job)->title }}
+                                </p>
+                            @endif
+
+                            @if($preEmployment->status ?? false)
+                                <p style="margin:0;font-size:15px;line-height:1.8;color:#18212b;">
+                                    <strong>Status:</strong> {{ ucfirst(str_replace('_', ' ', $preEmployment->status)) }}
+                                </p>
+                            @endif
+                        </td>
+                    </tr>
+                </table>
+
+                <div style="height:18px;"></div>
+
+                <p style="margin:0;font-size:15px;line-height:1.9;color:#334155;">
+                    We will contact you if any clarification, correction, or additional document is required.
                 </p>
-
-                <p style="margin:0 0 20px 0;font-size:16px;line-height:1.8;color:#334155;">
-                    Thank you for submitting your required documents and information.
-                    We have received your submission and our team will review it.
-                </p>
-
-                <p style="margin:0 0 20px 0;font-size:16px;line-height:1.8;color:#334155;">
-                    If additional updates are required, we will contact you.
-                </p>
-
-                <div style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:14px;padding:16px 18px;margin-bottom:22px;word-break:break-word;">
-                    {{ $portalUrl }}
-                </div>
-
-                <p style="margin:24px 0 0 0;font-size:15px;line-height:1.8;color:#334155;">
-                    Best regards,<br>
-                    <strong>Sada Fezzan Recruitment Team</strong>
-                </p>
-            </div>
-        </div>
-    </div>
-</body>
-</html>
+            </td>
+        </tr>
+    </table>
+@endinclude

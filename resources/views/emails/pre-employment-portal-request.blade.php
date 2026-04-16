@@ -1,81 +1,44 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pre-Employment Portal</title>
-</head>
-<body style="margin:0;padding:0;background:#f4f7fb;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
-    <div style="padding:32px 20px;">
-        <div style="max-width:760px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:20px;overflow:hidden;">
-            <div style="padding:28px 32px;background:#f9fafb;border-bottom:1px solid #e5e7eb;">
-                <h1 style="margin:0;font-size:30px;color:#0f172a;">Pre-Employment Portal</h1>
-                <p style="margin:10px 0 0 0;color:#64748b;line-height:1.7;">
-                    {{ $isUpdateRequest ? 'Additional requirements were added to your profile.' : 'Please complete your required pre-employment documents.' }}
+@include('emails.partials.premium-layout', [
+    'mailEyebrow' => 'Portal Access',
+    'mailTitle' => $isUpdateRequest ? 'Additional Pre-Employment Requirements' : 'Access Your Pre-Employment Portal',
+    'mailIntro' => $isUpdateRequest
+        ? 'Please log in to your pre-employment portal and provide the additional requested information or documents.'
+        : 'Your pre-employment portal is now ready. Please use the secure link below to review and submit the required information.',
+    'mailBadgeText' => 'Secure Candidate Portal',
+    'mailButtonText' => 'Open Portal',
+    'mailButtonUrl' => $portalUrl,
+    'mailFooter' => 'Sada Fezzan Pre-Employment Team',
+])
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+        <tr>
+            <td>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#fbfdfe;border:1px solid #e6edf1;border-radius:20px;">
+                    <tr>
+                        <td style="padding:20px;">
+                            <p style="margin:0 0 10px 0;font-size:15px;line-height:1.8;color:#18212b;">
+                                <strong>Name:</strong> {{ $preEmployment->candidate_name ?? optional($preEmployment->jobApplication)->full_name ?? 'Candidate' }}
+                            </p>
+
+                            @if(optional($preEmployment->jobApplication?->job)->title)
+                                <p style="margin:0 0 10px 0;font-size:15px;line-height:1.8;color:#18212b;">
+                                    <strong>Position:</strong> {{ optional($preEmployment->jobApplication?->job)->title }}
+                                </p>
+                            @endif
+
+                            <p style="margin:0;font-size:15px;line-height:1.8;color:#18212b;">
+                                <strong>Portal Link:</strong><br>
+                                <a href="{{ $portalUrl }}" style="color:#26b6b7;word-break:break-all;">{{ $portalUrl }}</a>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+
+                <div style="height:18px;"></div>
+
+                <p style="margin:0;font-size:15px;line-height:1.9;color:#334155;">
+                    Please make sure all submitted information is accurate and complete. This helps us process your onboarding steps faster and more efficiently.
                 </p>
-            </div>
-
-            <div style="padding:32px;">
-                <p style="margin:0 0 18px 0;font-size:16px;line-height:1.8;">
-                    Dear {{ $preEmployment->candidate_name ?: 'Candidate' }},
-                </p>
-
-                <p style="margin:0 0 20px 0;font-size:16px;line-height:1.8;color:#334155;">
-                    @if($isUpdateRequest)
-                        Please open your portal and complete the newly added or updated requirements.
-                    @else
-                        Please open your portal and submit the requested information and documents required for your pre-employment process.
-                    @endif
-                </p>
-
-                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:18px 20px;margin-bottom:22px;">
-                    <div style="margin-bottom:10px;font-size:14px;color:#64748b;">Candidate</div>
-                    <div style="font-size:18px;font-weight:700;color:#0f172a;margin-bottom:14px;">
-                        {{ $preEmployment->candidate_name ?: '-' }}
-                    </div>
-
-                    <div style="margin-bottom:10px;font-size:14px;color:#64748b;">Position</div>
-                    <div style="font-size:16px;font-weight:700;color:#0f172a;margin-bottom:14px;">
-                        {{ $preEmployment->job?->title ?: '-' }}
-                    </div>
-
-                    <div style="margin-bottom:10px;font-size:14px;color:#64748b;">Project / Client</div>
-                    <div style="font-size:16px;font-weight:700;color:#0f172a;">
-                        {{ $preEmployment->job?->project?->client?->name ?: '-' }}
-                        @if($preEmployment->job?->project?->name)
-                            / {{ $preEmployment->job->project->name }}
-                        @endif
-                    </div>
-                </div>
-
-                <div style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:14px;padding:16px 18px;margin-bottom:22px;line-height:1.8;">
-                    @if($isUpdateRequest)
-                        New requirements have been added to your profile. Please use the same portal link below to complete the requested items.
-                    @else
-                        Please use the portal link below to complete your required documents and information.
-                    @endif
-                </div>
-
-                <div style="margin-bottom:26px;">
-                    <a href="{{ $portalUrl }}" target="_blank" style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;padding:14px 22px;border-radius:12px;font-size:15px;font-weight:700;">
-                        Open Portal
-                    </a>
-                </div>
-
-                <div style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:14px;padding:16px 18px;margin-bottom:22px;word-break:break-word;">
-                    {{ $portalUrl }}
-                </div>
-
-                <p style="margin:0 0 12px 0;font-size:15px;line-height:1.8;color:#334155;">
-                    After you submit your documents, our team will review them and contact you if any further updates are required.
-                </p>
-
-                <p style="margin:24px 0 0 0;font-size:15px;line-height:1.8;color:#334155;">
-                    Best regards,<br>
-                    <strong>Sada Fezzan Recruitment Team</strong>
-                </p>
-            </div>
-        </div>
-    </div>
-</body>
-</html>
+            </td>
+        </tr>
+    </table>
+@endinclude

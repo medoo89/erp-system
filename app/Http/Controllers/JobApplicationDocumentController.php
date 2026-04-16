@@ -17,6 +17,8 @@ class JobApplicationDocumentController extends Controller
             abort(404, 'CV file does not exist on storage.');
         }
 
-        return redirect(Storage::disk('public')->url($jobApplication->cv_path));
+        $fullPath = Storage::disk('public')->path($jobApplication->cv_path);
+
+        return response()->download($fullPath);
     }
 }

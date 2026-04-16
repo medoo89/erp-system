@@ -2,8 +2,7 @@
 
 namespace App\Filament\Widgets;
 
-use App\Models\CalendarEvent;
-use App\Models\Job;
+use App\Support\RecruitmentCalendarEvents;
 use Carbon\Carbon;
 use Filament\Widgets\Widget;
 
@@ -13,59 +12,55 @@ class RecruitmentCalendarOverview extends Widget
 
     protected int|string|array $columnSpan = 'full';
 
-    protected static ?int $sort = 1;
+    protected static ?int $sort = 3;
 
-    protected function getViewData(): array
+    public function getViewData(): array
     {
+        $events = RecruitmentCalendarEvents::make();
+
         return [
-            'calendarEvents' => $this->getCalendarEvents(),
+            'calendarEvents' => $events,
+            'todayLabel' => now()->format('l, d M Y'),
+            'upcomingTaskGroups' => $this->buildUpcomingTaskGroups($events),
         ];
     }
 
-    protected function getCalendarEvents(): array
+    protected function buildUpcomingTaskGroups(array $events): array
     {
-        $events = [];
+        $today = Carbon::today();
+        $until = Carbon::today()->addDays(30);
 
-        $jobs = Job::query()
-            ->whereNotNull('closing_date')
-            ->where('is_archived', false)
-            ->get();
+        $filtered = array_filter($events, function (array $event) use ($today, $until) {
+            if (empty($event['start'])) {
+                return false;
+            }
 
-        foreach ($jobs as $job) {
-            $date = Carbon::parse($job->closing_date)->toDateString();
+            $date = Carbon::parse($event['start']);
 
-            $events[] = [
-                'title' => 'Job Expiry: ' . $job->title,
-                'start' => $date,
-                'allDay' => true,
-                'backgroundColor' => '#f59e0b',
-                'borderColor' => '#f59e0b',
-                'textColor' => '#ffffff',
-            ];
-        }
-
-        $manualEvents = CalendarEvent::query()
-            ->where('is_active', true)
-            ->orderBy('event_date')
-            ->get();
-
-        foreach ($manualEvents as $event) {
-            $date = Carbon::parse($event->event_date)->toDateString();
-
-            $events[] = [
-                'title' => $event->title,
-                'start' => $date,
-                'allDay' => true,
-                'backgroundColor' => $event->color ?: '#2563eb',
-                'borderColor' => $event->color ?: '#2563eb',
-                'textColor' => '#ffffff',
-            ];
-        }
-
-        usort($events, function (array $a, array $b) {
-            return strcmp($a['start'], $b['start']);
+            return $date->betweenIncluded($today, $until);
         });
 
-        return $events;
+        $groups = [];
+
+        foreach ($filtered as $event) {
+            $dateKey = Carbon::parse($event['start'])->toDateString();
+
+            if (! isset($groups[$dateKey])) {
+                $groups[$dateKey] = [
+                    'date' => $dateKey,
+                    'label' => Carbon::parse($dateKey)->format('D, d M Y'),
+                    'items' => [],
+                ];
+            }
+
+            $groups[$dateKey]['items'][] = [
+                'title' => $event['title'],
+                'backgroundColor' => $event['backgroundColor'] ?? '#94a3b8',
+                'job_title' => $event['job_title'] ?? null,
+                'notes' => $event['notes'] ?? null,
+            ];
+        }
+
+        return array_values($groups);
     }
 }

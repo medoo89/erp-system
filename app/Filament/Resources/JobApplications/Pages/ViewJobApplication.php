@@ -4,25 +4,431 @@ namespace App\Filament\Resources\JobApplications\Pages;
 
 use App\Filament\Resources\ArchivedJobApplications\ArchivedJobApplicationResource;
 use App\Filament\Resources\JobApplications\JobApplicationResource;
+use App\Mail\CandidateRequestMail;
 use App\Mail\JobApplicationDeclinedMail;
 use App\Mail\JobApplicationStatusUpdatedMail;
 use App\Mail\PreEmploymentStartedMail;
 use App\Models\PreEmployment;
 use Filament\Actions;
+use Filament\Actions\ActionGroup;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class ViewJobApplication extends ViewRecord
 {
     protected static string $resource = JobApplicationResource::class;
 
-    protected function getHeaderActions(): array
+    protected string $view = 'filament.resources.job-applications.pages.view-job-application';
+
+    public ?int $activeNegotiationRequestId = null;
+    public ?int $activeFinalOfferRequestId = null;
+    public ?string $newOfferSalary = null;
+    public ?string $newOfferCurrency = 'USD';
+    public ?string $newOfferNotes = null;
+
+    public function getCandidateRequestsProperty(): Collection
+    {
+        return $this->record->candidateRequests()
+            ->with('items')
+            ->latest()
+            ->get();
+    }
+
+    public function deleteCandidateRequest(int $requestId): void
+    {
+        $candidateRequest = $this->record->candidateRequests()
+            ->whereKey($requestId)
+            ->first();
+
+        if (! $candidateRequest) {
+            Notification::make()
+                ->title('Request not found')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $candidateRequest->delete();
+
+        $this->record->refresh();
+
+        Notification::make()
+            ->title('Candidate request deleted successfully')
+            ->success()
+            ->send();
+    }
+
+    public function resendCandidateRequestEmail(int $requestId): void
+    {
+        $candidateRequest = $this->record->candidateRequests()
+            ->with('items', 'jobApplication.job')
+            ->whereKey($requestId)
+            ->first();
+
+        if (! $candidateRequest) {
+            Notification::make()
+                ->title('Request not found')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        if (blank($this->record->email)) {
+            Notification::make()
+                ->title('Candidate email is missing')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        try {
+            $portalUrl = rtrim(config('app.public_app_url') ?: config('app.url'), '/') . '/candidate-request/' . $candidateRequest->public_token;
+
+            Mail::to($this->record->email)->send(
+                new CandidateRequestMail(
+                    $candidateRequest->fresh()->load('items', 'jobApplication.job'),
+                    $portalUrl
+                )
+            );
+
+            Notification::make()
+                ->title('Candidate request email resent successfully')
+                ->success()
+                ->send();
+        } catch (\Throwable $e) {
+            Log::error('Candidate request resend email failed', [
+                'job_application_id' => $this->record->id,
+                'candidate_request_id' => $candidateRequest->id,
+                'email' => $this->record->email,
+                'message' => $e->getMessage(),
+            ]);
+
+            Notification::make()
+                ->title('Could not resend request email')
+                ->danger()
+                ->send();
+        }
+    }
+
+    protected function getCandidateRequestById(int $requestId)
+    {
+        return $this->record->candidateRequests()
+            ->whereKey($requestId)
+            ->where('type', 'salary_negotiation')
+            ->first();
+    }
+
+    protected function decodeCandidateResponse($candidateRequest): array
+    {
+        $decoded = json_decode((string) $candidateRequest->candidate_response, true);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    protected function appendThreadEntry($candidateRequest, array $entry): array
+    {
+        $decoded = $this->decodeCandidateResponse($candidateRequest);
+
+        $thread = is_array($decoded['thread'] ?? null)
+            ? $decoded['thread']
+            : [];
+
+        if (empty($thread)) {
+            $thread[] = [
+                'sender' => 'hr',
+                'event' => 'request_created',
+                'title' => $candidateRequest->title,
+                'message' => $candidateRequest->notes,
+                'salary' => $candidateRequest->proposed_salary,
+                'currency' => $candidateRequest->currency,
+                'created_at' => optional($candidateRequest->created_at)?->toDateTimeString(),
+            ];
+        }
+
+        $entry['created_at'] = $entry['created_at'] ?? now()->toDateTimeString();
+        $thread[] = $entry;
+
+        $decoded['thread'] = $thread;
+
+        return $decoded;
+    }
+
+    protected function sendCandidateRequestStatusEmail($candidateRequest): void
+    {
+        if (blank($this->record->email)) {
+            return;
+        }
+
+        try {
+            $portalUrl = rtrim(config('app.public_app_url') ?: config('app.url'), '/') . '/candidate-request/' . $candidateRequest->public_token;
+
+            Mail::to($this->record->email)->send(
+                new CandidateRequestMail(
+                    $candidateRequest->fresh()->load('items', 'jobApplication.job'),
+                    $portalUrl
+                )
+            );
+        } catch (\Throwable $e) {
+            Log::error('Candidate request status email failed', [
+                'job_application_id' => $this->record->id,
+                'candidate_request_id' => $candidateRequest->id,
+                'email' => $this->record->email,
+                'message' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function approveNegotiationRequest(int $requestId): void
+    {
+        $candidateRequest = $this->getCandidateRequestById($requestId);
+
+        if (! $candidateRequest) {
+            Notification::make()
+                ->title('Negotiation request not found')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $decoded = $this->appendThreadEntry($candidateRequest, [
+            'sender' => 'hr',
+            'event' => 'approved',
+            'message' => 'HR approved the negotiation.',
+            'salary' => $candidateRequest->proposed_salary,
+            'currency' => $candidateRequest->currency,
+        ]);
+
+        $candidateRequest->update([
+            'request_status' => 'accepted',
+            'candidate_response' => json_encode($decoded, JSON_UNESCAPED_UNICODE),
+            'accepted_salary' => $candidateRequest->proposed_salary,
+            'accepted_currency' => $candidateRequest->currency,
+            'negotiation_result' => 'accepted',
+        ]);
+
+        $this->record->update([
+            'candidate_request_status' => 'request_completed',
+        ]);
+
+        $this->sendCandidateRequestStatusEmail($candidateRequest);
+
+        $this->record->refresh();
+
+        Notification::make()
+            ->title('Negotiation approved successfully')
+            ->success()
+            ->send();
+    }
+
+    public function declineNegotiationRequest(int $requestId): void
+    {
+        $candidateRequest = $this->getCandidateRequestById($requestId);
+
+        if (! $candidateRequest) {
+            Notification::make()
+                ->title('Negotiation request not found')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $decoded = $this->appendThreadEntry($candidateRequest, [
+            'sender' => 'hr',
+            'event' => 'declined',
+            'message' => 'HR declined the negotiation due to salary not accepted.',
+            'salary' => $candidateRequest->proposed_salary,
+            'currency' => $candidateRequest->currency,
+        ]);
+
+        $candidateRequest->update([
+            'request_status' => 'declined',
+            'candidate_response' => json_encode($decoded, JSON_UNESCAPED_UNICODE),
+            'negotiation_result' => 'salary_not_accepted',
+        ]);
+
+        $this->record->update([
+            'candidate_request_status' => 'response_received',
+        ]);
+
+        $this->sendCandidateRequestStatusEmail($candidateRequest);
+
+        $this->record->refresh();
+
+        Notification::make()
+            ->title('Negotiation declined successfully')
+            ->success()
+            ->send();
+    }
+
+    public function startNewOffer(int $requestId): void
+    {
+        $candidateRequest = $this->getCandidateRequestById($requestId);
+
+        if (! $candidateRequest) {
+            Notification::make()
+                ->title('Negotiation request not found')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $this->activeNegotiationRequestId = $candidateRequest->id;
+        $this->activeFinalOfferRequestId = null;
+        $this->newOfferSalary = $candidateRequest->proposed_salary ? (string) $candidateRequest->proposed_salary : null;
+        $this->newOfferCurrency = $candidateRequest->currency ?: 'USD';
+        $this->newOfferNotes = null;
+    }
+
+    public function startFinalOffer(int $requestId): void
+    {
+        $candidateRequest = $this->getCandidateRequestById($requestId);
+
+        if (! $candidateRequest) {
+            Notification::make()
+                ->title('Negotiation request not found')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $this->activeFinalOfferRequestId = $candidateRequest->id;
+        $this->activeNegotiationRequestId = null;
+        $this->newOfferSalary = $candidateRequest->proposed_salary ? (string) $candidateRequest->proposed_salary : null;
+        $this->newOfferCurrency = $candidateRequest->currency ?: 'USD';
+        $this->newOfferNotes = null;
+    }
+
+    public function cancelNewOffer(): void
+    {
+        $this->activeNegotiationRequestId = null;
+        $this->activeFinalOfferRequestId = null;
+        $this->newOfferSalary = null;
+        $this->newOfferCurrency = 'USD';
+        $this->newOfferNotes = null;
+    }
+
+    public function sendNewNegotiationOffer(int $requestId): void
+    {
+        $candidateRequest = $this->getCandidateRequestById($requestId);
+
+        if (! $candidateRequest) {
+            Notification::make()
+                ->title('Negotiation request not found')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $this->validate([
+            'newOfferSalary' => ['required', 'numeric'],
+            'newOfferCurrency' => ['required', 'string', 'max:10'],
+            'newOfferNotes' => ['nullable', 'string'],
+        ]);
+
+        $decoded = $this->appendThreadEntry($candidateRequest, [
+            'sender' => 'hr',
+            'event' => 'new_offer',
+            'message' => $this->newOfferNotes,
+            'salary' => $this->newOfferSalary,
+            'currency' => $this->newOfferCurrency,
+        ]);
+
+        $candidateRequest->update([
+            'proposed_salary' => $this->newOfferSalary,
+            'currency' => $this->newOfferCurrency,
+            'request_status' => 'pending',
+            'responded_at' => null,
+            'candidate_response' => json_encode($decoded, JSON_UNESCAPED_UNICODE),
+            'is_final_offer' => false,
+        ]);
+
+        $this->record->update([
+            'candidate_request_status' => 'awaiting_response',
+        ]);
+
+        $this->sendCandidateRequestStatusEmail($candidateRequest);
+
+        $this->cancelNewOffer();
+        $this->record->refresh();
+
+        Notification::make()
+            ->title('New negotiation offer sent successfully')
+            ->success()
+            ->send();
+    }
+
+    public function sendFinalNegotiationOffer(int $requestId): void
+    {
+        $candidateRequest = $this->getCandidateRequestById($requestId);
+
+        if (! $candidateRequest) {
+            Notification::make()
+                ->title('Negotiation request not found')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $this->validate([
+            'newOfferSalary' => ['required', 'numeric'],
+            'newOfferCurrency' => ['required', 'string', 'max:10'],
+            'newOfferNotes' => ['nullable', 'string'],
+        ]);
+
+        $decoded = $this->appendThreadEntry($candidateRequest, [
+            'sender' => 'hr',
+            'event' => 'final_offer',
+            'message' => $this->newOfferNotes ?: 'This is the final offer from HR.',
+            'salary' => $this->newOfferSalary,
+            'currency' => $this->newOfferCurrency,
+        ]);
+
+        $candidateRequest->update([
+            'proposed_salary' => $this->newOfferSalary,
+            'currency' => $this->newOfferCurrency,
+            'request_status' => 'pending',
+            'responded_at' => null,
+            'candidate_response' => json_encode($decoded, JSON_UNESCAPED_UNICODE),
+            'is_final_offer' => true,
+        ]);
+
+        $this->record->update([
+            'candidate_request_status' => 'awaiting_response',
+        ]);
+
+        $this->sendCandidateRequestStatusEmail($candidateRequest);
+
+        $this->cancelNewOffer();
+        $this->record->refresh();
+
+        Notification::make()
+            ->title('Final negotiation offer sent successfully')
+            ->success()
+            ->send();
+    }
+        protected function getHeaderActions(): array
     {
         $isArchived = (bool) ($this->record->is_archived ?? false);
 
@@ -137,9 +543,300 @@ class ViewJobApplication extends ViewRecord
                 }),
         ];
 
-        $baseActions = [
-            Actions\EditAction::make(),
+        $requestAction = Actions\Action::make('create_candidate_request')
+            ->label('Create Request')
+            ->icon('heroicon-o-document-text')
+            ->color('primary')
+            ->form([
+                Select::make('type')
+                    ->label('Request Type')
+                    ->required()
+                    ->options([
+                        'document_request' => 'Document Request',
+                        'missing_certificates' => 'Missing Certificates',
+                        'passport_copy_request' => 'Passport Copy Request',
+                        'experience_certificates_request' => 'Experience Certificates Request',
+                        'salary_negotiation' => 'Salary Negotiation',
+                        'availability_confirmation' => 'Availability Confirmation',
+                        'offer_clarification' => 'Offer Clarification',
+                        'general_special_request' => 'General Special Request',
+                        'other' => 'Other',
+                    ])
+                    ->live(),
 
+                TextInput::make('title')
+                    ->label('Request Title')
+                    ->required()
+                    ->maxLength(255),
+
+                Textarea::make('notes')
+                    ->label('Notes / Instructions')
+                    ->rows(5),
+
+                DatePicker::make('due_date')
+                    ->label('Due Date'),
+
+                Toggle::make('send_email')
+                    ->label('Send email to candidate')
+                    ->default(true),
+
+                Placeholder::make('request_items_help')
+                    ->label('Request Items Info')
+                    ->content('For salary negotiation, request items are optional. You can send salary only, or salary + files/notes in the same request.'),
+
+                Repeater::make('request_items')
+                    ->label('Request Items')
+                    ->defaultItems(0)
+                    ->reorderable(false)
+                    ->collapsible()
+                    ->addActionLabel('Add Another Request')
+                    ->schema([
+                        Select::make('item_type')
+                            ->label('Item Type')
+                            ->required()
+                            ->default('file')
+                            ->options([
+                                'file' => 'File Upload',
+                                'note' => 'Information / Note',
+                            ])
+                            ->live(),
+
+                        TextInput::make('label')
+                            ->label('Item Title / Label')
+                            ->required()
+                            ->placeholder('Example: ATEX Certificate or Salary Expectation'),
+
+                        Select::make('file_format')
+                            ->label('File Format')
+                            ->options([
+                                'pdf' => 'PDF',
+                                'image' => 'Image',
+                                'pdf_or_image' => 'PDF or Image',
+                                'document' => 'Document',
+                                'other' => 'Other',
+                            ])
+                            ->visible(fn (callable $get) => ($get('item_type') ?? 'file') === 'file'),
+
+                        Toggle::make('is_required')
+                            ->label('Required')
+                            ->default(true),
+
+                        Toggle::make('allow_multiple')
+                            ->label('Allow Multiple Uploads')
+                            ->default(false)
+                            ->visible(fn (callable $get) => ($get('item_type') ?? 'file') === 'file'),
+
+                        Textarea::make('notes')
+                            ->label('Item Notes')
+                            ->rows(3),
+                    ])
+                    ->columns(2),
+
+                Placeholder::make('salary_internal_note')
+                    ->label('Salary Negotiation')
+                    ->content('Use these fields when you want negotiation only, or negotiation together with request items.')
+                    ->visible(fn (callable $get) => in_array($get('type'), ['salary_negotiation'], true)),
+
+                TextInput::make('proposed_salary')
+                    ->label('Proposed Salary')
+                    ->numeric()
+                    ->visible(fn (callable $get) => in_array($get('type'), ['salary_negotiation'], true)),
+
+                Select::make('currency')
+                          ->label('Currency')
+                          ->options([
+                             'USD' => 'US Dollar (USD)',
+                             'EUR' => 'Euro (EUR)',
+                             'GBP' => 'British Pound (GBP)',
+                          'LYD' => 'Libyan Dinar (LYD)',
+                 ])
+    ->default('USD')
+    ->searchable()
+    ->required()
+    ->visible(fn (callable $get) => in_array($get('type'), ['salary_negotiation'], true)),
+                Toggle::make('requires_approval')
+                    ->label('Requires Candidate Approval')
+                    ->default(true)
+                    ->visible(fn (callable $get) => in_array($get('type'), ['salary_negotiation'], true)),
+            ])
+            ->modalHeading('Create Candidate Request')
+            ->modalSubmitActionLabel('Create Request')
+            ->action(function (array $data): void {
+                $requestItems = collect($data['request_items'] ?? [])
+                    ->filter(fn ($item) => filled($item['label'] ?? null))
+                    ->values()
+                    ->all();
+
+                $isSalaryNegotiation = ($data['type'] ?? null) === 'salary_negotiation';
+                $hasSalaryValue = filled($data['proposed_salary'] ?? null);
+                $hasRequestItems = count($requestItems) > 0;
+
+                if ($isSalaryNegotiation && ! $hasSalaryValue && ! $hasRequestItems) {
+                    Notification::make()
+                        ->title('For salary negotiation, add a proposed salary or at least one request item.')
+                        ->danger()
+                        ->send();
+
+                    return;
+                }
+
+                if (! $isSalaryNegotiation && ! $hasRequestItems) {
+                    Notification::make()
+                        ->title('Please add at least one request item for this request type.')
+                        ->danger()
+                        ->send();
+
+                    return;
+                }
+
+                $hasFileItems = collect($requestItems)
+                    ->contains(fn ($item) => ($item['item_type'] ?? 'file') === 'file');
+
+                $request = $this->record->candidateRequests()->create([
+                    'type' => $data['type'],
+                    'title' => $data['title'],
+                    'notes' => $data['notes'] ?? null,
+                    'request_status' => 'pending',
+                    'due_date' => $data['due_date'] ?? null,
+                    'requires_upload' => $hasFileItems,
+                    'proposed_salary' => $data['proposed_salary'] ?? null,
+                    'currency' => $data['currency'] ?? null,
+                    'requires_approval' => (bool) ($data['requires_approval'] ?? false),
+                    'created_by' => Auth::id(),
+                    'public_token' => (string) Str::uuid(),
+                    'is_final_offer' => false,
+                ]);
+
+                foreach ($requestItems as $index => $item) {
+                    $request->items()->create([
+                        'item_type' => $item['item_type'] ?? 'file',
+                        'label' => $item['label'],
+                        'file_format' => ($item['item_type'] ?? 'file') === 'file'
+                            ? ($item['file_format'] ?? null)
+                            : null,
+                        'is_required' => (bool) ($item['is_required'] ?? false),
+                        'allow_multiple' => (bool) ($item['allow_multiple'] ?? false),
+                        'notes' => $item['notes'] ?? null,
+                        'sort_order' => $index + 1,
+                    ]);
+                }
+
+                $decoded = [
+                    'thread' => [[
+                        'sender' => 'hr',
+                        'event' => 'request_created',
+                        'title' => $request->title,
+                        'message' => $request->notes,
+                        'salary' => $request->proposed_salary,
+                        'currency' => $request->currency,
+                        'created_at' => optional($request->created_at)?->toDateTimeString(),
+                    ]],
+                    'uploaded_files' => [],
+                    'note_responses' => [],
+                ];
+
+                $request->update([
+                    'candidate_response' => json_encode($decoded, JSON_UNESCAPED_UNICODE),
+                ]);
+
+                $this->record->update([
+                    'candidate_request_status' => 'awaiting_response',
+                ]);
+
+                if ((bool) ($data['send_email'] ?? false) && filled($this->record->email)) {
+                    try {
+                        $portalUrl = rtrim(config('app.public_app_url') ?: config('app.url'), '/') . '/candidate-request/' . $request->public_token;
+
+                        Mail::to($this->record->email)->send(
+                            new CandidateRequestMail($request->fresh()->load('items', 'jobApplication.job'), $portalUrl)
+                        );
+                    } catch (\Throwable $e) {
+                        Log::error('Candidate request email send failed', [
+                            'job_application_id' => $this->record->id,
+                            'candidate_request_id' => $request->id,
+                            'email' => $this->record->email,
+                            'message' => $e->getMessage(),
+                        ]);
+
+                        Notification::make()
+                            ->title('Request created, but email could not be sent')
+                            ->warning()
+                            ->send();
+                    }
+                }
+
+                $this->record->refresh();
+
+                Notification::make()
+                    ->title('Candidate request created successfully')
+                    ->success()
+                    ->send();
+            });
+
+        $deleteCandidateRequestAction = Actions\Action::make('deleteCandidateRequestAction')
+            ->label('Delete Candidate Request')
+            ->color('danger')
+            ->icon('heroicon-o-trash')
+            ->visible(false)
+            ->form([
+                Hidden::make('request_id'),
+
+                Toggle::make('confirm_delete')
+                    ->label('I understand and want to delete this request')
+                    ->required()
+                    ->accepted(),
+            ])
+            ->mountUsing(function ($form, array $arguments) {
+                $form->fill([
+                    'request_id' => $arguments['request_id'] ?? null,
+                ]);
+            })
+            ->requiresConfirmation()
+            ->modalHeading('Delete Candidate Request')
+            ->modalDescription('Do you want to delete this request? This action cannot be undone.')
+            ->modalSubmitActionLabel('Yes, Delete')
+            ->action(function (array $data): void {
+                $requestId = $data['request_id'] ?? null;
+
+                if (! $requestId) {
+                    Notification::make()
+                        ->title('Request not found')
+                        ->danger()
+                        ->send();
+
+                    return;
+                }
+
+                if (! ($data['confirm_delete'] ?? false)) {
+                    return;
+                }
+
+                $candidateRequest = $this->record->candidateRequests()
+                    ->whereKey($requestId)
+                    ->first();
+
+                if (! $candidateRequest) {
+                    Notification::make()
+                        ->title('Request not found')
+                        ->danger()
+                        ->send();
+
+                    return;
+                }
+
+                $candidateRequest->delete();
+
+                $this->record->refresh();
+
+                Notification::make()
+                    ->title('Candidate request deleted successfully')
+                    ->success()
+                    ->send();
+            });
+
+        $moreActions = ActionGroup::make([
+            $requestAction,
+            Actions\EditAction::make(),
             Actions\DeleteAction::make()
                 ->label('Delete')
                 ->color('danger')
@@ -147,6 +844,15 @@ class ViewJobApplication extends ViewRecord
                 ->modalHeading('Delete Application')
                 ->modalDescription('Are you sure you want to permanently delete this application?')
                 ->modalSubmitActionLabel('Yes, Delete'),
+        ])
+            ->label('More')
+            ->icon('heroicon-o-ellipsis-horizontal')
+            ->button()
+            ->color('gray');
+
+        $baseActions = [
+            $deleteCandidateRequestAction,
+            $moreActions,
         ];
 
         if ($isArchived) {
@@ -181,7 +887,7 @@ class ViewJobApplication extends ViewRecord
             ])
             ->requiresConfirmation()
             ->modalHeading("Move to {$label}")
-            ->modalDescription("Review the action and choose whether to send an email notification.")
+            ->modalDescription('Review the action and choose whether to send an email notification.')
             ->modalSubmitActionLabel('Confirm')
             ->action(function (array $data) use ($status) {
                 $this->updateStatus($status, $data);
@@ -247,11 +953,10 @@ class ViewJobApplication extends ViewRecord
                 ->success()
                 ->send();
 
-            return;
+                return;
         }
 
         $sendEmail = (bool) ($extraData['send_email'] ?? false);
-
         $this->sendStatusEmailIfNeeded($status, $oldStatus, $sendEmail);
 
         if ($status === 'declined') {
@@ -305,15 +1010,7 @@ class ViewJobApplication extends ViewRecord
             return;
         }
 
-        if (! $sendEmail) {
-            return;
-        }
-
-        if ($oldStatus === $newStatus) {
-            return;
-        }
-
-        if (blank($this->record->email)) {
+        if (! $sendEmail || $oldStatus === $newStatus || blank($this->record->email)) {
             return;
         }
 

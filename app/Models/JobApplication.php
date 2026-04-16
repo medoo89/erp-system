@@ -18,14 +18,13 @@ class JobApplication extends Model
         'cover_letter',
         'cv_path',
         'status',
+        'candidate_request_status',
         'notes',
 
-        // archive fields
         'is_archived',
         'archive_reason',
         'archived_at',
 
-        // decline fields
         'decline_reason',
         'decline_notes',
     ];
@@ -48,5 +47,11 @@ class JobApplication extends Model
     public function preEmployments()
     {
         return $this->hasMany(\App\Models\PreEmployment::class);
+    }
+
+    public function candidateRequests()
+    {
+        return $this->hasMany(\App\Models\CandidateRequest::class)
+            ->latest();
     }
 }

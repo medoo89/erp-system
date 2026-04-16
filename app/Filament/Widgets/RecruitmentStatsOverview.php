@@ -2,14 +2,18 @@
 
 namespace App\Filament\Widgets;
 
+use App\Models\Employment;
 use App\Models\Job;
 use App\Models\JobApplication;
+use App\Models\PreEmployment;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
 class RecruitmentStatsOverview extends BaseWidget
 {
     protected static ?int $sort = 2;
+
+    protected int|string|array $columnSpan = 'full';
 
     protected function getStats(): array
     {
@@ -20,67 +24,41 @@ class RecruitmentStatsOverview extends BaseWidget
             ->where('is_active', true)
             ->count();
 
-        $archivedJobs = Job::query()
-            ->where('is_archived', true)
-            ->count();
-
         $totalApplications = JobApplication::count();
 
-        $activeApplications = JobApplication::query()
-            ->where('is_archived', false)
-            ->count();
+        $activeEmployees = class_exists(Employment::class)
+            ? Employment::query()->where('status', 'active')->count()
+            : 0;
 
-        $archivedApplications = JobApplication::query()
-            ->where('is_archived', true)
-            ->count();
+        $onRotation = class_exists(Employment::class)
+            ? Employment::query()->where('rotation_status', 'on_rotation')->count()
+            : 0;
 
-        $screeningApplications = JobApplication::query()
-            ->where('status', 'screening')
-            ->where('is_archived', false)
-            ->count();
+        $upcomingMobilizations = class_exists(Employment::class)
+            ? Employment::query()
+                ->whereDate('mobilization_date', '>=', now()->toDateString())
+                ->whereDate('mobilization_date', '<=', now()->addDays(14)->toDateString())
+                ->count()
+            : 0;
 
-        $underReviewApplications = JobApplication::query()
-            ->where('status', 'under_review')
-            ->where('is_archived', false)
-            ->count();
-
-        $clientSubmittedApplications = JobApplication::query()
-            ->where('status', 'client_submitted')
-            ->where('is_archived', false)
-            ->count();
-
-        $qualifiedApplications = JobApplication::query()
-            ->where('status', 'qualified')
-            ->where('is_archived', false)
-            ->count();
-
-        $hiredApplications = JobApplication::query()
-            ->where('status', 'hired')
-            ->where('is_archived', false)
-            ->count();
-
-        $declinedApplications = JobApplication::query()
-            ->where('status', 'declined')
-            ->count();
+        $preEmploymentInProgress = class_exists(PreEmployment::class)
+            ? PreEmployment::query()
+                ->whereIn('status', ['approved', 'in_progress', 'processing', 'initiated'])
+                ->count()
+            : 0;
 
         return [
-            Stat::make('Total Job Openings', number_format($totalJobs))
+            Stat::make('All Job Openings', number_format($totalJobs))
                 ->description('All job opening records')
                 ->icon('heroicon-o-briefcase')
                 ->color('primary')
                 ->url('/admin/job-openings'),
 
             Stat::make('Active Job Openings', number_format($activeJobs))
-                ->description('Currently active and open')
+                ->description('Currently open and active')
                 ->icon('heroicon-o-bolt')
                 ->color('success')
                 ->url('/admin/job-openings'),
-
-            Stat::make('Archived Job Openings', number_format($archivedJobs))
-                ->description('Moved to archive')
-                ->icon('heroicon-o-archive-box')
-                ->color('gray')
-                ->url('/admin/archived-job-openings'),
 
             Stat::make('Total Applications', number_format($totalApplications))
                 ->description('All submitted applications')
@@ -88,53 +66,29 @@ class RecruitmentStatsOverview extends BaseWidget
                 ->color('info')
                 ->url('/admin/job-applications'),
 
-            Stat::make('Active Applications', number_format($activeApplications))
-                ->description('Not archived')
-                ->icon('heroicon-o-folder-open')
-                ->color('primary')
-                ->url('/admin/job-applications'),
+            Stat::make('Active Employees', number_format($activeEmployees))
+                ->description('Currently active employments')
+                ->icon('heroicon-o-users')
+                ->color('success')
+                ->url('/admin/employments'),
 
-            Stat::make('Archived Applications', number_format($archivedApplications))
-                ->description('Declined or archived')
-                ->icon('heroicon-o-archive-box')
-                ->color('gray')
-                ->url('/admin/archived-job-applications'),
-
-            Stat::make('Screening', number_format($screeningApplications))
-                ->description('Currently in screening')
-                ->icon('heroicon-o-funnel')
+            Stat::make('On Rotation', number_format($onRotation))
+                ->description('Employees currently on rotation')
+                ->icon('heroicon-o-arrow-path')
                 ->color('warning')
-                ->url('/admin/job-applications?tableFilters[status][value]=screening'),
+                ->url('/admin/employments'),
 
-            Stat::make('Under Review', number_format($underReviewApplications))
-                ->description('Being reviewed internally')
-                ->icon('heroicon-o-eye')
-                ->color('info')
-                ->url('/admin/job-applications?tableFilters[status][value]=under_review'),
-
-            Stat::make('Client Submitted', number_format($clientSubmittedApplications))
-                ->description('Submitted to client')
+            Stat::make('Upcoming Mobilizations', number_format($upcomingMobilizations))
+                ->description('Scheduled within next 14 days')
                 ->icon('heroicon-o-paper-airplane')
                 ->color('primary')
-                ->url('/admin/job-applications?tableFilters[status][value]=client_submitted'),
+                ->url('/admin/employments'),
 
-            Stat::make('Qualified', number_format($qualifiedApplications))
-                ->description('Qualified candidates')
-                ->icon('heroicon-o-check-circle')
-                ->color('gray')
-                ->url('/admin/job-applications?tableFilters[status][value]=qualified'),
-
-            Stat::make('Hired', number_format($hiredApplications))
-                ->description('Successfully hired')
-                ->icon('heroicon-o-user-plus')
-                ->color('success')
-                ->url('/admin/job-applications?tableFilters[status][value]=hired'),
-
-            Stat::make('Declined', number_format($declinedApplications))
-                ->description('Declined applications')
-                ->icon('heroicon-o-x-circle')
-                ->color('danger')
-                ->url('/admin/archived-job-applications'),
+            Stat::make('Pre-Employment In Progress', number_format($preEmploymentInProgress))
+                ->description('Approved and still under processing')
+                ->icon('heroicon-o-clipboard-document-check')
+                ->color('info')
+                ->url('/admin/pre-employments'),
         ];
     }
 }

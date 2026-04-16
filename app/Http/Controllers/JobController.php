@@ -11,10 +11,6 @@ class JobController extends Controller
         $jobs = Job::query()
             ->where('is_active', true)
             ->where('is_archived', false)
-            ->where(function ($query) {
-                $query->whereNull('closing_date')
-                    ->orWhereDate('closing_date', '>=', today());
-            })
             ->latest()
             ->get();
 
@@ -24,12 +20,7 @@ class JobController extends Controller
     public function show(Job $job)
     {
         abort_if(
-            ! $job->is_active
-            || $job->is_archived
-            || (
-                filled($job->closing_date)
-                && $job->closing_date->lt(today())
-            ),
+            ! $job->isPubliclyVisible(),
             404
         );
 

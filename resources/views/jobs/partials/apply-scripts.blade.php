@@ -6,12 +6,15 @@ document.addEventListener('DOMContentLoaded', function () {
     const progressFill = document.getElementById('progressFill');
     const stepLabel = document.getElementById('stepLabel');
     const stepPercent = document.getElementById('stepPercent');
+    const progressSteps = Array.from(document.querySelectorAll('.progress-step'));
     const form = document.getElementById('applicationForm');
 
     let currentStep = 0;
 
     function updateProgress() {
-        if (!steps.length) return;
+        if (!steps.length) {
+            return;
+        }
 
         const total = steps.length;
         const current = currentStep + 1;
@@ -28,6 +31,16 @@ document.addEventListener('DOMContentLoaded', function () {
         if (stepPercent) {
             stepPercent.textContent = percent + '%';
         }
+
+        progressSteps.forEach((item, index) => {
+            item.classList.remove('is-active', 'is-complete');
+
+            if (index < currentStep) {
+                item.classList.add('is-complete');
+            } else if (index === currentStep) {
+                item.classList.add('is-active');
+            }
+        });
     }
 
     function showStep(index) {
@@ -53,12 +66,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function clearFieldError(fieldWrapper) {
-        const input = fieldWrapper.querySelector('.input, .select, .textarea, .file-input');
+        const inputs = fieldWrapper.querySelectorAll('.input, .select, .textarea, .file-input');
         const errorText = fieldWrapper.querySelector('.error-text');
 
-        if (input) {
-            input.classList.remove('invalid');
-        }
+        inputs.forEach(input => input.classList.remove('invalid'));
 
         if (errorText) {
             errorText.classList.remove('show');
@@ -66,12 +77,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function showFieldError(fieldWrapper, message = 'This field is required') {
-        const input = fieldWrapper.querySelector('.input, .select, .textarea, .file-input');
+        const inputs = fieldWrapper.querySelectorAll('.input, .select, .textarea, .file-input');
         const errorText = fieldWrapper.querySelector('.error-text');
 
-        if (input) {
-            input.classList.add('invalid');
-        }
+        inputs.forEach(input => input.classList.add('invalid'));
 
         if (errorText) {
             errorText.textContent = message;
@@ -85,9 +94,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (!isRequired) {
             const errorText = fieldWrapper.querySelector('.error-text');
+
             if (errorText) {
                 errorText.classList.remove('show');
             }
+
             return true;
         }
 
@@ -99,6 +110,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 errorText.textContent = 'Please select at least one option.';
                 errorText.classList.add('show');
             }
+
             return false;
         }
 
@@ -133,17 +145,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function validateField(fieldWrapper) {
         const checkboxGroup = fieldWrapper.querySelector('.checkbox-group');
+
         if (checkboxGroup) {
             return validateCheckboxGroup(fieldWrapper);
         }
 
         const inlineRow = fieldWrapper.querySelector('.inline-row');
+
         if (inlineRow) {
             return validatePhoneComposite(fieldWrapper);
         }
 
         const input = fieldWrapper.querySelector('.input, .select, .textarea, .file-input');
-        if (!input) return true;
+
+        if (!input) {
+            return true;
+        }
 
         const isRequired = input.hasAttribute('required');
 
@@ -158,6 +175,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 showFieldError(fieldWrapper);
                 return false;
             }
+
             return true;
         }
 
@@ -181,13 +199,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function validateStep(stepIndex) {
         const step = steps[stepIndex];
-        if (!step) return true;
+
+        if (!step) {
+            return true;
+        }
 
         const fields = Array.from(step.querySelectorAll('.field'));
         let isValid = true;
 
         fields.forEach(fieldWrapper => {
             const valid = validateField(fieldWrapper);
+
             if (!valid) {
                 isValid = false;
             }
@@ -242,6 +264,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.input, .select, .textarea, .file-input').forEach(element => {
         element.addEventListener('input', function () {
             const fieldWrapper = element.closest('.field');
+
             if (fieldWrapper) {
                 clearFieldError(fieldWrapper);
             }
@@ -249,6 +272,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         element.addEventListener('change', function () {
             const fieldWrapper = element.closest('.field');
+
             if (fieldWrapper) {
                 clearFieldError(fieldWrapper);
             }
@@ -258,9 +282,13 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.checkbox-group input[type="checkbox"]').forEach(checkbox => {
         checkbox.addEventListener('change', function () {
             const fieldWrapper = checkbox.closest('.field');
-            if (!fieldWrapper) return;
+
+            if (!fieldWrapper) {
+                return;
+            }
 
             const errorText = fieldWrapper.querySelector('.error-text');
+
             if (errorText) {
                 errorText.classList.remove('show');
             }

@@ -3,14 +3,25 @@
 namespace App\Filament\Resources\JobApplications\Tables;
 
 use App\Filament\Resources\JobApplications\JobApplicationResource;
+use App\Mail\CandidateRequestMail;
 use App\Models\Job;
 use App\Models\JobApplication;
 use Filament\Actions\BulkAction;
-use Filament\Actions\EditAction;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class JobApplicationsTable
@@ -18,7 +29,11 @@ class JobApplicationsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn ($query) => $query->with(['job.project.client', 'values.field'])->where('is_archived', false))
+            ->modifyQueryUsing(
+                fn ($query) => $query
+                    ->with(['job.project.client', 'values.field'])
+                    ->where('is_archived', false)
+            )
             ->columns([
                 Tables\Columns\TextColumn::make('full_name')
                     ->label('Full Name')
@@ -75,6 +90,26 @@ class JobApplicationsTable
                     })
                     ->sortable(),
 
+                Tables\Columns\TextColumn::make('candidate_request_status')
+                    ->label('Request Workflow')
+                    ->badge()
+                    ->color(fn (?string $state): string => match ($state) {
+                        'awaiting_response' => 'warning',
+                        'response_received' => 'info',
+                        'documents_submitted' => 'success',
+                        'request_completed' => 'success',
+                        default => 'gray',
+                    })
+                    ->formatStateUsing(fn (?string $state): string => match ($state) {
+                        'awaiting_response' => 'Awaiting Response',
+                        'response_received' => 'Response Received',
+                        'documents_submitted' => 'Documents Submitted',
+                        'request_completed' => 'Request Completed',
+                        null, '' => '-',
+                        default => ucfirst(str_replace('_', ' ', (string) $state)),
+                    })
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Applied At')
                     ->dateTime('M j, Y H:i')
@@ -96,6 +131,15 @@ class JobApplicationsTable
                         'interview' => 'Interview',
                     ]),
 
+                Tables\Filters\SelectFilter::make('candidate_request_status')
+                    ->label('Request Workflow')
+                    ->options([
+                        'awaiting_response' => 'Awaiting Response',
+                        'response_received' => 'Response Received',
+                        'documents_submitted' => 'Documents Submitted',
+                        'request_completed' => 'Request Completed',
+                    ]),
+
                 Tables\Filters\SelectFilter::make('job_id')
                     ->label('Position')
                     ->options(
@@ -106,13 +150,245 @@ class JobApplicationsTable
                     )
                     ->searchable(),
             ])
-            ->recordActions([
-                EditAction::make(),
-            ])
             ->headerActions([
                 //
             ])
             ->bulkActions([
+                BulkAction::make('bulk_create_candidate_request')
+                    ->label('Create Request')
+                    ->color('primary')
+                    ->icon('heroicon-o-document-text')
+                    ->form([
+                        Select::make('type')
+                            ->label('Request Type')
+                            ->required()
+                            ->options([
+                                'document_request' => 'Document Request',
+                                'missing_certificates' => 'Missing Certificates',
+                                'passport_copy_request' => 'Passport Copy Request',
+                                'experience_certificates_request' => 'Experience Certificates Request',
+                                'salary_negotiation' => 'Salary Negotiation',
+                                'availability_confirmation' => 'Availability Confirmation',
+                                'offer_clarification' => 'Offer Clarification',
+                                'general_special_request' => 'General Special Request',
+                                'other' => 'Other',
+                            ])
+                            ->live(),
+
+                        TextInput::make('title')
+                            ->label('Request Title')
+                            ->required()
+                            ->maxLength(255),
+
+                        Textarea::make('notes')
+                            ->label('Notes / Instructions')
+                            ->rows(5),
+
+                        DatePicker::make('due_date')
+                            ->label('Due Date'),
+
+                        Toggle::make('send_email')
+                            ->label('Send email to candidates')
+                            ->default(true),
+
+                        Placeholder::make('request_items_help')
+                            ->label('Request Items Info')
+                            ->content('For salary negotiation, request items are optional. You can send salary only, or salary + files/notes in the same request.'),
+
+                        Repeater::make('request_items')
+                            ->label('Request Items')
+                            ->defaultItems(0)
+                            ->reorderable(false)
+                            ->collapsible()
+                            ->addActionLabel('Add Another Request')
+                            ->schema([
+                                Select::make('item_type')
+                                    ->label('Item Type')
+                                    ->required()
+                                    ->default('file')
+                                    ->options([
+                                        'file' => 'File Upload',
+                                        'note' => 'Information / Note',
+                                    ])
+                                    ->live(),
+
+                                TextInput::make('label')
+                                    ->label('Item Title / Label')
+                                    ->required()
+                                    ->placeholder('Example: ATEX Certificate or Salary Expectation'),
+
+                                Select::make('file_format')
+                                    ->label('File Format')
+                                    ->options([
+                                        'pdf' => 'PDF',
+                                        'image' => 'Image',
+                                        'pdf_or_image' => 'PDF or Image',
+                                        'document' => 'Document',
+                                        'other' => 'Other',
+                                    ])
+                                    ->visible(fn (callable $get) => ($get('item_type') ?? 'file') === 'file'),
+
+                                Toggle::make('is_required')
+                                    ->label('Required')
+                                    ->default(true),
+
+                                Toggle::make('allow_multiple')
+                                    ->label('Allow Multiple Uploads')
+                                    ->default(false)
+                                    ->visible(fn (callable $get) => ($get('item_type') ?? 'file') === 'file'),
+
+                                Textarea::make('notes')
+                                    ->label('Item Notes')
+                                    ->rows(3),
+                            ])
+                            ->columns(2),
+
+                        Placeholder::make('salary_internal_note')
+                            ->label('Salary Negotiation')
+                            ->content('Use these fields when you want negotiation only, or negotiation together with request items.')
+                            ->visible(fn (callable $get) => in_array($get('type'), ['salary_negotiation'], true)),
+
+                        TextInput::make('proposed_salary')
+                            ->label('Proposed Salary')
+                            ->numeric()
+                            ->visible(fn (callable $get) => in_array($get('type'), ['salary_negotiation'], true)),
+
+                        TextInput::make('currency')
+                            ->label('Currency')
+                            ->default('USD')
+                            ->maxLength(10)
+                            ->visible(fn (callable $get) => in_array($get('type'), ['salary_negotiation'], true)),
+
+                        Toggle::make('requires_approval')
+                            ->label('Requires Candidate Approval')
+                            ->default(true)
+                            ->visible(fn (callable $get) => in_array($get('type'), ['salary_negotiation'], true)),
+                    ])
+                    ->requiresConfirmation()
+                    ->modalHeading('Create Candidate Request for Selected Applicants')
+                    ->modalSubmitActionLabel('Create Requests')
+                    ->action(function (Collection $records, array $data): void {
+                        $createdCount = 0;
+                        $emailFailures = 0;
+
+                        $requestItems = collect($data['request_items'] ?? [])
+                            ->filter(function ($item) {
+                                return filled($item['label'] ?? null);
+                            })
+                            ->values()
+                            ->all();
+
+                        $isSalaryNegotiation = ($data['type'] ?? null) === 'salary_negotiation';
+                        $hasSalaryValue = filled($data['proposed_salary'] ?? null);
+                        $hasRequestItems = count($requestItems) > 0;
+
+                        if ($isSalaryNegotiation && ! $hasSalaryValue && ! $hasRequestItems) {
+                            Notification::make()
+                                ->title('For salary negotiation, add a proposed salary or at least one request item.')
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
+                        if (! $isSalaryNegotiation && ! $hasRequestItems) {
+                            Notification::make()
+                                ->title('Please add at least one request item for this request type.')
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
+                        foreach ($records as $record) {
+                            try {
+                                $hasFileItems = collect($requestItems)
+                                    ->contains(fn ($item) => ($item['item_type'] ?? 'file') === 'file');
+
+                                $request = $record->candidateRequests()->create([
+                                    'type' => $data['type'],
+                                    'title' => $data['title'],
+                                    'notes' => $data['notes'] ?? null,
+                                    'request_status' => 'pending',
+                                    'due_date' => $data['due_date'] ?? null,
+                                    'requires_upload' => $hasFileItems,
+                                    'proposed_salary' => $data['proposed_salary'] ?? null,
+                                    'currency' => $data['currency'] ?? null,
+                                    'requires_approval' => (bool) ($data['requires_approval'] ?? false),
+                                    'created_by' => Auth::id(),
+                                    'public_token' => (string) Str::uuid(),
+                                ]);
+
+                                foreach ($requestItems as $index => $item) {
+                                    $request->items()->create([
+                                        'item_type' => $item['item_type'] ?? 'file',
+                                        'label' => $item['label'],
+                                        'file_format' => ($item['item_type'] ?? 'file') === 'file'
+                                            ? ($item['file_format'] ?? null)
+                                            : null,
+                                        'is_required' => (bool) ($item['is_required'] ?? false),
+                                        'allow_multiple' => (bool) ($item['allow_multiple'] ?? false),
+                                        'notes' => $item['notes'] ?? null,
+                                        'sort_order' => $index + 1,
+                                    ]);
+                                }
+
+                                $record->update([
+                                    'candidate_request_status' => 'awaiting_response',
+                                ]);
+
+                                if ((bool) ($data['send_email'] ?? false) && filled($record->email)) {
+                                    try {
+                                        $portalUrl = rtrim(config('app.public_app_url') ?: config('app.url'), '/') . '/candidate-request/' . $request->public_token;
+
+                                        Mail::to($record->email)->send(
+                                            new CandidateRequestMail(
+                                                $request->load('items', 'jobApplication.job'),
+                                                $portalUrl
+                                            )
+                                        );
+                                    } catch (\Throwable $e) {
+                                        $emailFailures++;
+
+                                        Log::error('Bulk candidate request email send failed', [
+                                            'job_application_id' => $record->id,
+                                            'candidate_request_id' => $request->id,
+                                            'email' => $record->email,
+                                            'message' => $e->getMessage(),
+                                        ]);
+                                    }
+                                }
+
+                                $createdCount++;
+                            } catch (\Throwable $e) {
+                                Log::error('Bulk candidate request create failed', [
+                                    'job_application_id' => $record->id,
+                                    'message' => $e->getMessage(),
+                                ]);
+                            }
+                        }
+
+                        if ($createdCount > 0) {
+                            $message = "{$createdCount} request(s) created successfully";
+
+                            if ($emailFailures > 0) {
+                                $message .= " ({$emailFailures} email(s) failed)";
+                            }
+
+                            Notification::make()
+                                ->title($message)
+                                ->success()
+                                ->send();
+
+                            return;
+                        }
+
+                        Notification::make()
+                            ->title('No requests were created')
+                            ->danger()
+                            ->send();
+                    }),
+
                 BulkAction::make('export_selected_csv')
                     ->label('Export Selected CSV')
                     ->color('primary')
@@ -122,7 +398,10 @@ class JobApplicationsTable
                             ->with(['job.project.client', 'values.field'])
                             ->whereIn('id', $records->pluck('id'));
 
-                        return self::streamCsvDownload($query, 'job_applications_selected_' . now()->format('Y_m_d_H_i_s') . '.csv');
+                        return self::streamCsvDownload(
+                            $query,
+                            'job_applications_selected_' . now()->format('Y_m_d_H_i_s') . '.csv'
+                        );
                     }),
 
                 BulkAction::make('bulk_screening')
@@ -294,6 +573,7 @@ class JobApplicationsTable
                 'Project',
                 'Client',
                 'Status',
+                'Request Workflow',
                 'Years of Experience',
                 'Applied At',
                 'CV Link',
@@ -355,6 +635,7 @@ class JobApplicationsTable
                         optional($application->job?->project)->name,
                         optional($application->job?->project?->client)->name,
                         $application->status,
+                        $application->candidate_request_status,
                         self::resolveYearsOfExperience($application),
                         optional($application->created_at)?->format('Y-m-d H:i:s'),
                         $cvLink,

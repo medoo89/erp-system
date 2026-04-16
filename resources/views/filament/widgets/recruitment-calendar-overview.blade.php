@@ -1,264 +1,266 @@
-<x-filament-widgets::widget>
-    <style>
-        .recruitment-calendar-shell {
-            margin-top: 4px;
-        }
+<div
+    x-data="{
+        events: @js($calendarEvents),
+        selectedDate: '{{ now()->toDateString() }}',
+        selectedLabel: '{{ now()->format('D, d M Y') }}',
+        selectedItems: [],
+        showDayModal: false,
+        calendar: null,
 
-        .recruitment-calendar-header {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-bottom: 18px;
-        }
+        init() {
+            this.setSelectedDate(this.selectedDate)
+            this.initCalendar()
+        },
 
-        .recruitment-calendar-title {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 16px 28px;
-            border-radius: 22px;
-            font-size: 2.35rem;
-            line-height: 1;
-            font-weight: 800;
-            letter-spacing: -0.03em;
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
-            box-shadow:
-                0 10px 30px rgba(15, 23, 42, 0.10),
-                inset 0 1px 0 rgba(255, 255, 255, 0.10);
-            transition: all 0.2s ease;
-        }
+        initCalendar() {
+            this.$nextTick(() => {
+                setTimeout(() => {
+                    if (!this.$refs.calendar || typeof FullCalendar === 'undefined') {
+                        return
+                    }
 
-        html.dark .recruitment-calendar-title {
-            color: #f8fafc;
-            background: rgba(15, 23, 42, 0.78);
-            border: 1px solid rgba(148, 163, 184, 0.16);
-        }
+                    if (this.calendar) {
+                        this.calendar.destroy()
+                        this.calendar = null
+                    }
 
-        html:not(.dark) .recruitment-calendar-title {
-            color: #0f172a;
-            background: rgba(255, 255, 255, 0.92);
-            border: 1px solid rgba(148, 163, 184, 0.22);
-        }
+                    this.calendar = new FullCalendar.Calendar(this.$refs.calendar, {
+                        initialView: 'dayGridMonth',
+                        height: 'auto',
+                        contentHeight: 'auto',
+                        aspectRatio: 1.85,
+                        fixedWeekCount: false,
+                        showNonCurrentDates: true,
+                        expandRows: true,
+                        headerToolbar: {
+                            left: 'title',
+                            center: '',
+                            right: 'prev today next',
+                        },
+                        events: this.events,
+                        dayMaxEvents: true,
+                        navLinks: false,
+                        editable: false,
+                        selectable: false,
+                        eventDisplay: 'block',
+                        windowResizeDelay: 100,
+                        dateClick: (info) => {
+                            this.setSelectedDate(info.dateStr)
+                            this.openDayModal()
+                        },
+                        eventClick: (info) => {
+                            info.jsEvent.preventDefault()
+                            this.setSelectedDate(info.event.startStr)
+                            this.openDayModal()
+                        },
+                    })
 
-        .recruitment-calendar-wrap {
-            border-radius: 28px;
-            overflow: hidden;
-            padding: 20px;
-            min-height: 820px;
-            transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-        }
+                    this.calendar.render()
 
-        html.dark .recruitment-calendar-wrap {
-            background: linear-gradient(180deg, #1f2937 0%, #111827 100%);
-            border: 1px solid rgba(148, 163, 184, 0.10);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
-        }
-
-        html:not(.dark) .recruitment-calendar-wrap {
-            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-            border: 1px solid rgba(148, 163, 184, 0.18);
-            box-shadow:
-                0 10px 30px rgba(15, 23, 42, 0.06),
-                inset 0 1px 0 rgba(255,255,255,0.80);
-        }
-
-        .recruitment-calendar-wrap .fc {
-            font-family: 'Gilroy', Inter, system-ui, sans-serif;
-        }
-
-        html.dark .recruitment-calendar-wrap .fc {
-            color: #e5e7eb;
-        }
-
-        html:not(.dark) .recruitment-calendar-wrap .fc {
-            color: #0f172a;
-        }
-
-        html.dark .recruitment-calendar-wrap .fc-theme-standard td,
-        html.dark .recruitment-calendar-wrap .fc-theme-standard th,
-        html.dark .recruitment-calendar-wrap .fc-scrollgrid,
-        html.dark .recruitment-calendar-wrap .fc-scrollgrid-section > * {
-            border-color: rgba(148, 163, 184, 0.16) !important;
-        }
-
-        html:not(.dark) .recruitment-calendar-wrap .fc-theme-standard td,
-        html:not(.dark) .recruitment-calendar-wrap .fc-theme-standard th,
-        html:not(.dark) .recruitment-calendar-wrap .fc-scrollgrid,
-        html:not(.dark) .recruitment-calendar-wrap .fc-scrollgrid-section > * {
-            border-color: rgba(148, 163, 184, 0.22) !important;
-        }
-
-        .recruitment-calendar-wrap .fc-toolbar-title {
-            font-size: 2.4rem !important;
-            line-height: 1.1 !important;
-            font-weight: 800 !important;
-        }
-
-        html.dark .recruitment-calendar-wrap .fc-toolbar-title {
-            color: #f8fafc !important;
-        }
-
-        html:not(.dark) .recruitment-calendar-wrap .fc-toolbar-title {
-            color: #0f172a !important;
-        }
-
-        .recruitment-calendar-wrap .fc-col-header-cell-cushion {
-            text-decoration: none !important;
-            font-weight: 700 !important;
-            padding: 12px 0 !important;
-        }
-
-        html.dark .recruitment-calendar-wrap .fc-col-header-cell-cushion {
-            color: #cbd5e1 !important;
-        }
-
-        html:not(.dark) .recruitment-calendar-wrap .fc-col-header-cell-cushion {
-            color: #475569 !important;
-        }
-
-        .recruitment-calendar-wrap .fc-daygrid-day-number {
-            text-decoration: none !important;
-            font-weight: 700 !important;
-            padding: 10px !important;
-        }
-
-        html.dark .recruitment-calendar-wrap .fc-daygrid-day-number {
-            color: #f8fafc !important;
-        }
-
-        html:not(.dark) .recruitment-calendar-wrap .fc-daygrid-day-number {
-            color: #0f172a !important;
-        }
-
-        html.dark .recruitment-calendar-wrap .fc-day-other .fc-daygrid-day-number {
-            color: #64748b !important;
-        }
-
-        html:not(.dark) .recruitment-calendar-wrap .fc-day-other .fc-daygrid-day-number {
-            color: #94a3b8 !important;
-        }
-
-        .recruitment-calendar-wrap .fc-button {
-            border: none !important;
-            border-radius: 999px !important;
-            padding: 0.65rem 1rem !important;
-            box-shadow: none !important;
-            transition: background 0.2s ease, color 0.2s ease;
-        }
-
-        html.dark .recruitment-calendar-wrap .fc-button {
-            background: rgba(255,255,255,0.08) !important;
-            color: #ffffff !important;
-        }
-
-        html.dark .recruitment-calendar-wrap .fc-button:hover {
-            background: rgba(255,255,255,0.14) !important;
-        }
-
-        html.dark .recruitment-calendar-wrap .fc-button-primary:not(:disabled).fc-button-active,
-        html.dark .recruitment-calendar-wrap .fc-button-primary:not(:disabled):active {
-            background: rgba(255,255,255,0.18) !important;
-        }
-
-        html:not(.dark) .recruitment-calendar-wrap .fc-button {
-            background: rgba(15, 23, 42, 0.08) !important;
-            color: #0f172a !important;
-        }
-
-        html:not(.dark) .recruitment-calendar-wrap .fc-button:hover {
-            background: rgba(15, 23, 42, 0.14) !important;
-        }
-
-        html:not(.dark) .recruitment-calendar-wrap .fc-button-primary:not(:disabled).fc-button-active,
-        html:not(.dark) .recruitment-calendar-wrap .fc-button-primary:not(:disabled):active {
-            background: rgba(15, 23, 42, 0.18) !important;
-        }
-
-        .recruitment-calendar-wrap .fc-event {
-            border-radius: 8px !important;
-            padding: 2px 6px !important;
-            font-size: 0.8rem !important;
-            font-weight: 700 !important;
-            border-width: 0 !important;
-        }
-
-        .recruitment-calendar-wrap .fc-daygrid-event-dot {
-            display: none !important;
-        }
-    </style>
-
-    <div class="recruitment-calendar-shell">
-        <div class="recruitment-calendar-header">
-            <div class="recruitment-calendar-title">
-                Recruitment Calendar
-            </div>
-        </div>
-
-        <div
-            x-data="{
-                calendar: null,
-                events: @js($calendarEvents),
-                initCalendar() {
-                    const boot = () => {
-                        if (typeof FullCalendar === 'undefined') {
-                            setTimeout(boot, 200);
-                            return;
-                        }
-
-                        if (!this.$refs.calendar) {
-                            setTimeout(boot, 200);
-                            return;
-                        }
-
+                    setTimeout(() => {
                         if (this.calendar) {
-                            this.calendar.destroy();
+                            this.calendar.updateSize()
                         }
+                    }, 250)
+                }, 200)
+            })
+        },
 
-                        this.calendar = new FullCalendar.Calendar(this.$refs.calendar, {
-                            initialView: 'dayGridMonth',
-                            height: 760,
-                            headerToolbar: {
-                                left: 'title',
-                                center: '',
-                                right: 'prev today next'
-                            },
-                            buttonText: {
-                                today: 'Today',
-                            },
-                            fixedWeekCount: false,
-                            showNonCurrentDates: true,
-                            dayMaxEventRows: 3,
-                            events: this.events,
-                        });
+        setSelectedDate(dateString) {
+            this.selectedDate = dateString
 
-                        this.calendar.render();
-                    };
+            const date = new Date(dateString + 'T00:00:00')
+            this.selectedLabel = date.toLocaleDateString('en-GB', {
+                weekday: 'short',
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+            })
 
-                    boot();
+            this.selectedItems = this.events.filter(event => event.start === dateString)
+        },
 
-                    window.addEventListener('calendar-events-updated', (event) => {
-                        const incoming = event.detail?.events ?? [];
-                        this.events = incoming;
+        openTodayTasks() {
+            const today = '{{ now()->toDateString() }}'
+            this.setSelectedDate(today)
 
-                        if (this.calendar) {
-                            this.calendar.removeAllEvents();
-                            this.calendar.addEventSource(incoming);
-                        }
-                    });
+            if (this.calendar) {
+                this.calendar.today()
+                this.calendar.updateSize()
+            }
 
-                    document.addEventListener('livewire:navigated', () => {
-                        setTimeout(() => boot(), 150);
-                    });
-                }
-            }"
-            x-init="initCalendar()"
-            wire:ignore
-        >
-            <div class="recruitment-calendar-wrap">
-                <div x-ref="calendar"></div>
+            this.openDayModal()
+        },
+
+        openDayModal() {
+            this.showDayModal = true
+            document.body.classList.add('overflow-hidden')
+        },
+
+        closeDayModal() {
+            this.showDayModal = false
+            document.body.classList.remove('overflow-hidden')
+
+            this.$nextTick(() => {
+                setTimeout(() => {
+                    if (this.calendar) {
+                        this.calendar.updateSize()
+                    }
+                }, 200)
+            })
+        },
+    }"
+    x-init="init()"
+    class="sada-calendar-page"
+>
+    <div class="sada-calendar-page-header">
+        <div class="sada-calendar-hero">
+            <div class="sada-calendar-badge">SADA FEZZAN ERP</div>
+
+            <h2 class="sada-calendar-title">Recruitment Calendar</h2>
+
+            <p class="sada-calendar-subtitle">
+                Monitor job expiries and operational events in one central calendar view.
+            </p>
+
+            <div class="sada-calendar-hero-actions">
+                <button type="button" class="sada-calendar-pill-btn" @click="openTodayTasks()">
+                    <span class="sada-calendar-pill-label">Today</span>
+                    <span class="sada-calendar-pill-value">{{ $todayLabel }}</span>
+                </button>
             </div>
         </div>
     </div>
-</x-filament-widgets::widget>
+
+    <div class="sada-calendar-card" style="padding: 1.5rem;">
+        <div class="sada-calendar-layout">
+            <div class="sada-calendar-main" wire:ignore>
+                <div x-ref="calendar"></div>
+            </div>
+
+            <aside class="sada-calendar-sidebar">
+                <div class="sada-calendar-side-card">
+                    <div class="sada-calendar-side-top">
+                        <div>
+                            <div class="sada-calendar-side-badge">Selected Date</div>
+                            <h3 class="sada-calendar-side-title" x-text="selectedLabel"></h3>
+                        </div>
+
+                        <button type="button" class="fi-btn fi-btn-color-primary" @click="openDayModal()">
+                            View Day
+                        </button>
+                    </div>
+
+                    <div class="sada-calendar-side-list">
+                        <template x-if="selectedItems.length === 0">
+                            <div class="sada-empty-box">No events on this selected date.</div>
+                        </template>
+
+                        <template x-for="(item, index) in selectedItems" :key="index">
+                            <div class="sada-side-item">
+                                <div class="sada-side-dot" :style="`background:${item.backgroundColor}`"></div>
+
+                                <div class="sada-side-content">
+                                    <div class="sada-side-item-title" x-text="item.title"></div>
+
+                                    <template x-if="item.job_title">
+                                        <div class="sada-side-item-meta" x-text="'Linked to job: ' + item.job_title"></div>
+                                    </template>
+
+                                    <template x-if="item.notes">
+                                        <div class="sada-side-item-meta" x-text="item.notes"></div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="sada-calendar-side-card">
+                    <div class="sada-calendar-side-badge">Next Events</div>
+                    <h3 class="sada-calendar-side-title">Upcoming Tasks</h3>
+                    <p class="sada-calendar-side-text">From today to the next 30 days.</p>
+
+                    <div class="sada-upcoming-groups">
+                        @forelse ($upcomingTaskGroups as $group)
+                            <div class="sada-upcoming-group">
+                                <div class="sada-upcoming-date">{{ $group['label'] }}</div>
+
+                                @foreach ($group['items'] as $item)
+                                    <div class="sada-upcoming-item">
+                                        <div class="sada-upcoming-dot" style="background: {{ $item['backgroundColor'] }}"></div>
+
+                                        <div class="sada-upcoming-content">
+                                            <div class="sada-upcoming-title">{{ $item['title'] }}</div>
+
+                                            @if (! empty($item['job_title']))
+                                                <div class="sada-upcoming-meta">Linked to job: {{ $item['job_title'] }}</div>
+                                            @endif
+
+                                            @if (! empty($item['notes']))
+                                                <div class="sada-upcoming-meta">{{ $item['notes'] }}</div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @empty
+                            <div class="sada-empty-box">No upcoming tasks in the next 30 days.</div>
+                        @endforelse
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <template x-teleport="body">
+        <div
+            x-show="showDayModal"
+            x-transition.opacity
+            class="sada-calendar-modal-backdrop"
+            style="display: none;"
+            @click.self="closeDayModal()"
+        >
+            <div class="sada-calendar-modal">
+                <div class="sada-calendar-modal-top">
+                    <div>
+                        <div class="sada-calendar-side-badge">Day Overview</div>
+                        <h3 class="sada-calendar-side-title" x-text="selectedLabel"></h3>
+                    </div>
+
+                    <button type="button" class="sada-calendar-modal-close" @click="closeDayModal()">✕</button>
+                </div>
+
+                <div class="sada-calendar-modal-list" style="padding: 1.2rem;">
+                    <template x-if="selectedItems.length === 0">
+                        <div class="sada-empty-box">No events on this selected date.</div>
+                    </template>
+
+                    <template x-for="(item, index) in selectedItems" :key="index">
+                        <div class="sada-calendar-modal-item">
+                            <div class="sada-calendar-modal-item-dot" :style="`background:${item.backgroundColor}`"></div>
+
+                            <div class="sada-calendar-modal-item-content">
+                                <div class="sada-calendar-modal-item-title" x-text="item.title"></div>
+
+                                <template x-if="item.job_title">
+                                    <div class="sada-calendar-modal-item-notes" x-text="'Linked to job: ' + item.job_title"></div>
+                                </template>
+
+                                <template x-if="item.notes">
+                                    <div class="sada-calendar-modal-item-notes" x-text="item.notes"></div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <div style="padding: 0 1.2rem 1.2rem; display: flex; justify-content: flex-end;">
+                    <button type="button" class="fi-btn fi-btn-color-gray" @click="closeDayModal()">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+</div>

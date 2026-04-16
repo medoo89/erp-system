@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\CalendarEvent;
 use App\Models\Job;
+use App\Support\RecruitmentCalendarEvents;
 use Carbon\Carbon;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -15,10 +16,8 @@ class RecruitmentCalendar extends Page
 
     public array $calendarEvents = [];
     public array $upcomingTaskGroups = [];
-    public ?string $selectedDate = null;
-    public ?string $selectedDateLabel = null;
-    public array $selectedDateEvents = [];
-    public bool $showAddEventForm = false;
+    public array $jobOptions = [];
+    public array $eventTypeOptions = [];
 
     public array $eventForm = [
         'title' => '',
@@ -28,8 +27,6 @@ class RecruitmentCalendar extends Page
         'notes' => '',
         'color' => '#2563eb',
     ];
-
-    public array $jobOptions = [];
 
     public array $colorOptions = [
         '#2563eb',
@@ -57,16 +54,6 @@ class RecruitmentCalendar extends Page
         return '';
     }
 
-    public static function getNavigationGroup(): ?string
-    {
-        return null;
-    }
-
-    public static function getNavigationSort(): ?int
-    {
-        return 1;
-    }
-
     public function mount(): void
     {
         $this->jobOptions = Job::query()
@@ -75,38 +62,28 @@ class RecruitmentCalendar extends Page
             ->pluck('title', 'id')
             ->toArray();
 
+        $this->eventTypeOptions = [
+            'task' => 'Task',
+            'meeting' => 'Meeting',
+            'expiry' => 'Expiry',
+            'visa' => 'Visa',
+            'medical' => 'Medical',
+            'ticket' => 'Ticket',
+            'rotation' => 'Rotation',
+            'certificate' => 'Certificate',
+            'other' => 'Other',
+        ];
+
+        $this->eventForm['event_date'] = Carbon::today()->toDateString();
+
         $this->refreshCalendarData();
-
-        $today = Carbon::today()->toDateString();
-        $this->setSelectedDate($today);
-        $this->eventForm['event_date'] = $today;
-    }
-
-    public function onCalendarDateClick(string $date): void
-    {
-        $this->setSelectedDate($date);
-        $this->eventForm['event_date'] = $date;
-    }
-
-    public function toggleAddEventForm(): void
-    {
-        $this->showAddEventForm = ! $this->showAddEventForm;
-
-        if ($this->showAddEventForm && blank($this->eventForm['event_date']) && $this->selectedDate) {
-            $this->eventForm['event_date'] = $this->selectedDate;
-        }
-    }
-
-    public function setEventColor(string $color): void
-    {
-        $this->eventForm['color'] = $color;
     }
 
     public function saveEvent(): void
     {
         $data = validator($this->eventForm, [
             'title' => ['required', 'string', 'max:255'],
-            'event_type' => ['required', 'string', 'max:100'],
+            'event_type' => ['required', 'string', 'in:' . implode(',', array_keys($this->eventTypeOptions))],
             'event_date' => ['required', 'date'],
             'job_id' => ['nullable', 'exists:jobs,id'],
             'notes' => ['nullable', 'string'],
@@ -130,11 +107,16 @@ class RecruitmentCalendar extends Page
 
         $savedDate = $data['event_date'];
 
-        $this->resetEventForm();
-        $this->showAddEventForm = false;
+        $this->eventForm = [
+            'title' => '',
+            'event_type' => 'task',
+            'event_date' => $savedDate,
+            'job_id' => '',
+            'notes' => '',
+            'color' => '#2563eb',
+        ];
 
         $this->refreshCalendarData();
-        $this->setSelectedDate($savedDate);
 
         $this->dispatch('calendar-events-updated', events: $this->calendarEvents);
 
@@ -146,103 +128,10 @@ class RecruitmentCalendar extends Page
 
     protected function refreshCalendarData(): void
     {
-        $events = $this->buildCalendarEvents();
+        $events = RecruitmentCalendarEvents::make();
 
         $this->calendarEvents = $events;
         $this->upcomingTaskGroups = $this->buildUpcomingTaskGroups($events);
-    }
-
-    protected function resetEventForm(): void
-    {
-        $this->eventForm = [
-            'title' => '',
-            'event_type' => 'task',
-            'event_date' => $this->selectedDate ?: Carbon::today()->toDateString(),
-            'job_id' => '',
-            'notes' => '',
-            'color' => '#2563eb',
-        ];
-    }
-
-    protected function setSelectedDate(string $date): void
-    {
-        $this->selectedDate = $date;
-        $this->selectedDateLabel = Carbon::parse($date)->format('D, d M Y');
-
-        $this->selectedDateEvents = array_values(array_filter(
-            $this->calendarEvents,
-            fn (array $event) => ($event['start'] ?? null) === $date
-        ));
-    }
-
-    protected function buildCalendarEvents(): array
-    {
-        $events = [];
-
-        $jobs = Job::query()
-            ->whereNotNull('closing_date')
-            ->where('is_archived', false)
-            ->get();
-
-        foreach ($jobs as $job) {
-            $date = Carbon::parse($job->closing_date)->toDateString();
-
-            $events[] = [
-                'title' => 'Job Expiry: ' . $job->title,
-                'start' => $date,
-                'allDay' => true,
-                'backgroundColor' => '#f59e0b',
-                'borderColor' => '#f59e0b',
-                'textColor' => '#ffffff',
-                'event_type' => 'job_expiry',
-                'sort_date' => $date,
-                'linked_type' => 'job_opening',
-                'linked_id' => $job->id,
-                'job_id' => $job->id,
-                'job_title' => $job->title,
-                'notes' => null,
-                'source' => 'job_opening',
-            ];
-        }
-
-        $manualEvents = CalendarEvent::query()
-            ->with('job')
-            ->where('is_active', true)
-            ->orderBy('event_date')
-            ->get();
-
-        foreach ($manualEvents as $event) {
-            $date = Carbon::parse($event->event_date)->toDateString();
-
-            $events[] = [
-                'title' => $event->title,
-                'start' => $date,
-                'allDay' => true,
-                'backgroundColor' => $event->color ?: '#2563eb',
-                'borderColor' => $event->color ?: '#2563eb',
-                'textColor' => '#ffffff',
-                'event_type' => $event->event_type ?: 'task',
-                'sort_date' => $date,
-                'linked_type' => $event->linked_type ?: 'general',
-                'linked_id' => $event->linked_id,
-                'job_id' => $event->job_id,
-                'job_title' => $event->job?->title,
-                'notes' => $event->notes,
-                'source' => 'manual',
-            ];
-        }
-
-        usort($events, function (array $a, array $b) {
-            $dateCompare = strcmp($a['sort_date'], $b['sort_date']);
-
-            if ($dateCompare !== 0) {
-                return $dateCompare;
-            }
-
-            return strcmp($a['title'], $b['title']);
-        });
-
-        return $events;
     }
 
     protected function buildUpcomingTaskGroups(array $events): array
@@ -275,10 +164,7 @@ class RecruitmentCalendar extends Page
 
             $groups[$dateKey]['items'][] = [
                 'title' => $event['title'],
-                'event_type' => $event['event_type'] ?? null,
                 'backgroundColor' => $event['backgroundColor'] ?? '#94a3b8',
-                'linked_type' => $event['linked_type'] ?? null,
-                'linked_id' => $event['linked_id'] ?? null,
                 'job_title' => $event['job_title'] ?? null,
                 'notes' => $event['notes'] ?? null,
                 'source' => $event['source'] ?? null,

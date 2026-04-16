@@ -22,7 +22,12 @@ class PreEmploymentSubmissionReviewMail extends Mailable
 
     public function build(): static
     {
-        return $this->subject('Pre-Employment Submission Ready for Review')
-            ->view('emails.pre-employment-submission-review');
+        return $this
+            ->subject('Pre-Employment Submission Ready for Review')
+            ->view('emails.pre-employment-submission-review')
+            ->with([
+                'preEmployment' => $this->preEmployment,
+                'portalUrl' => $this->portalUrl,
+            ]);
     }
 }

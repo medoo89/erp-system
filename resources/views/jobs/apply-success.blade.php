@@ -7,16 +7,18 @@
 
     <style>
         :root {
-            --primary: #3C9FA3;
-            --primary-dark: #2E8B8F;
-            --primary-soft: #E8F7F7;
-            --heading: #1F314D;
-            --text: #1F2937;
-            --muted: #6B7280;
-            --white: #FFFFFF;
-            --success: #065F46;
-            --success-bg: #ECFDF5;
-            --shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+            --sf-primary: #2c5377;
+            --sf-primary-soft: #3f6c96;
+            --sf-accent: #26b6b7;
+            --sf-accent-dark: #16999a;
+            --sf-text: #18212b;
+            --sf-muted: #6b7f90;
+            --sf-bg-1: #f4f8fa;
+            --sf-bg-2: #eef4f7;
+            --sf-success: #1d8f79;
+            --sf-success-bg: #ebfbf7;
+            --sf-shadow: 0 24px 70px rgba(25, 41, 61, 0.08);
+            --sf-shadow-soft: 0 14px 35px rgba(25, 41, 61, 0.06);
         }
 
         * {
@@ -27,10 +29,10 @@
             margin: 0;
             font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             background:
-                radial-gradient(circle at top left, rgba(60,159,163,.10), transparent 20%),
-                radial-gradient(circle at top right, rgba(119,200,203,.14), transparent 22%),
-                linear-gradient(180deg, #F8FBFC 0%, #F3F7F9 100%);
-            color: var(--text);
+                radial-gradient(circle at top left, rgba(38, 182, 183, 0.10), transparent 28%),
+                radial-gradient(circle at top right, rgba(44, 83, 119, 0.09), transparent 32%),
+                linear-gradient(180deg, var(--sf-bg-1) 0%, var(--sf-bg-2) 100%);
+            color: var(--sf-text);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -39,13 +41,40 @@
         }
 
         .card {
-            width: 100%;
-            max-width: 680px;
-            background: var(--white);
-            border-radius: 26px;
-            box-shadow: var(--shadow);
+            position: relative;
             overflow: hidden;
+            width: 100%;
+            max-width: 760px;
+            border-radius: 34px;
+            border: 1px solid rgba(255,255,255,0.60);
+            background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(247,250,251,0.90) 100%);
+            box-shadow: var(--sf-shadow);
+            backdrop-filter: blur(10px);
             animation: fadeUp .5s ease;
+        }
+
+        .card::before {
+            content: "";
+            position: absolute;
+            right: -70px;
+            top: -70px;
+            width: 220px;
+            height: 220px;
+            border-radius: 999px;
+            background: radial-gradient(circle, rgba(38,182,183,0.14) 0%, rgba(38,182,183,0.03) 60%, transparent 74%);
+            pointer-events: none;
+        }
+
+        .card::after {
+            content: "";
+            position: absolute;
+            left: -60px;
+            bottom: -90px;
+            width: 200px;
+            height: 200px;
+            border-radius: 999px;
+            background: radial-gradient(circle, rgba(44,83,119,0.10) 0%, rgba(44,83,119,0.02) 62%, transparent 74%);
+            pointer-events: none;
         }
 
         @keyframes fadeUp {
@@ -59,13 +88,10 @@
             }
         }
 
-        .top-strip {
-            height: 9px;
-            background: linear-gradient(90deg, var(--primary) 0%, #7ED0D3 100%);
-        }
-
         .card-inner {
-            padding: 38px 34px 32px;
+            position: relative;
+            z-index: 1;
+            padding: 40px 36px 34px;
             text-align: center;
         }
 
@@ -74,92 +100,96 @@
         }
 
         .logo img {
-            height: 60px;
+            height: 62px;
             object-fit: contain;
-        }
-
-        .icon-wrap {
-            width: 82px;
-            height: 82px;
-            border-radius: 999px;
-            margin: 0 auto 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--success-bg);
-            box-shadow: inset 0 0 0 8px rgba(16,185,129,0.08);
-        }
-
-        .icon {
-            font-size: 36px;
-            line-height: 1;
         }
 
         .badge {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            background: var(--primary-soft);
-            color: var(--primary-dark);
-            border: 1px solid #D7EFEF;
+            background: rgba(38,182,183,0.10);
+            color: var(--sf-accent-dark);
+            border: 1px solid rgba(38,182,183,0.18);
             border-radius: 999px;
             padding: 8px 14px;
             font-size: 12px;
             font-weight: 800;
-            letter-spacing: .05em;
+            letter-spacing: .10em;
             text-transform: uppercase;
-            margin-bottom: 14px;
+            margin-bottom: 16px;
+        }
+
+        .icon-wrap {
+            width: 86px;
+            height: 86px;
+            border-radius: 999px;
+            margin: 0 auto 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--sf-success-bg);
+            box-shadow: inset 0 0 0 8px rgba(29,143,121,0.08);
+        }
+
+        .icon {
+            font-size: 36px;
+            line-height: 1;
+            color: var(--sf-success);
+            font-weight: 900;
         }
 
         h1 {
             margin: 0 0 12px;
-            color: var(--heading);
-            font-size: 30px;
-            line-height: 1.15;
+            color: var(--sf-primary);
+            font-size: clamp(30px, 4vw, 46px);
+            line-height: 1.08;
             font-weight: 900;
             letter-spacing: -0.03em;
         }
 
         .lead {
             margin: 0 auto 10px;
-            max-width: 540px;
-            color: var(--muted);
-            font-size: 15px;
-            line-height: 1.8;
+            max-width: 560px;
+            color: var(--sf-muted);
+            font-size: 16px;
+            line-height: 1.85;
         }
 
         .job-box {
-            margin: 24px auto 0;
-            max-width: 520px;
-            padding: 18px 20px;
-            border-radius: 18px;
-            background: linear-gradient(180deg, #FAFDFD 0%, #F3FBFB 100%);
-            border: 1px solid #E1F0F1;
+            margin: 26px auto 0;
+            max-width: 560px;
+            padding: 20px 22px;
+            border-radius: 22px;
+            background: rgba(255,255,255,0.76);
+            border: 1px solid rgba(44,83,119,0.08);
             text-align: left;
+            box-shadow: var(--sf-shadow-soft);
         }
 
         .job-box .label {
             margin: 0 0 6px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 800;
-            color: var(--muted);
-            letter-spacing: .04em;
+            color: var(--sf-muted);
+            letter-spacing: .10em;
             text-transform: uppercase;
         }
 
         .job-box .value {
             margin: 0;
-            font-size: 18px;
-            font-weight: 800;
-            color: var(--heading);
+            font-size: 24px;
+            font-weight: 900;
+            color: var(--sf-primary);
+            line-height: 1.3;
         }
 
         .note {
             margin: 20px auto 0;
-            max-width: 540px;
-            color: var(--muted);
+            max-width: 560px;
+            color: var(--sf-muted);
             font-size: 14px;
-            line-height: 1.7;
+            line-height: 1.75;
         }
 
         .actions {
@@ -167,20 +197,21 @@
             justify-content: center;
             gap: 12px;
             flex-wrap: wrap;
-            margin-top: 28px;
+            margin-top: 30px;
         }
 
         .btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 160px;
-            padding: 12px 18px;
-            border-radius: 14px;
+            min-width: 170px;
+            min-height: 52px;
+            padding: 0 20px;
+            border-radius: 16px;
             text-decoration: none;
             font-size: 14px;
-            font-weight: 800;
-            transition: transform .15s ease, background .2s ease, box-shadow .2s ease;
+            font-weight: 850;
+            transition: transform .15s ease, background .2s ease, box-shadow .2s ease, filter .2s ease;
         }
 
         .btn:hover {
@@ -188,31 +219,20 @@
         }
 
         .btn-primary {
-            background: linear-gradient(90deg, var(--primary) 0%, #55B5BA 100%);
+            background: linear-gradient(135deg, var(--sf-accent) 0%, #39c7c8 100%);
             color: #fff;
-            box-shadow: 0 12px 22px rgba(60, 159, 163, 0.18);
-        }
-
-        .btn-primary:hover {
-            background: var(--primary-dark);
+            box-shadow: 0 14px 24px rgba(38, 182, 183, 0.22);
         }
 
         .btn-secondary {
-            background: #EEF4F6;
-            color: var(--heading);
-        }
-
-        .btn-secondary:hover {
-            background: #E3ECEF;
+            background: rgba(255,255,255,0.84);
+            color: var(--sf-primary);
+            border: 1px solid rgba(44,83,119,0.12);
         }
 
         @media (max-width: 640px) {
             .card-inner {
                 padding: 28px 18px 24px;
-            }
-
-            h1 {
-                font-size: 25px;
             }
 
             .job-box {
@@ -228,8 +248,6 @@
 <body>
 
 <div class="card">
-    <div class="top-strip"></div>
-
     <div class="card-inner">
         <div class="logo">
             <img src="/images/sada-horizontal.png" alt="Sada Fezzan">
@@ -245,7 +263,7 @@
 
         <p class="lead">
             Your application has been submitted successfully.
-            Our recruitment team will review your CV and contact you if your profile matches the position requirements.
+            Our recruitment team will review your profile and contact you if your qualifications match the role requirements.
         </p>
 
         <div class="job-box">
@@ -254,7 +272,7 @@
         </div>
 
         <p class="note">
-            You may now return to the jobs page to explore other openings, or go back to the homepage.
+            You can now return to the jobs page to explore other available roles.
         </p>
 
         <div class="actions">

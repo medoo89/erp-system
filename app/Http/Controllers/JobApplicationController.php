@@ -14,15 +14,14 @@ class JobApplicationController extends Controller
 {
     public function create(Job $job)
     {
-        if (
-            ! $job->is_active
-            || $job->is_archived
-            || (
-                filled($job->closing_date)
-                && $job->closing_date->lt(today())
-            )
-        ) {
+        if (! $job->isPubliclyVisible()) {
             abort(404);
+        }
+
+        if (! $job->canAcceptApplications()) {
+            return redirect()
+                ->route('jobs.show', $job)
+                ->with('job_closed', 'This job is closed and no longer accepting applications.');
         }
 
         $template = $job->template;
@@ -50,20 +49,19 @@ class JobApplicationController extends Controller
 
     public function store(Request $request, Job $job)
     {
-        if (
-            ! $job->is_active
-            || $job->is_archived
-            || (
-                filled($job->closing_date)
-                && $job->closing_date->lt(today())
-            )
-        ) {
+        if (! $job->isPubliclyVisible()) {
             abort(404);
+        }
+
+        if (! $job->canAcceptApplications()) {
+            return redirect()
+                ->route('jobs.show', $job)
+                ->with('job_closed', 'This job is closed and no longer accepting applications.');
         }
 
         if ($job->closing_date && now()->gt($job->closing_date)) {
             return back()
-                ->withErrors(['expired' => 'This job is no longer accepting applications.'])
+                ->withErrors(['closed' => 'This job is closed and no longer accepting applications.'])
                 ->withInput();
         }
 

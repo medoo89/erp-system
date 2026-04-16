@@ -33,6 +33,12 @@ class JobApplicationStatusUpdatedMail extends Mailable implements ShouldQueue
     {
         return $this
             ->subject($this->subjectLine)
-            ->view('emails.job-application-status-updated');
+            ->view('emails.job-application-status-updated')
+            ->with([
+                'jobApplication' => $this->jobApplication,
+                'statusLabel' => $this->statusLabel,
+                'subjectLine' => $this->subjectLine,
+                'messageBody' => $this->messageBody,
+            ]);
     }
 }

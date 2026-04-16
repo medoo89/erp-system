@@ -30,6 +30,11 @@ class JobApplicationDeclinedMail extends Mailable implements ShouldQueue
     {
         return $this
             ->subject('Update on Your Job Application')
-            ->view('emails.job-application-declined');
+            ->view('emails.job-application-declined')
+            ->with([
+                'jobApplication' => $this->jobApplication,
+                'declineReasonLabel' => $this->declineReasonLabel,
+                'declineNotes' => $this->declineNotes,
+            ]);
     }
 }

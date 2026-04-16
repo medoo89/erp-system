@@ -95,6 +95,26 @@ class JobApplicationResource extends Resource
                                 default => ucfirst(str_replace('_', ' ', (string) $state)),
                             }),
 
+                        TextEntry::make('candidate_request_status')
+                            ->label('Request Workflow')
+                            ->badge()
+                            ->weight('bold')
+                            ->color(fn (?string $state): string => match ($state) {
+                                'awaiting_response' => 'warning',
+                                'response_received' => 'info',
+                                'documents_submitted' => 'success',
+                                'request_completed' => 'success',
+                                default => 'gray',
+                            })
+                            ->formatStateUsing(fn (?string $state): string => match ($state) {
+                                'awaiting_response' => 'Awaiting Response',
+                                'response_received' => 'Response Received',
+                                'documents_submitted' => 'Documents Submitted',
+                                'request_completed' => 'Request Completed',
+                                null, '' => '-',
+                                default => ucfirst(str_replace('_', ' ', (string) $state)),
+                            }),
+
                         TextEntry::make('decline_reason')
                             ->label('Decline Reason')
                             ->badge()
@@ -128,7 +148,7 @@ class JobApplicationResource extends Resource
                             })
                             ->visible(fn (JobApplication $record): bool => $record->status === 'declined' && filled($record->decline_reason)),
                     ])
-                    ->columns(3)
+                    ->columns(4)
                     ->columnSpanFull(),
 
                 Section::make('Overview')
@@ -198,6 +218,26 @@ class JobApplicationResource extends Resource
                             ]),
                     ])
                     ->columns(4)
+                    ->columnSpanFull(),
+
+                Section::make('Latest Status Notes')
+                    ->schema([
+                        TextEntry::make('notes')
+                            ->hiddenLabel()
+                            ->weight('bold')
+                            ->default('-'),
+                    ])
+                    ->visible(fn (JobApplication $record): bool => filled($record->notes))
+                    ->columnSpanFull(),
+
+                Section::make('Decline Notes')
+                    ->schema([
+                        TextEntry::make('decline_notes')
+                            ->hiddenLabel()
+                            ->weight('bold')
+                            ->default('-'),
+                    ])
+                    ->visible(fn (JobApplication $record): bool => $record->status === 'declined' && filled($record->decline_notes))
                     ->columnSpanFull(),
 
                 Section::make('Application Answers')

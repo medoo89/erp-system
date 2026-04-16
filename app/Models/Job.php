@@ -53,4 +53,19 @@ class Job extends Model
     {
         return $this->belongsTo(\App\Models\Project::class, 'project_id');
     }
+
+    public function isClosed(): bool
+    {
+        return filled($this->closing_date) && $this->closing_date->lt(today());
+    }
+
+    public function isPubliclyVisible(): bool
+    {
+        return $this->is_active && ! $this->is_archived;
+    }
+
+    public function canAcceptApplications(): bool
+    {
+        return $this->isPubliclyVisible() && ! $this->isClosed();
+    }
 }

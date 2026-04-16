@@ -11,10 +11,12 @@
 
             <div class="fields-grid">
                 @foreach($chunk as $field)
+                    @php
+                        $isWideField = in_array($field->field_type, ['textarea', 'checkbox', 'file']);
+                    @endphp
 
-                    {{-- PHONE NUMBER WITH COUNTRY CODE --}}
                     @if($field->field_key === 'phone_number')
-                        <div class="field">
+                        <div class="field full-width">
                             <label>
                                 Phone Number
                                 @if($field->is_required)
@@ -62,9 +64,8 @@
                         @continue
                     @endif
 
-                    {{-- WHATSAPP NUMBER WITH COUNTRY CODE --}}
                     @if($field->field_key === 'whatsapp_number')
-                        <div class="field">
+                        <div class="field full-width">
                             <label>
                                 WhatsApp Number
                                 @if($field->is_required)
@@ -112,8 +113,7 @@
                         @continue
                     @endif
 
-                    {{-- NORMAL FIELD --}}
-                    <div class="field">
+                    <div class="field {{ $isWideField ? 'full-width' : '' }}">
                         <label>
                             {{ $field->label }}
                             @if($field->is_required)
@@ -121,25 +121,26 @@
                             @endif
                         </label>
 
-                       @if($field->field_type === 'text' && $field->field_key !== 'email')
-    <input
-        type="text"
-        name="{{ $field->field_key }}"
-        class="input"
-        placeholder="{{ $field->placeholder }}"
-        value="{{ old($field->field_key) }}"
-        {{ $field->is_required ? 'required' : '' }}
-    >
+                        @if($field->field_type === 'text' && $field->field_key !== 'email')
+                            <input
+                                type="text"
+                                name="{{ $field->field_key }}"
+                                class="input"
+                                placeholder="{{ $field->placeholder }}"
+                                value="{{ old($field->field_key) }}"
+                                {{ $field->is_required ? 'required' : '' }}
+                            >
 
-@elseif($field->field_type === 'email' || $field->field_key === 'email')
-    <input
-        type="email"
-        name="{{ $field->field_key }}"
-        class="input"
-        placeholder="{{ $field->placeholder ?: 'Enter your email address' }}"
-        value="{{ old($field->field_key) }}"
-        {{ $field->is_required ? 'required' : '' }}
-    >
+                        @elseif($field->field_type === 'email' || $field->field_key === 'email')
+                            <input
+                                type="email"
+                                name="{{ $field->field_key }}"
+                                class="input"
+                                placeholder="{{ $field->placeholder ?: 'Enter your email address' }}"
+                                value="{{ old($field->field_key) }}"
+                                {{ $field->is_required ? 'required' : '' }}
+                            >
+
                         @elseif($field->field_type === 'number')
                             <input
                                 type="number"

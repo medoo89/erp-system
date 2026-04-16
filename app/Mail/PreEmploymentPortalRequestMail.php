@@ -28,7 +28,13 @@ class PreEmploymentPortalRequestMail extends Mailable
             ? 'Additional Pre-Employment Requirements'
             : 'Pre-Employment Portal Access';
 
-        return $this->subject($subject)
-            ->view('emails.pre-employment-portal-request');
+        return $this
+            ->subject($subject)
+            ->view('emails.pre-employment-portal-request')
+            ->with([
+                'preEmployment' => $this->preEmployment,
+                'portalUrl' => $this->portalUrl,
+                'isUpdateRequest' => $this->isUpdateRequest,
+            ]);
     }
 }
