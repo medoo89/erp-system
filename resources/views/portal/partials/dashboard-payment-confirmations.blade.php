@@ -44,11 +44,21 @@
                     $isCash = $receiptSlip->payment_method === SalarySlip::PAYMENT_METHOD_CASH;
                     $statusLabel = SalarySlip::statusLabels()[$receiptSlip->status] ?? ucfirst(str_replace('_', ' ', (string) $receiptSlip->status));
                     $confirmText = $isCash ? 'Confirm Cash Received' : 'Confirm Received';
+
+                    $receiptCurrency = $receiptSlip->currency ?: 'EUR';
+                    $receiptAmount = (float) (
+                        $receiptSlip->payment_total_amount
+                        ?? $receiptSlip->final_payable_amount
+                        ?? $receiptSlip->net_amount
+                        ?? 0
+                    );
                 @endphp
 
                 <article class="sf-md3-payment-item {{ $isCash ? 'sf-md3-payment-item--cash' : 'sf-md3-payment-item--bank' }}">
-                    <div class="sf-md3-payment-icon">
-                        {{ $isCash ? '💵' : '🏦' }}
+                    <div class="sf-md3-payment-icon {{ $isCash ? 'sf-md3-payment-icon--cash' : 'sf-md3-payment-icon--bank' }}">
+                        <span class="material-symbols-rounded">
+                            {{ $isCash ? 'payments' : 'account_balance' }}
+                        </span>
                     </div>
 
                     <div class="sf-md3-payment-main">
@@ -57,11 +67,13 @@
                         </div>
 
                         <div class="sf-md3-payment-meta">
-                            <span>{{ $methodLabel($receiptSlip) }}</span>
-                            <span>•</span>
-                            <span>{{ number_format((float) $receiptSlip->net_amount, 2) }} {{ $receiptSlip->currency }}</span>
-                            <span>•</span>
-                            <span>{{ $statusLabel }}</span>
+                            <span class="sf-md3-payment-method">{{ $methodLabel($receiptSlip) }}</span>
+                            <span class="sf-md3-payment-dot">•</span>
+                            <span class="sf-md3-payment-status">{{ $statusLabel }}</span>
+                        </div>
+
+                        <div class="sf-md3-payment-amount">
+                            {{ number_format($receiptAmount, 2) }} {{ $receiptCurrency }}
                         </div>
 
                         @if($receiptSlip->client?->name || $receiptSlip->project?->name)
@@ -214,13 +226,36 @@
     }
 
     .sf-md3-payment-icon {
-        width: 52px;
-        height: 52px;
+        width: 58px;
+        height: 58px;
         display: grid;
         place-items: center;
-        border-radius: 18px;
-        background: rgba(15,23,42,.06);
-        font-size: 22px;
+        border-radius: 20px;
+        background: rgba(37,99,235,.10);
+        border: 1px solid rgba(37,99,235,.16);
+        box-shadow: 0 14px 28px rgba(37,99,235,.10);
+        color: #1d4ed8;
+        flex-shrink: 0;
+    }
+
+    .sf-md3-payment-icon span {
+        font-size: 30px;
+        line-height: 1;
+        font-variation-settings: 'FILL' 0, 'wght' 650, 'GRAD' 0, 'opsz' 24;
+    }
+
+    .sf-md3-payment-icon--cash {
+        background: rgba(16,185,129,.10);
+        border-color: rgba(16,185,129,.18);
+        color: #047857;
+        box-shadow: 0 14px 28px rgba(16,185,129,.10);
+    }
+
+    .sf-md3-payment-icon--bank {
+        background: rgba(37,99,235,.10);
+        border-color: rgba(37,99,235,.18);
+        color: #1d4ed8;
+        box-shadow: 0 14px 28px rgba(37,99,235,.10);
     }
 
     .sf-md3-payment-title {
@@ -232,19 +267,50 @@
 
     .sf-md3-payment-meta,
     .sf-md3-payment-submeta {
-        margin-top: 5px;
+        margin-top: 6px;
         display: flex;
         align-items: center;
-        gap: 7px;
+        gap: 8px;
         flex-wrap: wrap;
         color: #64748b;
         font-size: 13px;
-        font-weight: 750;
+        font-weight: 800;
+    }
+
+    .sf-md3-payment-method,
+    .sf-md3-payment-status {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        padding: 0 11px;
+        border-radius: 999px;
+        background: rgba(241,245,249,.95);
+        border: 1px solid rgba(15,23,42,.07);
+        color: #475569;
+        font-size: 11px;
+        font-weight: 950;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+    }
+
+    .sf-md3-payment-dot {
+        color: #cbd5e1;
+        font-weight: 950;
+    }
+
+    .sf-md3-payment-amount {
+        margin-top: 8px;
+        color: #0f172a;
+        font-size: 20px;
+        line-height: 1.05;
+        font-weight: 950;
+        letter-spacing: -.03em;
     }
 
     .sf-md3-payment-submeta {
-        color: #94a3b8;
+        color: #64748b;
         font-size: 12px;
+        font-weight: 850;
     }
 
     .sf-md3-payment-actions {
@@ -332,5 +398,181 @@
         .sf-md3-payment-actions {
             justify-content: flex-start;
         }
+    }
+</style>
+
+
+<style id="sf-md3-payment-confirmations-polish-final">
+    .sf-md3-payment-actions {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        gap: 10px !important;
+        flex-wrap: nowrap !important;
+    }
+
+    .sf-md3-payment-actions form {
+        margin: 0 !important;
+    }
+
+    .sf-md3-payment-btn {
+        min-height: 42px !important;
+        padding: 0 18px !important;
+        border-radius: 999px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        white-space: nowrap !important;
+        font-size: 13px !important;
+        font-weight: 950 !important;
+        letter-spacing: .02em !important;
+        border: 1px solid transparent !important;
+        box-shadow: 0 12px 26px rgba(15,23,42,.06) !important;
+        transition: transform .16s ease, box-shadow .16s ease, filter .16s ease !important;
+    }
+
+    .sf-md3-payment-btn:hover {
+        transform: translateY(-1px) !important;
+        filter: saturate(1.08) !important;
+    }
+
+    .sf-md3-payment-btn--confirm {
+        background: linear-gradient(135deg, #ecfdf5, #d1fae5) !important;
+        border-color: rgba(16,185,129,.22) !important;
+        color: #047857 !important;
+    }
+
+    .sf-md3-payment-btn--danger {
+        background: linear-gradient(135deg, #fff1f2, #fee2e2) !important;
+        border-color: rgba(239,68,68,.22) !important;
+        color: #b91c1c !important;
+    }
+
+    .sf-md3-payment-btn--open {
+        background: rgba(255,255,255,.92) !important;
+        border-color: rgba(37,99,235,.16) !important;
+        color: #1d4ed8 !important;
+        text-decoration: none !important;
+    }
+
+    .sf-md3-payment-item {
+        grid-template-columns: auto minmax(0, 1fr) auto !important;
+    }
+
+    .dark .sf-md3-payment-method,
+    .dark .sf-md3-payment-status {
+        background: rgba(15,23,42,.62) !important;
+        border-color: rgba(255,255,255,.10) !important;
+        color: rgba(226,232,240,.86) !important;
+    }
+
+    .dark .sf-md3-payment-amount {
+        color: #f8fafc !important;
+    }
+
+    .dark .sf-md3-payment-icon--bank {
+        background: rgba(37,99,235,.18) !important;
+        border-color: rgba(147,197,253,.20) !important;
+        color: #bfdbfe !important;
+    }
+
+    .dark .sf-md3-payment-icon--cash {
+        background: rgba(16,185,129,.18) !important;
+        border-color: rgba(110,231,183,.20) !important;
+        color: #a7f3d0 !important;
+    }
+
+    @media (max-width: 900px) {
+        .sf-md3-payment-item {
+            grid-template-columns: auto minmax(0, 1fr) !important;
+        }
+
+        .sf-md3-payment-actions {
+            grid-column: 1 / -1 !important;
+            justify-content: flex-start !important;
+            flex-wrap: wrap !important;
+        }
+    }
+</style>
+
+<style id="sf-md3-payment-confirmation-strong-colors-final">
+    /* Status pill: Sent to Bank = orange */
+    .sf-md3-payment-status {
+        background: linear-gradient(135deg, #fff7ed, #ffedd5) !important;
+        border-color: rgba(249,115,22,.34) !important;
+        color: #c2410c !important;
+        box-shadow: 0 8px 18px rgba(249,115,22,.10) !important;
+    }
+
+    /* Confirm Received = stronger green */
+    .sf-md3-payment-btn--confirm {
+        background: linear-gradient(135deg, #16a34a, #059669) !important;
+        border-color: rgba(5,150,105,.55) !important;
+        color: #ffffff !important;
+        box-shadow: 0 14px 30px rgba(5,150,105,.24) !important;
+    }
+
+    .sf-md3-payment-btn--confirm:hover {
+        box-shadow: 0 18px 38px rgba(5,150,105,.32) !important;
+    }
+
+    /* Not Received = clear red */
+    .sf-md3-payment-btn--danger {
+        background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+        border-color: rgba(220,38,38,.55) !important;
+        color: #ffffff !important;
+        box-shadow: 0 14px 30px rgba(220,38,38,.22) !important;
+    }
+
+    .sf-md3-payment-btn--danger:hover {
+        box-shadow: 0 18px 38px rgba(220,38,38,.30) !important;
+    }
+
+    .dark .sf-md3-payment-status {
+        background: rgba(124,45,18,.72) !important;
+        border-color: rgba(251,146,60,.38) !important;
+        color: #fed7aa !important;
+    }
+</style>
+
+<style id="sf-md3-payment-confirm-vs-not-received-final-strong">
+    /* Confirm Received = GREEN */
+    .sf-md3-payment-confirmations .sf-md3-payment-actions form button.sf-md3-payment-btn--confirm,
+    .sf-md3-payment-confirmations button.sf-md3-payment-btn--confirm {
+        background: linear-gradient(135deg, #16a34a, #059669) !important;
+        border: 1px solid rgba(5,150,105,.55) !important;
+        color: #ffffff !important;
+        box-shadow: 0 14px 30px rgba(5,150,105,.26) !important;
+    }
+
+    .sf-md3-payment-confirmations .sf-md3-payment-actions form button.sf-md3-payment-btn--confirm:hover,
+    .sf-md3-payment-confirmations button.sf-md3-payment-btn--confirm:hover {
+        background: linear-gradient(135deg, #15803d, #047857) !important;
+        color: #ffffff !important;
+        box-shadow: 0 18px 38px rgba(5,150,105,.34) !important;
+    }
+
+    /* Not Received = RED */
+    .sf-md3-payment-confirmations .sf-md3-payment-actions form button.sf-md3-payment-btn--danger,
+    .sf-md3-payment-confirmations button.sf-md3-payment-btn--danger {
+        background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+        border: 1px solid rgba(220,38,38,.58) !important;
+        color: #ffffff !important;
+        box-shadow: 0 14px 30px rgba(220,38,38,.28) !important;
+    }
+
+    .sf-md3-payment-confirmations .sf-md3-payment-actions form button.sf-md3-payment-btn--danger:hover,
+    .sf-md3-payment-confirmations button.sf-md3-payment-btn--danger:hover {
+        background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+        color: #ffffff !important;
+        box-shadow: 0 18px 38px rgba(220,38,38,.36) !important;
+    }
+
+    /* Open stays clean white / blue */
+    .sf-md3-payment-confirmations .sf-md3-payment-btn--open {
+        background: rgba(255,255,255,.94) !important;
+        border: 1px solid rgba(37,99,235,.16) !important;
+        color: #2563eb !important;
+        box-shadow: 0 10px 24px rgba(37,99,235,.08) !important;
     }
 </style>

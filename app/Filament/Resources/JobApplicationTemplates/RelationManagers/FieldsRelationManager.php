@@ -40,6 +40,7 @@ class FieldsRelationManager extends RelationManager
             ])
             ->headerActions([
                 AttachAction::make()
+                    ->visible(fn () => (bool) auth()->user()?->canErp('application_templates', 'manage_fields'))
                     // 🔹 نخلي النافذة تعرض اسم الحقل من عمود label
                     ->recordTitleAttribute('label')
 
@@ -48,7 +49,17 @@ class FieldsRelationManager extends RelationManager
             ])
             ->recordActions([
                 // 🔹 إزالة الحقل من التمبليت
-                DetachAction::make(),
+                DetachAction::make()
+                    ->visible(fn () => (bool) auth()->user()?->canErp('application_templates', 'manage_fields')),
             ]);
+    }
+
+
+    public static function canViewForRecord(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): bool
+    {
+        return (bool) (
+            auth()->user()?->canErp('application_templates', 'view')
+            || auth()->user()?->canErp('application_templates', 'manage_fields')
+        );
     }
 }

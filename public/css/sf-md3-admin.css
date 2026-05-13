@@ -1,0 +1,2699 @@
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..700,0..1,-50..200');
+
+/* =========================================================
+   Sada Fezzan ERP — Premium MD3 Admin Skin
+   Safe CSS-only patch: sidebar, topbar, user menu, icons.
+   ========================================================= */
+
+:root {
+    --sf-bg: #eef7f8;
+    --sf-surface: rgba(255, 255, 255, .78);
+    --sf-surface-solid: #ffffff;
+    --sf-surface-soft: rgba(248, 252, 253, .92);
+    --sf-line: rgba(13, 83, 100, .12);
+    --sf-line-strong: rgba(13, 83, 100, .2);
+
+    --sf-primary: #0f7490;
+    --sf-primary-2: #12a9a3;
+    --sf-primary-dark: #083a5f;
+    --sf-teal: #1eb6aa;
+    --sf-gold: #f5b700;
+    --sf-ink: #123a5a;
+    --sf-muted: #6f8798;
+
+    --sf-radius-sm: 14px;
+    --sf-radius-md: 20px;
+    --sf-radius-lg: 28px;
+    --sf-shadow-soft: 0 18px 45px rgba(8, 35, 62, .10);
+    --sf-shadow-pop: 0 24px 70px rgba(8, 35, 62, .18);
+}
+
+/* Page background */
+.fi-body,
+.fi-main,
+.fi-layout,
+.fi-page {
+    background:
+        radial-gradient(circle at 10% 0%, rgba(18, 169, 163, .10), transparent 34%),
+        radial-gradient(circle at 92% 18%, rgba(245, 183, 0, .09), transparent 28%),
+        linear-gradient(180deg, #f7fbfc 0%, #edf7f8 55%, #eaf4f6 100%) !important;
+}
+
+/* =========================
+   Top Header / Topbar
+   ========================= */
+.fi-topbar {
+    min-height: 58px !important;
+    border-bottom: 1px solid rgba(15, 116, 144, .10) !important;
+    background:
+        linear-gradient(135deg, rgba(255,255,255,.86), rgba(240,249,250,.78)) !important;
+    backdrop-filter: blur(22px) saturate(1.25) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(1.25) !important;
+    box-shadow: 0 14px 38px rgba(8, 35, 62, .08) !important;
+}
+
+.fi-topbar nav,
+.fi-topbar .fi-topbar-ctn {
+    min-height: 58px !important;
+}
+
+/* Search box */
+.fi-topbar input,
+.fi-topbar .fi-input,
+.fi-topbar .fi-input-wrp {
+    border-radius: 999px !important;
+    background: rgba(255,255,255,.78) !important;
+    border-color: rgba(15,116,144,.12) !important;
+    color: #123a5a !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.7) !important;
+}
+
+/* Topbar icons */
+.fi-topbar button,
+.fi-topbar a {
+    transition: transform .18s ease, background .18s ease, box-shadow .18s ease !important;
+}
+
+.fi-topbar button:hover,
+.fi-topbar a:hover {
+    transform: translateY(-1px);
+}
+
+/* =========================
+   Sidebar
+   ========================= */
+.fi-sidebar {
+    background:
+        radial-gradient(circle at top left, rgba(18,169,163,.15), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(245,183,0,.10), transparent 35%),
+        linear-gradient(180deg, rgba(255,255,255,.88) 0%, rgba(245,251,252,.82) 100%) !important;
+    backdrop-filter: blur(28px) saturate(1.15) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(1.15) !important;
+    border-inline-end: 1px solid rgba(15,116,144,.12) !important;
+    box-shadow: 16px 0 46px rgba(8, 35, 62, .08) !important;
+}
+
+.fi-sidebar-header {
+    min-height: 76px !important;
+    background: rgba(255,255,255,.42) !important;
+    border-bottom: 1px solid rgba(15,116,144,.08) !important;
+}
+
+.fi-sidebar-header img {
+    max-height: 58px !important;
+    object-fit: contain !important;
+    filter: drop-shadow(0 10px 14px rgba(8,35,62,.10));
+}
+
+/* Sidebar nav spacing */
+.fi-sidebar-nav {
+    padding: 16px 10px 24px !important;
+}
+
+.fi-sidebar-group {
+    margin-top: 18px !important;
+}
+
+/* Group labels */
+.fi-sidebar-group-label {
+    padding-inline: 10px !important;
+    margin-bottom: 8px !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    font-weight: 950 !important;
+    letter-spacing: .08em !important;
+    text-transform: uppercase !important;
+    color: var(--sf-primary) !important;
+}
+
+.fi-sidebar-group:nth-of-type(3n) .fi-sidebar-group-label {
+    color: #c28b00 !important;
+}
+
+.fi-sidebar-group:nth-of-type(4n) .fi-sidebar-group-label {
+    color: #7c3aed !important;
+}
+
+/* Sidebar item base */
+.fi-sidebar-item {
+    margin: 5px 0 !important;
+}
+
+.fi-sidebar-item a,
+.fi-sidebar-item-button {
+    position: relative !important;
+    min-height: 52px !important;
+    border-radius: 999px !important;
+    padding: 8px 12px !important;
+    color: var(--sf-ink) !important;
+    font-weight: 850 !important;
+    letter-spacing: -.01em !important;
+    transition:
+        transform .18s ease,
+        background .18s ease,
+        box-shadow .18s ease,
+        border-color .18s ease !important;
+}
+
+.fi-sidebar-item a:hover,
+.fi-sidebar-item-button:hover {
+    background: rgba(255,255,255,.72) !important;
+    box-shadow: 0 10px 26px rgba(8,35,62,.08) !important;
+    transform: translateX(2px);
+}
+
+/* MD3 icon container style */
+.fi-sidebar-item-icon,
+.fi-sidebar-item svg {
+    transition: transform .18s ease, color .18s ease, background .18s ease !important;
+}
+
+.fi-sidebar-item a > svg,
+.fi-sidebar-item-button > svg,
+.fi-sidebar-item-icon {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    padding: 7px !important;
+    border-radius: 13px !important;
+    background: rgba(15,116,144,.075) !important;
+    color: #0b4c70 !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.75) !important;
+}
+
+/* Active item */
+.fi-sidebar-item-active a,
+.fi-sidebar-item-active .fi-sidebar-item-button,
+.fi-sidebar-item.fi-active a,
+.fi-sidebar-item.fi-active .fi-sidebar-item-button,
+.fi-sidebar-item [aria-current="page"] {
+    background:
+        linear-gradient(135deg, rgba(18,169,163,.18), rgba(245,183,0,.18)),
+        rgba(255,255,255,.74) !important;
+    border: 1px solid rgba(18,169,163,.28) !important;
+    color: #072d4c !important;
+    box-shadow:
+        0 16px 36px rgba(8,35,62,.12),
+        inset 0 1px 0 rgba(255,255,255,.78) !important;
+}
+
+.fi-sidebar-item-active a > svg,
+.fi-sidebar-item-active .fi-sidebar-item-button > svg,
+.fi-sidebar-item.fi-active a > svg,
+.fi-sidebar-item [aria-current="page"] > svg {
+    background: linear-gradient(135deg, #0f7490, #20b7aa) !important;
+    color: #ffffff !important;
+    box-shadow: 0 12px 24px rgba(15,116,144,.28) !important;
+    transform: scale(1.03);
+}
+
+/* Sidebar labels */
+.fi-sidebar-item-label {
+    color: inherit !important;
+    font-size: 14px !important;
+    font-weight: 900 !important;
+}
+
+/* Collapse group arrow */
+.fi-sidebar-group-collapse-button {
+    border-radius: 999px !important;
+    color: rgba(18,58,90,.62) !important;
+}
+
+/* =========================
+   User menu / Account dropdown
+   ========================= */
+.fi-dropdown-panel {
+    border-radius: 26px !important;
+    border: 1px solid rgba(15,116,144,.14) !important;
+    background:
+        radial-gradient(circle at top right, rgba(18,169,163,.13), transparent 28%),
+        linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,252,253,.94)) !important;
+    backdrop-filter: blur(26px) saturate(1.2) !important;
+    -webkit-backdrop-filter: blur(26px) saturate(1.2) !important;
+    box-shadow: var(--sf-shadow-pop) !important;
+    overflow: hidden !important;
+}
+
+.fi-dropdown-list {
+    padding: 8px !important;
+}
+
+.fi-dropdown-list-item {
+    border-radius: 16px !important;
+    min-height: 44px !important;
+    font-weight: 850 !important;
+    color: #123a5a !important;
+    transition: transform .16s ease, background .16s ease !important;
+}
+
+.fi-dropdown-list-item:hover {
+    background: rgba(15,116,144,.08) !important;
+    transform: translateX(2px);
+}
+
+.fi-dropdown-list-item-icon {
+    width: 30px !important;
+    height: 30px !important;
+    padding: 6px !important;
+    border-radius: 12px !important;
+    background: rgba(15,116,144,.075) !important;
+    color: #0f7490 !important;
+}
+
+.fi-dropdown-header {
+    padding: 14px !important;
+    background: linear-gradient(135deg, rgba(15,116,144,.08), rgba(18,169,163,.07)) !important;
+    border-bottom: 1px solid rgba(15,116,144,.10) !important;
+}
+
+/* User avatar / trigger */
+.fi-user-menu-trigger,
+.fi-avatar,
+.fi-topbar .fi-avatar {
+    border-radius: 999px !important;
+}
+
+.fi-topbar .fi-avatar,
+.fi-user-menu-trigger img {
+    box-shadow:
+        0 0 0 3px rgba(255,255,255,.9),
+        0 0 0 5px rgba(15,116,144,.22),
+        0 12px 26px rgba(8,35,62,.16) !important;
+}
+
+/* Sign out button style */
+.fi-dropdown-list-item:has([class*="logout"]),
+.fi-dropdown-list-item:has(svg[class*="logout"]) {
+    background: rgba(245,183,0,.14) !important;
+}
+
+/* =========================
+   General cards / panels
+   ========================= */
+.fi-section,
+.fi-ta-ctn,
+.fi-modal-window,
+.fi-fo-section,
+.fi-wi-widget {
+    border-radius: var(--sf-radius-lg) !important;
+    border-color: rgba(15,116,144,.12) !important;
+    box-shadow: 0 18px 45px rgba(8,35,62,.08) !important;
+}
+
+.fi-btn {
+    border-radius: 999px !important;
+    font-weight: 850 !important;
+}
+
+/* Header action buttons wrapping instead of stretching */
+.fi-header .fi-ac,
+.fi-header-actions,
+.fi-page-header .fi-ac {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+}
+
+.fi-header .fi-btn,
+.fi-page-header .fi-btn {
+    min-height: 42px !important;
+    white-space: nowrap !important;
+}
+
+/* Prevent huge broken title wrapping in premium pages */
+.fi-header-heading {
+    word-break: normal !important;
+    overflow-wrap: anywhere !important;
+    line-height: 1.05 !important;
+}
+
+/* Dark mode support */
+.dark .fi-body,
+.dark .fi-main,
+.dark .fi-layout,
+.dark .fi-page {
+    background:
+        radial-gradient(circle at 10% 0%, rgba(18,169,163,.12), transparent 34%),
+        radial-gradient(circle at 92% 18%, rgba(245,183,0,.08), transparent 28%),
+        linear-gradient(180deg, #061324 0%, #071b2d 55%, #06111f 100%) !important;
+}
+
+.dark .fi-topbar {
+    background: linear-gradient(135deg, rgba(7,19,36,.86), rgba(7,30,45,.78)) !important;
+    border-bottom-color: rgba(76,167,168,.18) !important;
+}
+
+.dark .fi-sidebar {
+    background:
+        radial-gradient(circle at top left, rgba(18,169,163,.13), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(245,183,0,.08), transparent 35%),
+        linear-gradient(180deg, rgba(7,19,36,.93), rgba(6,17,31,.90)) !important;
+    border-inline-end-color: rgba(76,167,168,.18) !important;
+}
+
+.dark .fi-sidebar-item a,
+.dark .fi-sidebar-item-button,
+.dark .fi-sidebar-item-label {
+    color: #dcecff !important;
+}
+
+.dark .fi-sidebar-item a > svg,
+.dark .fi-sidebar-item-button > svg,
+.dark .fi-sidebar-item-icon {
+    background: rgba(255,255,255,.08) !important;
+    color: #8bd8f0 !important;
+}
+
+.dark .fi-dropdown-panel {
+    background:
+        radial-gradient(circle at top right, rgba(18,169,163,.12), transparent 28%),
+        linear-gradient(180deg, rgba(10,24,42,.96), rgba(7,18,32,.94)) !important;
+    border-color: rgba(76,167,168,.18) !important;
+}
+
+.dark .fi-dropdown-list-item {
+    color: #e8f3ff !important;
+}
+
+/* Mobile */
+@media (max-width: 900px) {
+    .fi-sidebar-nav {
+        padding-inline: 8px !important;
+    }
+
+    .fi-sidebar-item a,
+    .fi-sidebar-item-button {
+        min-height: 48px !important;
+    }
+
+    .fi-header .fi-ac,
+    .fi-header-actions {
+        justify-content: flex-start !important;
+    }
+}
+
+
+/* =========================================================
+   Sada Fezzan ERP — Header / Sidebar / User Menu Fix v2
+   Fix raw icon text + premium top user menu
+   ========================================================= */
+
+/* ---------- Topbar final polish ---------- */
+.fi-topbar {
+    height: 64px !important;
+    padding-inline: 18px !important;
+    background:
+        radial-gradient(circle at 8% 0%, rgba(32,183,170,.12), transparent 30%),
+        linear-gradient(135deg, rgba(255,255,255,.92), rgba(242,250,251,.86)) !important;
+    border-bottom: 1px solid rgba(15,116,144,.12) !important;
+}
+
+.fi-topbar nav,
+.fi-topbar .fi-topbar-ctn {
+    height: 64px !important;
+}
+
+/* Make search cleaner */
+.fi-topbar .fi-input-wrp,
+.fi-topbar input[type="search"],
+.fi-topbar input {
+    min-height: 38px !important;
+    border-radius: 999px !important;
+}
+
+/* Notification button */
+.fi-topbar button[aria-label*="notifications" i],
+.fi-topbar button[title*="notifications" i],
+.fi-topbar button:has(svg) {
+    border-radius: 999px !important;
+}
+
+/* ---------- User trigger button in topbar ---------- */
+.fi-user-menu-trigger,
+.fi-topbar [data-dropdown-trigger],
+.fi-topbar button:has(.fi-avatar) {
+    max-width: 230px !important;
+    min-height: 48px !important;
+    padding: 5px 10px 5px 6px !important;
+    border-radius: 999px !important;
+    border: 1px solid rgba(15,116,144,.16) !important;
+    background: rgba(255,255,255,.74) !important;
+    box-shadow:
+        0 10px 26px rgba(8,35,62,.08),
+        inset 0 1px 0 rgba(255,255,255,.85) !important;
+    overflow: hidden !important;
+    direction: ltr !important;
+}
+
+.fi-user-menu-trigger *,
+.fi-topbar button:has(.fi-avatar) * {
+    direction: ltr !important;
+    text-align: left !important;
+    writing-mode: horizontal-tb !important;
+    transform: none !important;
+}
+
+.fi-user-menu-trigger:hover,
+.fi-topbar button:has(.fi-avatar):hover {
+    background: rgba(255,255,255,.92) !important;
+    box-shadow:
+        0 16px 34px rgba(8,35,62,.12),
+        inset 0 1px 0 rgba(255,255,255,.9) !important;
+}
+
+/* Avatar size */
+.fi-topbar .fi-avatar,
+.fi-user-menu-trigger .fi-avatar,
+.fi-user-menu-trigger img,
+.fi-topbar button:has(.fi-avatar) img {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    border-radius: 999px !important;
+    object-fit: cover !important;
+}
+
+/* Stop username/email from reversing */
+.fi-user-menu-trigger span,
+.fi-topbar button:has(.fi-avatar) span,
+.fi-user-menu-trigger div,
+.fi-topbar button:has(.fi-avatar) div {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    unicode-bidi: plaintext !important;
+}
+
+/* Hide accidental reversed/duplicated email-like text in trigger if Filament renders it badly */
+.fi-topbar button:has(.fi-avatar) .text-xs,
+.fi-user-menu-trigger .text-xs {
+    display: none !important;
+}
+
+/* ---------- Dropdown panel: premium card ---------- */
+.fi-dropdown-panel {
+    min-width: 330px !important;
+    max-width: 360px !important;
+    border-radius: 30px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(15,116,144,.14) !important;
+    background:
+        radial-gradient(circle at top right, rgba(32,183,170,.12), transparent 34%),
+        linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,252,253,.95)) !important;
+    box-shadow:
+        0 28px 75px rgba(8,35,62,.20),
+        inset 0 1px 0 rgba(255,255,255,.92) !important;
+}
+
+/* User info top area */
+.fi-dropdown-header {
+    padding: 18px 18px 16px !important;
+    background:
+        linear-gradient(135deg, rgba(15,116,144,.08), rgba(32,183,170,.07)) !important;
+    border-bottom: 1px solid rgba(15,116,144,.10) !important;
+}
+
+.fi-dropdown-header,
+.fi-dropdown-header * {
+    direction: ltr !important;
+    text-align: left !important;
+    unicode-bidi: plaintext !important;
+}
+
+.fi-dropdown-header img,
+.fi-dropdown-header .fi-avatar {
+    width: 52px !important;
+    height: 52px !important;
+    min-width: 52px !important;
+    border-radius: 999px !important;
+    box-shadow:
+        0 0 0 3px #fff,
+        0 0 0 6px rgba(15,116,144,.22),
+        0 14px 28px rgba(8,35,62,.14) !important;
+}
+
+/* ---------- Fix raw theme icon text chips ---------- */
+/* This hides the ugly: light_mode / dark_mode / desktop_window */
+.fi-dropdown-panel :is(span, div, button, a) {
+    unicode-bidi: plaintext !important;
+}
+
+.fi-dropdown-panel :is(button, a, span, div):has(> span) {
+    direction: ltr !important;
+}
+
+/* Hide standalone raw material icon words when they appear as text */
+.fi-dropdown-panel span,
+.fi-dropdown-panel div,
+.fi-dropdown-panel button {
+    word-break: normal !important;
+}
+
+/* Specific raw icon text cleanup */
+/* SF removed broad Material font rule to protect dropdown text */
+
+/* SF removed broad Material font rule to protect dropdown text */
+
+/* Hide elements that contain only raw icon names */
+.fi-dropdown-panel button,
+.fi-dropdown-panel a {
+    overflow: hidden !important;
+}
+
+.fi-dropdown-panel button:has(span),
+.fi-dropdown-panel a:has(span) {
+    border-radius: 18px !important;
+}
+
+/* Theme switcher row: make it compact if it exists */
+.fi-dropdown-panel [role="group"],
+.fi-dropdown-panel .fi-theme-switcher,
+.fi-dropdown-panel div:has(> button):has(button) {
+    gap: 8px !important;
+}
+
+/* If raw icon words show inside theme buttons, make them invisible and replace with simple dots/icons */
+.fi-dropdown-panel button {
+    position: relative !important;
+}
+
+.fi-dropdown-panel button:has(span) span {
+    max-width: 180px !important;
+}
+
+/* Aggressive fix for exact text labels by clipping wide theme buttons */
+.fi-dropdown-panel button[title*="light" i],
+.fi-dropdown-panel button[aria-label*="light" i],
+.fi-dropdown-panel button[title*="dark" i],
+.fi-dropdown-panel button[aria-label*="dark" i],
+.fi-dropdown-panel button[title*="system" i],
+.fi-dropdown-panel button[aria-label*="system" i] {
+    width: 46px !important;
+    height: 46px !important;
+    min-width: 46px !important;
+    padding: 0 !important;
+    border-radius: 16px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: transparent !important;
+    font-size: 0 !important;
+    background: rgba(15,116,144,.07) !important;
+    border: 1px solid rgba(15,116,144,.10) !important;
+}
+
+.fi-dropdown-panel button[title*="light" i]::before,
+.fi-dropdown-panel button[aria-label*="light" i]::before {
+    content: "☀️";
+    font-size: 18px;
+    color: #123a5a;
+}
+
+.fi-dropdown-panel button[title*="dark" i]::before,
+.fi-dropdown-panel button[aria-label*="dark" i]::before {
+    content: "🌙";
+    font-size: 18px;
+    color: #123a5a;
+}
+
+.fi-dropdown-panel button[title*="system" i]::before,
+.fi-dropdown-panel button[aria-label*="system" i]::before,
+.fi-dropdown-panel button[title*="desktop" i]::before,
+.fi-dropdown-panel button[aria-label*="desktop" i]::before {
+    content: "🖥️";
+    font-size: 18px;
+    color: #123a5a;
+}
+
+/* ---------- Dropdown menu items ---------- */
+.fi-dropdown-list {
+    padding: 12px !important;
+}
+
+.fi-dropdown-list-item {
+    min-height: 54px !important;
+    border-radius: 20px !important;
+    padding: 10px 12px !important;
+    font-size: 15px !important;
+    font-weight: 900 !important;
+    color: #123a5a !important;
+    background: transparent !important;
+}
+
+.fi-dropdown-list-item:hover {
+    background: rgba(15,116,144,.075) !important;
+    transform: translateX(2px) !important;
+}
+
+.fi-dropdown-list-item-icon {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    border-radius: 15px !important;
+    padding: 8px !important;
+    background: rgba(15,116,144,.08) !important;
+    color: #0f7490 !important;
+}
+
+/* Make logout clear and premium */
+.fi-dropdown-list-item:has([href*="logout"]),
+.fi-dropdown-list-item:has(button[type="submit"]),
+.fi-dropdown-list-item:has(svg[class*="arrow-left"]),
+.fi-dropdown-list-item:has(svg[class*="logout"]) {
+    color: #dc2626 !important;
+    background: rgba(220,38,38,.06) !important;
+}
+
+.fi-dropdown-list-item:has([href*="logout"]):hover,
+.fi-dropdown-list-item:has(button[type="submit"]):hover {
+    background: rgba(220,38,38,.10) !important;
+}
+
+/* If account_circle / logout raw words appear, make them look less broken */
+/* SF removed broad Material font rule to protect dropdown text */
+
+/* SF removed broad Material font rule to protect dropdown text */
+
+/* ---------- Sidebar v2: smoother width and icons ---------- */
+.fi-sidebar {
+    width: 292px !important;
+}
+
+.fi-sidebar-nav {
+    padding: 18px 12px 28px !important;
+}
+
+.fi-sidebar-item a,
+.fi-sidebar-item-button {
+    min-height: 54px !important;
+    padding-inline: 12px !important;
+    gap: 13px !important;
+}
+
+.fi-sidebar-item-label {
+    font-size: 14.5px !important;
+    letter-spacing: -.015em !important;
+}
+
+/* Material-like icon bubble */
+.fi-sidebar-item a > svg,
+.fi-sidebar-item-button > svg,
+.fi-sidebar-item-icon {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    border-radius: 16px !important;
+    padding: 8px !important;
+}
+
+/* Active sidebar stronger */
+.fi-sidebar-item-active a,
+.fi-sidebar-item.fi-active a,
+.fi-sidebar-item [aria-current="page"] {
+    background:
+        linear-gradient(135deg, rgba(15,116,144,.16), rgba(245,183,0,.14)),
+        rgba(255,255,255,.84) !important;
+    border: 1px solid rgba(15,116,144,.22) !important;
+}
+
+/* ---------- Dark mode ---------- */
+.dark .fi-user-menu-trigger,
+.dark .fi-topbar button:has(.fi-avatar) {
+    background: rgba(10,24,42,.78) !important;
+    border-color: rgba(76,167,168,.20) !important;
+}
+
+.dark .fi-dropdown-panel {
+    background:
+        radial-gradient(circle at top right, rgba(32,183,170,.13), transparent 34%),
+        linear-gradient(180deg, rgba(10,24,42,.98), rgba(7,18,32,.96)) !important;
+}
+
+.dark .fi-dropdown-header {
+    background:
+        linear-gradient(135deg, rgba(76,167,168,.12), rgba(245,183,0,.06)) !important;
+}
+
+.dark .fi-dropdown-list-item {
+    color: #e8f3ff !important;
+}
+
+.dark .fi-dropdown-list-item-icon {
+    background: rgba(255,255,255,.08) !important;
+    color: #8bd8f0 !important;
+}
+
+.dark .fi-dropdown-panel button[title*="light" i]::before,
+.dark .fi-dropdown-panel button[aria-label*="light" i]::before,
+.dark .fi-dropdown-panel button[title*="dark" i]::before,
+.dark .fi-dropdown-panel button[aria-label*="dark" i]::before,
+.dark .fi-dropdown-panel button[title*="system" i]::before,
+.dark .fi-dropdown-panel button[aria-label*="system" i]::before {
+    color: #e8f3ff !important;
+}
+
+/* ---------- Mobile ---------- */
+@media (max-width: 900px) {
+    .fi-dropdown-panel {
+        min-width: 300px !important;
+        max-width: calc(100vw - 28px) !important;
+    }
+
+    .fi-sidebar {
+        width: 286px !important;
+    }
+}
+
+
+/* =========================================================
+   CRITICAL FIX — Material Symbols raw text in user menu
+   Fixes: light_mode / dark_mode / desktop_window / account_circle / logout / expand_more
+   ========================================================= */
+
+/* 1) Any Material icon class must render as icon font */
+/* SF removed broad Material font rule to protect dropdown text */
+
+/* 2) Theme buttons: force raw words to become icons */
+.fi-dropdown-panel button[aria-label*="Light" i],
+.fi-dropdown-panel button[aria-label*="Dark" i],
+.fi-dropdown-panel button[aria-label*="System" i],
+.fi-dropdown-panel button[title*="Light" i],
+.fi-dropdown-panel button[title*="Dark" i],
+.fi-dropdown-panel button[title*="System" i],
+.fi-dropdown-panel button[aria-label*="light_mode" i],
+.fi-dropdown-panel button[aria-label*="dark_mode" i],
+.fi-dropdown-panel button[aria-label*="desktop_window" i] {
+    width: 48px !important;
+    height: 48px !important;
+    min-width: 48px !important;
+    border-radius: 18px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    font-size: 0 !important;
+    color: transparent !important;
+}
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+
+/* 6) Fix topbar trigger: hide raw expand_more text if it appears */
+.fi-topbar button:has(.fi-avatar) span:last-child,
+.fi-user-menu-trigger span:last-child {
+    max-width: 0 !important;
+    width: 0 !important;
+    overflow: hidden !important;
+    opacity: 0 !important;
+    display: none !important;
+}
+
+/* 7) Make topbar user trigger show only avatar + clean name */
+.fi-topbar button:has(.fi-avatar),
+.fi-user-menu-trigger {
+    direction: ltr !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+}
+
+.fi-topbar button:has(.fi-avatar) * ,
+.fi-user-menu-trigger * {
+    writing-mode: horizontal-tb !important;
+    transform: none !important;
+    direction: ltr !important;
+    unicode-bidi: plaintext !important;
+}
+
+/* Hide email/secondary text in top trigger only */
+.fi-topbar button:has(.fi-avatar) .text-xs,
+.fi-topbar button:has(.fi-avatar) [class*="text-xs"],
+.fi-user-menu-trigger .text-xs,
+.fi-user-menu-trigger [class*="text-xs"] {
+    display: none !important;
+}
+
+/* 8) Dropdown profile card final alignment */
+.fi-dropdown-panel,
+/* SF removed broad Material font rule to protect dropdown text */
+
+.fi-dropdown-panel {
+    border-radius: 30px !important;
+    overflow: hidden !important;
+}
+
+/* 9) Dark mode icon colors */
+.dark .fi-dropdown-panel button[aria-label*="Light" i] *,
+.dark .fi-dropdown-panel button[aria-label*="Dark" i] *,
+.dark .fi-dropdown-panel button[aria-label*="System" i] *,
+.dark .fi-dropdown-panel [role="group"] button {
+    color: #e8f3ff !important;
+}
+
+.dark .fi-dropdown-panel .fi-dropdown-list-item-icon,
+.dark .fi-dropdown-panel .fi-dropdown-list-item > span:first-child {
+    color: #8bd8f0 !important;
+    background: rgba(255,255,255,.08) !important;
+}
+
+
+/* =========================================================
+   SADA FEZZAN ERP — FULL SIDEBAR + HEADER REDESIGN
+   Premium MD3 / Glass / Day-Night adaptive
+   ========================================================= */
+
+:root {
+    --sf-ui-bg: #eef8f8;
+    --sf-ui-bg-soft: #f7fbfb;
+    --sf-ui-panel: rgba(255, 255, 255, .78);
+    --sf-ui-panel-solid: #ffffff;
+    --sf-ui-border: rgba(15, 75, 103, .10);
+    --sf-ui-border-strong: rgba(15, 116, 144, .20);
+    --sf-ui-text: #123a5a;
+    --sf-ui-muted: #6c8396;
+    --sf-ui-accent: #14b8a6;
+    --sf-ui-accent-2: #0ea5e9;
+    --sf-ui-gold: #f4b000;
+    --sf-ui-shadow: 0 24px 70px rgba(15, 55, 75, .12);
+    --sf-sidebar-width: 304px;
+    --sf-topbar-height: 66px;
+}
+
+/* Dark palette */
+.dark {
+    --sf-ui-bg: #06111f;
+    --sf-ui-bg-soft: #091827;
+    --sf-ui-panel: rgba(10, 24, 39, .74);
+    --sf-ui-panel-solid: #0b1727;
+    --sf-ui-border: rgba(125, 211, 252, .10);
+    --sf-ui-border-strong: rgba(45, 212, 191, .22);
+    --sf-ui-text: #eaf7ff;
+    --sf-ui-muted: #9cb2c7;
+    --sf-ui-accent: #2dd4bf;
+    --sf-ui-accent-2: #38bdf8;
+    --sf-ui-gold: #fbbf24;
+    --sf-ui-shadow: 0 24px 70px rgba(0, 0, 0, .34);
+}
+
+/* Page background */
+.fi-body,
+.fi-layout,
+.fi-main,
+.fi-page,
+body {
+    background:
+        radial-gradient(circle at 15% 10%, rgba(20,184,166,.12), transparent 28%),
+        radial-gradient(circle at 85% 5%, rgba(244,176,0,.10), transparent 24%),
+        linear-gradient(135deg, var(--sf-ui-bg) 0%, var(--sf-ui-bg-soft) 100%) !important;
+}
+
+/* =========================================================
+   TOP HEADER / TOPBAR
+   ========================================================= */
+
+.fi-topbar {
+    min-height: var(--sf-topbar-height) !important;
+    height: var(--sf-topbar-height) !important;
+    border-bottom: 1px solid var(--sf-ui-border) !important;
+    background:
+        linear-gradient(135deg, rgba(255,255,255,.72), rgba(255,255,255,.38)),
+        radial-gradient(circle at 90% 0%, rgba(20,184,166,.12), transparent 36%) !important;
+    backdrop-filter: blur(22px) saturate(145%) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(145%) !important;
+    box-shadow: 0 10px 34px rgba(15, 55, 75, .07) !important;
+}
+
+.dark .fi-topbar {
+    background:
+        linear-gradient(135deg, rgba(7,17,31,.82), rgba(7,17,31,.58)),
+        radial-gradient(circle at 90% 0%, rgba(45,212,191,.14), transparent 36%) !important;
+    box-shadow: 0 10px 34px rgba(0, 0, 0, .30) !important;
+}
+
+/* Topbar inner spacing */
+.fi-topbar nav,
+.fi-topbar > div,
+.fi-topbar .fi-topbar-ctn {
+    min-height: var(--sf-topbar-height) !important;
+}
+
+/* Search box */
+.fi-topbar input[type="search"],
+.fi-topbar .fi-input,
+.fi-topbar .fi-input-wrp,
+.fi-global-search-field input {
+    border-radius: 999px !important;
+}
+
+.fi-topbar .fi-input-wrp,
+.fi-global-search-field {
+    min-height: 42px !important;
+    background: rgba(255,255,255,.72) !important;
+    border: 1px solid var(--sf-ui-border) !important;
+    box-shadow: 0 10px 24px rgba(15,55,75,.06) !important;
+}
+
+.dark .fi-topbar .fi-input-wrp,
+.dark .fi-global-search-field {
+    background: rgba(255,255,255,.06) !important;
+    border-color: rgba(255,255,255,.10) !important;
+}
+
+.fi-topbar input,
+.fi-global-search-field input {
+    color: var(--sf-ui-text) !important;
+    font-weight: 650 !important;
+}
+
+.fi-topbar input::placeholder,
+.fi-global-search-field input::placeholder {
+    color: var(--sf-ui-muted) !important;
+}
+
+/* Topbar icons: notification, search, etc */
+.fi-topbar button:not(.fi-btn),
+.fi-topbar a:not(.fi-btn) {
+    border-radius: 999px !important;
+}
+
+.fi-topbar button:not(.fi-btn):hover,
+.fi-topbar a:not(.fi-btn):hover {
+    background: rgba(20,184,166,.10) !important;
+}
+
+/* User trigger premium pill */
+.fi-topbar button:has(.fi-avatar),
+.fi-user-menu-trigger {
+    min-height: 48px !important;
+    border-radius: 999px !important;
+    padding: 5px 14px 5px 5px !important;
+    border: 1px solid rgba(14,165,233,.22) !important;
+    background:
+        linear-gradient(135deg, rgba(255,255,255,.92), rgba(240,253,250,.68)) !important;
+    box-shadow: 0 12px 32px rgba(14, 116, 144, .13) !important;
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease !important;
+}
+
+.fi-topbar button:has(.fi-avatar):hover,
+.fi-user-menu-trigger:hover {
+    transform: translateY(-1px) !important;
+    border-color: rgba(20,184,166,.42) !important;
+    box-shadow: 0 16px 38px rgba(14, 116, 144, .18) !important;
+}
+
+.dark .fi-topbar button:has(.fi-avatar),
+.dark .fi-user-menu-trigger {
+    background:
+        linear-gradient(135deg, rgba(15,23,42,.94), rgba(8,47,73,.72)) !important;
+    border-color: rgba(56,189,248,.22) !important;
+}
+
+/* Avatar style */
+.fi-avatar,
+.fi-topbar .fi-avatar {
+    border-radius: 999px !important;
+    outline: 3px solid rgba(14,165,233,.20) !important;
+    box-shadow: 0 8px 18px rgba(14,116,144,.18) !important;
+}
+
+/* User name */
+.fi-topbar button:has(.fi-avatar) span,
+.fi-user-menu-trigger span {
+    color: var(--sf-ui-text) !important;
+    font-weight: 900 !important;
+    letter-spacing: -.02em !important;
+}
+
+/* =========================================================
+   SIDEBAR MAIN STRUCTURE
+   ========================================================= */
+
+.fi-sidebar {
+    width: var(--sf-sidebar-width) !important;
+    border-inline-end: 1px solid var(--sf-ui-border) !important;
+    background:
+        radial-gradient(circle at 10% 0%, rgba(20,184,166,.16), transparent 28%),
+        radial-gradient(circle at 95% 18%, rgba(244,176,0,.12), transparent 26%),
+        linear-gradient(180deg, rgba(255,255,255,.82) 0%, rgba(247,251,251,.72) 100%) !important;
+    backdrop-filter: blur(24px) saturate(155%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(155%) !important;
+    box-shadow: 18px 0 60px rgba(15, 55, 75, .08) !important;
+}
+
+.dark .fi-sidebar {
+    background:
+        radial-gradient(circle at 8% 0%, rgba(45,212,191,.13), transparent 30%),
+        radial-gradient(circle at 95% 20%, rgba(251,191,36,.10), transparent 28%),
+        linear-gradient(180deg, rgba(6,17,31,.92) 0%, rgba(8,24,39,.86) 100%) !important;
+    box-shadow: 18px 0 60px rgba(0, 0, 0, .28) !important;
+}
+
+/* Sidebar content spacing */
+.fi-sidebar-nav {
+    padding: 18px 12px 24px !important;
+    gap: 10px !important;
+}
+
+/* Logo area */
+.fi-sidebar-header {
+    min-height: 92px !important;
+    padding: 16px 16px 12px !important;
+    border-bottom: 1px solid var(--sf-ui-border) !important;
+    background:
+        linear-gradient(135deg, rgba(255,255,255,.44), rgba(255,255,255,.10)) !important;
+}
+
+.dark .fi-sidebar-header {
+    background:
+        linear-gradient(135deg, rgba(255,255,255,.06), rgba(255,255,255,.02)) !important;
+}
+
+/* Logo image */
+.fi-sidebar-header img,
+.fi-logo img {
+    max-height: 58px !important;
+    width: auto !important;
+    object-fit: contain !important;
+    filter: drop-shadow(0 10px 18px rgba(15,55,75,.14)) !important;
+}
+
+/* Sidebar section groups */
+.fi-sidebar-group {
+    margin-top: 20px !important;
+}
+
+.fi-sidebar-group-label {
+    margin: 0 10px 10px !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    font-weight: 950 !important;
+    letter-spacing: .08em !important;
+    text-transform: uppercase !important;
+    color: color-mix(in srgb, var(--sf-ui-accent-2) 82%, var(--sf-ui-text)) !important;
+}
+
+/* Group collapse arrow */
+.fi-sidebar-group button,
+.fi-sidebar-group button * {
+    color: var(--sf-ui-muted) !important;
+}
+
+/* =========================================================
+   SIDEBAR ITEMS
+   ========================================================= */
+
+.fi-sidebar-item {
+    margin: 5px 0 !important;
+}
+
+.fi-sidebar-item-button,
+.fi-sidebar-item a,
+.fi-sidebar-item > a {
+    position: relative !important;
+    min-height: 54px !important;
+    border-radius: 22px !important;
+    padding: 8px 12px !important;
+    gap: 13px !important;
+    color: var(--sf-ui-text) !important;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    transition:
+        transform .18s ease,
+        background .18s ease,
+        border-color .18s ease,
+        box-shadow .18s ease !important;
+}
+
+/* Hover item */
+.fi-sidebar-item-button:hover,
+.fi-sidebar-item a:hover,
+.fi-sidebar-item > a:hover {
+    transform: translateX(3px) !important;
+    background:
+        linear-gradient(135deg, rgba(20,184,166,.10), rgba(14,165,233,.06)) !important;
+    border-color: rgba(20,184,166,.16) !important;
+    box-shadow: 0 12px 28px rgba(15,55,75,.07) !important;
+}
+
+/* Active item */
+.fi-sidebar-item-active > a,
+.fi-sidebar-item-active .fi-sidebar-item-button,
+.fi-sidebar-item.fi-active > a,
+.fi-sidebar-item.fi-active .fi-sidebar-item-button,
+.fi-sidebar-item a[aria-current="page"] {
+    background:
+        linear-gradient(135deg, rgba(20,184,166,.23), rgba(244,176,0,.18)) !important;
+    border: 1px solid rgba(20,184,166,.34) !important;
+    box-shadow:
+        0 16px 36px rgba(20,184,166,.16),
+        inset 0 1px 0 rgba(255,255,255,.55) !important;
+    color: #082f49 !important;
+}
+
+.dark .fi-sidebar-item-active > a,
+.dark .fi-sidebar-item-active .fi-sidebar-item-button,
+.dark .fi-sidebar-item.fi-active > a,
+.dark .fi-sidebar-item.fi-active .fi-sidebar-item-button,
+.dark .fi-sidebar-item a[aria-current="page"] {
+    background:
+        linear-gradient(135deg, rgba(45,212,191,.18), rgba(251,191,36,.13)) !important;
+    border-color: rgba(45,212,191,.28) !important;
+    color: #eaffff !important;
+    box-shadow:
+        0 16px 36px rgba(0,0,0,.22),
+        inset 0 1px 0 rgba(255,255,255,.08) !important;
+}
+
+/* Active left accent */
+.fi-sidebar-item-active > a::before,
+.fi-sidebar-item.fi-active > a::before,
+.fi-sidebar-item a[aria-current="page"]::before {
+    content: "" !important;
+    position: absolute !important;
+    inset-inline-start: -4px !important;
+    top: 14px !important;
+    bottom: 14px !important;
+    width: 5px !important;
+    border-radius: 999px !important;
+    background: linear-gradient(180deg, var(--sf-ui-accent), var(--sf-ui-gold)) !important;
+    box-shadow: 0 0 18px rgba(20,184,166,.50) !important;
+}
+
+/* Sidebar item labels */
+.fi-sidebar-item-label,
+.fi-sidebar-item a span,
+.fi-sidebar-item-button span {
+    font-size: 14px !important;
+    font-weight: 850 !important;
+    letter-spacing: -.015em !important;
+    color: var(--sf-ui-text) !important;
+}
+
+/* Active labels */
+.fi-sidebar-item-active .fi-sidebar-item-label,
+.fi-sidebar-item.fi-active .fi-sidebar-item-label,
+.fi-sidebar-item a[aria-current="page"] .fi-sidebar-item-label,
+.fi-sidebar-item-active a span,
+.fi-sidebar-item.fi-active a span,
+.fi-sidebar-item a[aria-current="page"] span {
+    color: #073451 !important;
+    font-weight: 950 !important;
+}
+
+.dark .fi-sidebar-item-active .fi-sidebar-item-label,
+.dark .fi-sidebar-item.fi-active .fi-sidebar-item-label,
+.dark .fi-sidebar-item a[aria-current="page"] .fi-sidebar-item-label,
+.dark .fi-sidebar-item-active a span,
+.dark .fi-sidebar-item.fi-active a span,
+.dark .fi-sidebar-item a[aria-current="page"] span {
+    color: #ffffff !important;
+}
+
+/* =========================================================
+   SIDEBAR ICONS — MATERIAL DESIGN 3 STYLE
+   ========================================================= */
+
+.fi-sidebar-item-icon,
+.fi-sidebar svg,
+.fi-sidebar-item svg {
+    width: 22px !important;
+    height: 22px !important;
+    color: #0f4c6b !important;
+    stroke-width: 1.9 !important;
+}
+
+/* Icon circle wrapper effect */
+.fi-sidebar-item-button > svg,
+.fi-sidebar-item > a > svg,
+.fi-sidebar-item-icon {
+    min-width: 40px !important;
+    width: 40px !important;
+    height: 40px !important;
+    padding: 9px !important;
+    border-radius: 16px !important;
+    background:
+        linear-gradient(135deg, rgba(14,165,233,.10), rgba(20,184,166,.07)) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.50) !important;
+    transition: transform .18s ease, background .18s ease, color .18s ease !important;
+}
+
+.fi-sidebar-item-button:hover > svg,
+.fi-sidebar-item > a:hover > svg,
+.fi-sidebar-item:hover .fi-sidebar-item-icon {
+    transform: scale(1.05) rotate(-2deg) !important;
+    background:
+        linear-gradient(135deg, rgba(20,184,166,.18), rgba(14,165,233,.12)) !important;
+    color: #0e7490 !important;
+}
+
+.fi-sidebar-item-active > a > svg,
+.fi-sidebar-item.fi-active > a > svg,
+.fi-sidebar-item a[aria-current="page"] > svg,
+.fi-sidebar-item-active .fi-sidebar-item-icon,
+.fi-sidebar-item.fi-active .fi-sidebar-item-icon {
+    background:
+        linear-gradient(135deg, #0f7490, #14b8a6) !important;
+    color: #ffffff !important;
+    box-shadow:
+        0 12px 22px rgba(14,116,144,.24),
+        inset 0 1px 0 rgba(255,255,255,.25) !important;
+}
+
+.dark .fi-sidebar-item-icon,
+.dark .fi-sidebar svg,
+.dark .fi-sidebar-item svg {
+    color: #b8eaff !important;
+}
+
+.dark .fi-sidebar-item-button > svg,
+.dark .fi-sidebar-item > a > svg,
+.dark .fi-sidebar-item-icon {
+    background:
+        linear-gradient(135deg, rgba(56,189,248,.10), rgba(45,212,191,.08)) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.08) !important;
+}
+
+.dark .fi-sidebar-item-active > a > svg,
+.dark .fi-sidebar-item.fi-active > a > svg,
+.dark .fi-sidebar-item a[aria-current="page"] > svg,
+.dark .fi-sidebar-item-active .fi-sidebar-item-icon,
+.dark .fi-sidebar-item.fi-active .fi-sidebar-item-icon {
+    background:
+        linear-gradient(135deg, #0891b2, #2dd4bf) !important;
+    color: #ffffff !important;
+}
+
+/* =========================================================
+   COLLAPSED SIDEBAR
+   ========================================================= */
+
+.fi-sidebar.fi-sidebar-collapsed {
+    width: 86px !important;
+}
+
+.fi-sidebar.fi-sidebar-collapsed .fi-sidebar-item-button,
+.fi-sidebar.fi-sidebar-collapsed .fi-sidebar-item > a {
+    justify-content: center !important;
+    padding-inline: 8px !important;
+}
+
+.fi-sidebar.fi-sidebar-collapsed .fi-sidebar-item-label,
+.fi-sidebar.fi-sidebar-collapsed .fi-sidebar-group-label {
+    display: none !important;
+}
+
+.fi-sidebar.fi-sidebar-collapsed .fi-sidebar-item-button > svg,
+.fi-sidebar.fi-sidebar-collapsed .fi-sidebar-item > a > svg {
+    margin: 0 !important;
+}
+
+/* =========================================================
+   USER DROPDOWN REDESIGN
+   ========================================================= */
+
+.fi-dropdown-panel {
+    border-radius: 30px !important;
+    border: 1px solid var(--sf-ui-border) !important;
+    background:
+        linear-gradient(135deg, rgba(255,255,255,.96), rgba(248,252,252,.90)) !important;
+    backdrop-filter: blur(24px) saturate(145%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(145%) !important;
+    box-shadow: 0 28px 70px rgba(15,55,75,.20) !important;
+    overflow: hidden !important;
+}
+
+.dark .fi-dropdown-panel {
+    background:
+        linear-gradient(135deg, rgba(15,23,42,.98), rgba(8,47,73,.90)) !important;
+    border-color: rgba(255,255,255,.10) !important;
+    box-shadow: 0 28px 70px rgba(0,0,0,.45) !important;
+}
+
+/* Dropdown text */
+.fi-dropdown-panel,
+.fi-dropdown-panel span,
+.fi-dropdown-panel a,
+.fi-dropdown-panel button {
+    color: var(--sf-ui-text) !important;
+    font-weight: 750 !important;
+}
+
+.dark .fi-dropdown-panel,
+.dark .fi-dropdown-panel span,
+.dark .fi-dropdown-panel a,
+.dark .fi-dropdown-panel button {
+    color: #f8fbff !important;
+}
+
+/* Dropdown list items */
+.fi-dropdown-list-item,
+.fi-dropdown-panel a,
+.fi-dropdown-panel button {
+    border-radius: 18px !important;
+    transition: background .18s ease, transform .18s ease !important;
+}
+
+.fi-dropdown-list-item:hover,
+.fi-dropdown-panel a:hover,
+.fi-dropdown-panel button:hover {
+    background: rgba(20,184,166,.10) !important;
+    transform: translateX(2px) !important;
+}
+
+/* Sign out red but premium */
+.fi-dropdown-panel form button,
+.fi-dropdown-panel button[type="submit"] {
+    color: #dc2626 !important;
+    font-weight: 950 !important;
+}
+
+.fi-dropdown-panel form button:hover,
+.fi-dropdown-panel button[type="submit"]:hover {
+    background: rgba(239,68,68,.10) !important;
+}
+
+/* =========================================================
+   MAIN CONTENT ALIGNMENT WITH PREMIUM SHELL
+   ========================================================= */
+
+.fi-main {
+    padding-top: 22px !important;
+}
+
+.fi-main-ctn {
+    background: transparent !important;
+}
+
+/* Page max content polish */
+.fi-page {
+    padding-inline: clamp(16px, 2vw, 34px) !important;
+}
+
+/* Reduce harsh default borders */
+.fi-section,
+.fi-ta-ctn,
+.fi-card,
+.fi-wi-widget {
+    border-color: var(--sf-ui-border) !important;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 1024px) {
+    :root {
+        --sf-sidebar-width: 286px;
+    }
+
+    .fi-sidebar {
+        box-shadow: 18px 0 70px rgba(15,55,75,.18) !important;
+    }
+
+    .fi-topbar {
+        min-height: 62px !important;
+        height: 62px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .fi-sidebar {
+        width: 292px !important;
+    }
+
+    .fi-sidebar-nav {
+        padding: 14px 10px 22px !important;
+    }
+
+    .fi-sidebar-item-button,
+    .fi-sidebar-item a,
+    .fi-sidebar-item > a {
+        min-height: 52px !important;
+        border-radius: 20px !important;
+    }
+}
+
+
+/* =========================================================
+   SADA FEZZAN ERP — SIDEBAR SOFT PREMIUM V2
+   Softer / cleaner / less heavy than previous version
+   ========================================================= */
+
+/* Force sidebar to become soft bright glass even in dark mode */
+.fi-sidebar {
+    width: 292px !important;
+    background:
+        radial-gradient(circle at 20% 6%, rgba(20, 184, 166, .16), transparent 34%),
+        radial-gradient(circle at 88% 18%, rgba(245, 158, 11, .10), transparent 30%),
+        linear-gradient(180deg, rgba(246, 252, 252, .96) 0%, rgba(232, 246, 247, .90) 100%) !important;
+    border-inline-end: 1px solid rgba(14, 116, 144, .12) !important;
+    box-shadow: 16px 0 50px rgba(15, 55, 75, .10) !important;
+    backdrop-filter: blur(28px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(150%) !important;
+}
+
+/* Keep same sidebar in dark mode but slightly deeper, not black */
+.dark .fi-sidebar {
+    background:
+        radial-gradient(circle at 20% 6%, rgba(45, 212, 191, .14), transparent 34%),
+        radial-gradient(circle at 88% 18%, rgba(251, 191, 36, .10), transparent 30%),
+        linear-gradient(180deg, rgba(12, 31, 46, .96) 0%, rgba(8, 24, 39, .94) 100%) !important;
+    border-inline-end: 1px solid rgba(45, 212, 191, .14) !important;
+}
+
+/* Logo area softer */
+.fi-sidebar-header {
+    min-height: 82px !important;
+    padding: 14px 18px !important;
+    background: rgba(255, 255, 255, .50) !important;
+    border-bottom: 1px solid rgba(14, 116, 144, .10) !important;
+}
+
+.dark .fi-sidebar-header {
+    background: rgba(255, 255, 255, .045) !important;
+}
+
+.fi-sidebar-header img,
+.fi-logo img {
+    max-height: 52px !important;
+    border-radius: 10px !important;
+}
+
+/* Sidebar scroll */
+.fi-sidebar-nav {
+    padding: 18px 14px 28px !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(20, 184, 166, .45) transparent !important;
+}
+
+/* Groups */
+.fi-sidebar-group {
+    margin-top: 24px !important;
+}
+
+.fi-sidebar-group-label {
+    margin: 0 12px 12px !important;
+    font-size: 11px !important;
+    letter-spacing: .11em !important;
+    font-weight: 950 !important;
+    color: #0ea5e9 !important;
+}
+
+.dark .fi-sidebar-group-label {
+    color: #38bdf8 !important;
+}
+
+/* Make group arrow tiny and elegant */
+.fi-sidebar-group button {
+    opacity: .70 !important;
+}
+
+.fi-sidebar-group button:hover {
+    opacity: 1 !important;
+}
+
+/* Item base: no heavy block */
+.fi-sidebar-item {
+    margin: 4px 0 !important;
+}
+
+.fi-sidebar-item a,
+.fi-sidebar-item-button,
+.fi-sidebar-item > a {
+    min-height: 48px !important;
+    padding: 7px 10px !important;
+    border-radius: 18px !important;
+    gap: 12px !important;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    box-shadow: none !important;
+    color: #123a5a !important;
+    transition:
+        transform .16s ease,
+        background .16s ease,
+        border-color .16s ease,
+        box-shadow .16s ease !important;
+}
+
+.dark .fi-sidebar-item a,
+.dark .fi-sidebar-item-button,
+.dark .fi-sidebar-item > a {
+    color: #e6f7ff !important;
+}
+
+/* Item hover soft pill */
+.fi-sidebar-item a:hover,
+.fi-sidebar-item-button:hover,
+.fi-sidebar-item > a:hover {
+    transform: translateX(3px) !important;
+    background: rgba(255, 255, 255, .58) !important;
+    border-color: rgba(14, 116, 144, .10) !important;
+    box-shadow: 0 10px 24px rgba(15, 55, 75, .08) !important;
+}
+
+.dark .fi-sidebar-item a:hover,
+.dark .fi-sidebar-item-button:hover,
+.dark .fi-sidebar-item > a:hover {
+    background: rgba(255, 255, 255, .07) !important;
+    border-color: rgba(45, 212, 191, .12) !important;
+}
+
+/* Active item: elegant soft glass, not huge gradient block */
+.fi-sidebar-item-active > a,
+.fi-sidebar-item-active .fi-sidebar-item-button,
+.fi-sidebar-item.fi-active > a,
+.fi-sidebar-item.fi-active .fi-sidebar-item-button,
+.fi-sidebar-item a[aria-current="page"] {
+    background:
+        linear-gradient(135deg, rgba(255,255,255,.78), rgba(236,253,245,.72)) !important;
+    border: 1px solid rgba(20, 184, 166, .28) !important;
+    box-shadow:
+        0 14px 32px rgba(20, 184, 166, .16),
+        inset 0 1px 0 rgba(255, 255, 255, .80) !important;
+    color: #073451 !important;
+}
+
+.dark .fi-sidebar-item-active > a,
+.dark .fi-sidebar-item-active .fi-sidebar-item-button,
+.dark .fi-sidebar-item.fi-active > a,
+.dark .fi-sidebar-item.fi-active .fi-sidebar-item-button,
+.dark .fi-sidebar-item a[aria-current="page"] {
+    background:
+        linear-gradient(135deg, rgba(20,184,166,.18), rgba(14,165,233,.10)) !important;
+    border-color: rgba(45, 212, 191, .26) !important;
+    color: #ffffff !important;
+    box-shadow:
+        0 14px 32px rgba(0,0,0,.22),
+        inset 0 1px 0 rgba(255,255,255,.10) !important;
+}
+
+/* Remove previous big active left bar */
+.fi-sidebar-item-active > a::before,
+.fi-sidebar-item.fi-active > a::before,
+.fi-sidebar-item a[aria-current="page"]::before {
+    display: none !important;
+}
+
+/* Text softer */
+.fi-sidebar-item-label,
+.fi-sidebar-item a span,
+.fi-sidebar-item-button span {
+    font-size: 14px !important;
+    line-height: 1.2 !important;
+    font-weight: 800 !important;
+    letter-spacing: -.02em !important;
+    color: inherit !important;
+}
+
+/* Active text */
+.fi-sidebar-item-active .fi-sidebar-item-label,
+.fi-sidebar-item.fi-active .fi-sidebar-item-label,
+.fi-sidebar-item a[aria-current="page"] .fi-sidebar-item-label {
+    font-weight: 950 !important;
+}
+
+/* Icons: smaller, rounded, MD3 soft container */
+.fi-sidebar-item-icon,
+.fi-sidebar-item a > svg,
+.fi-sidebar-item-button > svg {
+    width: 38px !important;
+    min-width: 38px !important;
+    height: 38px !important;
+    padding: 9px !important;
+    border-radius: 15px !important;
+    color: #0f4c6b !important;
+    background:
+        linear-gradient(135deg, rgba(255,255,255,.85), rgba(226,245,247,.80)) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.80),
+        0 8px 18px rgba(15,55,75,.08) !important;
+    stroke-width: 1.85 !important;
+}
+
+.dark .fi-sidebar-item-icon,
+.dark .fi-sidebar-item a > svg,
+.dark .fi-sidebar-item-button > svg {
+    color: #dff8ff !important;
+    background:
+        linear-gradient(135deg, rgba(255,255,255,.10), rgba(45,212,191,.08)) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.08),
+        0 8px 18px rgba(0,0,0,.18) !important;
+}
+
+/* Active icon: premium teal small tile */
+.fi-sidebar-item-active > a > svg,
+.fi-sidebar-item.fi-active > a > svg,
+.fi-sidebar-item a[aria-current="page"] > svg,
+.fi-sidebar-item-active .fi-sidebar-item-icon,
+.fi-sidebar-item.fi-active .fi-sidebar-item-icon {
+    color: #ffffff !important;
+    background:
+        linear-gradient(135deg, #0ea5a4 0%, #14b8a6 100%) !important;
+    box-shadow:
+        0 12px 24px rgba(20,184,166,.30),
+        inset 0 1px 0 rgba(255,255,255,.25) !important;
+}
+
+/* Hover icon */
+.fi-sidebar-item a:hover > svg,
+.fi-sidebar-item-button:hover > svg {
+    transform: scale(1.03) !important;
+}
+
+/* Main content starts after sidebar without dark vertical harshness */
+.fi-main,
+.fi-main-ctn,
+.fi-layout {
+    background: transparent !important;
+}
+
+/* Topbar redesign V2 softer */
+.fi-topbar {
+    height: 64px !important;
+    min-height: 64px !important;
+    background:
+        linear-gradient(135deg, rgba(255,255,255,.82), rgba(241,250,250,.70)) !important;
+    border-bottom: 1px solid rgba(14,116,144,.10) !important;
+    box-shadow: 0 10px 34px rgba(15,55,75,.07) !important;
+    backdrop-filter: blur(24px) saturate(155%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(155%) !important;
+}
+
+.dark .fi-topbar {
+    background:
+        linear-gradient(135deg, rgba(8,24,39,.92), rgba(12,31,46,.82)) !important;
+    border-bottom-color: rgba(45,212,191,.12) !important;
+    box-shadow: 0 10px 34px rgba(0,0,0,.22) !important;
+}
+
+/* User button softer */
+.fi-topbar button:has(.fi-avatar),
+.fi-user-menu-trigger {
+    min-height: 44px !important;
+    padding: 4px 13px 4px 4px !important;
+    border-radius: 999px !important;
+    background: rgba(255,255,255,.72) !important;
+    border: 1px solid rgba(14,116,144,.14) !important;
+    box-shadow: 0 10px 26px rgba(15,55,75,.08) !important;
+}
+
+.dark .fi-topbar button:has(.fi-avatar),
+.dark .fi-user-menu-trigger {
+    background: rgba(255,255,255,.07) !important;
+    border-color: rgba(255,255,255,.10) !important;
+}
+
+/* Make dropdown cleaner */
+.fi-dropdown-panel {
+    border-radius: 26px !important;
+    background: rgba(255,255,255,.94) !important;
+    border: 1px solid rgba(14,116,144,.12) !important;
+    box-shadow: 0 24px 70px rgba(15,55,75,.18) !important;
+}
+
+.dark .fi-dropdown-panel {
+    background: rgba(10,24,39,.96) !important;
+    border-color: rgba(255,255,255,.10) !important;
+}
+
+/* Mobile / smaller screens */
+@media (max-width: 900px) {
+    .fi-sidebar {
+        width: 286px !important;
+    }
+}
+
+
+
+/* =========================================================
+   SADA FEZZAN ERP — SIDEBAR ICONS + GROUP HEADERS V3
+   Bigger premium groups + softer MD3-style icons
+   ========================================================= */
+
+/* More space between sidebar groups */
+.fi-sidebar-group {
+    margin-top: 30px !important;
+}
+
+/* Premium group header container */
+.fi-sidebar-group > div:first-child,
+.fi-sidebar-group-header,
+.fi-sidebar-group-button {
+    min-height: 44px !important;
+    margin: 0 8px 12px !important;
+    padding: 0 12px !important;
+    border-radius: 18px !important;
+    background:
+        linear-gradient(135deg, rgba(255,255,255,.50), rgba(236,253,245,.30)) !important;
+    border: 1px solid rgba(20,184,166,.13) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.65),
+        0 8px 22px rgba(15,55,75,.045) !important;
+}
+
+.dark .fi-sidebar-group > div:first-child,
+.dark .fi-sidebar-group-header,
+.dark .fi-sidebar-group-button {
+    background:
+        linear-gradient(135deg, rgba(255,255,255,.055), rgba(45,212,191,.055)) !important;
+    border-color: rgba(45,212,191,.12) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.06),
+        0 8px 22px rgba(0,0,0,.16) !important;
+}
+
+/* Bigger group label */
+.fi-sidebar-group-label {
+    margin: 0 !important;
+    font-size: 12px !important;
+    line-height: 1 !important;
+    letter-spacing: .13em !important;
+    font-weight: 1000 !important;
+    text-transform: uppercase !important;
+    color: #0087c7 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 9px !important;
+}
+
+/* Add small premium dot before group label */
+.fi-sidebar-group-label::before {
+    content: "" !important;
+    display: inline-block !important;
+    width: 8px !important;
+    height: 8px !important;
+    border-radius: 999px !important;
+    background: linear-gradient(135deg, #14b8a6, #0ea5e9) !important;
+    box-shadow: 0 0 0 4px rgba(20,184,166,.12) !important;
+}
+
+.dark .fi-sidebar-group-label {
+    color: #67e8f9 !important;
+}
+
+/* Group arrow larger and nicer */
+.fi-sidebar-group button svg,
+.fi-sidebar-group-header svg,
+.fi-sidebar-group-button svg {
+    width: 18px !important;
+    height: 18px !important;
+    color: #0f7592 !important;
+    opacity: .85 !important;
+    stroke-width: 2.2 !important;
+}
+
+.dark .fi-sidebar-group button svg,
+.dark .fi-sidebar-group-header svg,
+.dark .fi-sidebar-group-button svg {
+    color: #99f6e4 !important;
+}
+
+/* Better item spacing */
+.fi-sidebar-item {
+    margin: 7px 0 !important;
+}
+
+.fi-sidebar-item a,
+.fi-sidebar-item-button,
+.fi-sidebar-item > a {
+    min-height: 54px !important;
+    padding: 8px 12px !important;
+    border-radius: 19px !important;
+    gap: 14px !important;
+}
+
+/* Remove old heavy outlined icon look */
+.fi-sidebar-item-icon,
+.fi-sidebar-item a > svg,
+.fi-sidebar-item-button > svg {
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 42px !important;
+    padding: 10px !important;
+    border-radius: 17px !important;
+
+    color: #0b4f6c !important;
+    background:
+        radial-gradient(circle at 35% 20%, rgba(255,255,255,.95), rgba(255,255,255,.25) 38%, transparent 60%),
+        linear-gradient(135deg, rgba(241,250,250,.96), rgba(218,241,244,.86)) !important;
+
+    border: 1px solid rgba(14,116,144,.10) !important;
+    box-shadow:
+        0 10px 22px rgba(15,55,75,.075),
+        inset 0 1px 0 rgba(255,255,255,.85) !important;
+
+    stroke-width: 1.45 !important;
+    fill: none !important;
+}
+
+/* Make icon paths smoother */
+.fi-sidebar-item-icon *,
+.fi-sidebar-item a > svg *,
+.fi-sidebar-item-button > svg * {
+    stroke-width: 1.55 !important;
+}
+
+/* Dark icon tile */
+.dark .fi-sidebar-item-icon,
+.dark .fi-sidebar-item a > svg,
+.dark .fi-sidebar-item-button > svg {
+    color: #e5fbff !important;
+    background:
+        radial-gradient(circle at 35% 20%, rgba(255,255,255,.16), rgba(255,255,255,.04) 42%, transparent 65%),
+        linear-gradient(135deg, rgba(255,255,255,.075), rgba(45,212,191,.055)) !important;
+    border-color: rgba(255,255,255,.08) !important;
+    box-shadow:
+        0 10px 22px rgba(0,0,0,.20),
+        inset 0 1px 0 rgba(255,255,255,.08) !important;
+}
+
+/* Active item thinner and more premium */
+.fi-sidebar-item-active > a,
+.fi-sidebar-item.fi-active > a,
+.fi-sidebar-item a[aria-current="page"] {
+    min-height: 58px !important;
+    background:
+        linear-gradient(135deg, rgba(255,255,255,.78), rgba(240,253,250,.54) 55%, rgba(254,249,195,.36)) !important;
+    border: 1px solid rgba(20,184,166,.28) !important;
+    box-shadow:
+        0 16px 34px rgba(20,184,166,.13),
+        inset 0 1px 0 rgba(255,255,255,.80) !important;
+}
+
+/* Active icon: not cartoonish, elegant MD3 filled tile */
+.fi-sidebar-item-active > a > svg,
+.fi-sidebar-item.fi-active > a > svg,
+.fi-sidebar-item a[aria-current="page"] > svg,
+.fi-sidebar-item-active .fi-sidebar-item-icon,
+.fi-sidebar-item.fi-active .fi-sidebar-item-icon {
+    color: #062b38 !important;
+    background:
+        radial-gradient(circle at 30% 18%, rgba(255,255,255,.50), transparent 38%),
+        linear-gradient(135deg, #2dd4bf 0%, #14b8a6 55%, #0ea5e9 100%) !important;
+    border-color: rgba(255,255,255,.32) !important;
+    box-shadow:
+        0 14px 28px rgba(20,184,166,.30),
+        inset 0 1px 0 rgba(255,255,255,.36) !important;
+}
+
+/* Text stronger but cleaner */
+.fi-sidebar-item-label,
+.fi-sidebar-item a span,
+.fi-sidebar-item-button span {
+    font-size: 14.5px !important;
+    font-weight: 850 !important;
+    letter-spacing: -.015em !important;
+}
+
+/* Sidebar logo area more premium */
+.fi-sidebar-header {
+    min-height: 92px !important;
+    justify-content: center !important;
+}
+
+.fi-sidebar-header img,
+.fi-logo img {
+    max-height: 58px !important;
+    object-fit: contain !important;
+}
+
+/* More premium scrollbar */
+.fi-sidebar-nav::-webkit-scrollbar {
+    width: 7px !important;
+}
+
+.fi-sidebar-nav::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(20,184,166,.55), rgba(14,165,233,.35)) !important;
+    border-radius: 999px !important;
+}
+
+.fi-sidebar-nav::-webkit-scrollbar-track {
+    background: transparent !important;
+}
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+
+.fi-modal,
+.fi-modal-window,
+.fi-modal-content,
+.fi-fo-field-wrp,
+.fi-section,
+.fi-section-content,
+.fi-section-content-ctn {
+    overflow: visible !important;
+}
+
+
+/* SF GLOBAL FIX - Filament Select / Choices Dropdown Garbage - public mirror */
+.fi-modal .choices,
+.fi-fo-field-wrp .choices,
+.fi-ta .choices,
+.fi-form .choices {
+    position: relative !important;
+    overflow: visible !important;
+}
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+
+/* Allow modal content to display select dropdown correctly */
+.fi-modal-window,
+.fi-modal-content,
+.fi-modal form,
+.fi-modal .fi-fo-component-ctn,
+.fi-modal .fi-fo-field-wrp,
+.fi-modal .fi-fo-field-wrp-control {
+    overflow: visible !important;
+}
+
+/* =========================================================
+   SF ERP SOFT SELECT DROPDOWN THEME
+   Final clean select/listbox/choices fix.
+   Dynamic day/night, readable text, no Material font pollution.
+   ========================================================= */
+
+:root {
+    --sf-select-bg: rgba(255, 255, 255, .98);
+    --sf-select-bg-soft: rgba(248, 250, 252, .98);
+    --sf-select-text: #0f172a;
+    --sf-select-muted: #64748b;
+    --sf-select-border: rgba(15, 23, 42, .14);
+    --sf-select-hover: rgba(20, 184, 166, .10);
+    --sf-select-hover-text: #0f766e;
+    --sf-select-shadow: 0 26px 70px rgba(15, 23, 42, .20);
+}
+
+.dark {
+    --sf-select-bg: rgba(15, 23, 42, .98);
+    --sf-select-bg-soft: rgba(17, 24, 39, .98);
+    --sf-select-text: #f8fafc;
+    --sf-select-muted: #cbd5e1;
+    --sf-select-border: rgba(148, 163, 184, .28);
+    --sf-select-hover: rgba(20, 184, 166, .18);
+    --sf-select-hover-text: #99f6e4;
+    --sf-select-shadow: 0 28px 80px rgba(0, 0, 0, .48);
+}
+
+/* Only true icon classes use Material font */
+:where(.material-symbols-outlined, .material-symbols-rounded, .material-icons, .material-icons-outlined, .material-icons-round) {
+    font-family: "Material Symbols Rounded", "Material Icons Round", "Material Icons" !important;
+    font-weight: 400 !important;
+    font-style: normal !important;
+    line-height: 1 !important;
+    letter-spacing: normal !important;
+    text-transform: none !important;
+    white-space: nowrap !important;
+    word-wrap: normal !important;
+    direction: ltr !important;
+    font-feature-settings: "liga" !important;
+    -webkit-font-feature-settings: "liga" !important;
+    -webkit-font-smoothing: antialiased !important;
+}
+
+/* Dropdown text must always be normal readable text */
+html body :is(.fi-modal, .fi-form, .fi-fo-field-wrp, .fi-dropdown-panel) :is(
+    [role="listbox"],
+    [role="listbox"] *,
+    [role="option"],
+    [role="option"] *,
+    [cmdk-list],
+    [cmdk-list] *,
+    [cmdk-item],
+    [cmdk-item] *,
+    .choices__list,
+    .choices__list *,
+    .choices__item,
+    .choices__item *
+) {
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif !important;
+    font-feature-settings: normal !important;
+    -webkit-font-feature-settings: normal !important;
+    font-variation-settings: normal !important;
+    letter-spacing: normal !important;
+    text-transform: none !important;
+    direction: inherit !important;
+}
+
+/* Real icons inside options stay icons */
+html body :is([role="option"], .choices__item, [cmdk-item]) :where(
+    .material-symbols-outlined,
+    .material-symbols-rounded,
+    .material-icons,
+    .material-icons-outlined,
+    .material-icons-round
+) {
+    font-family: "Material Symbols Rounded", "Material Icons Round", "Material Icons" !important;
+    font-feature-settings: "liga" !important;
+    -webkit-font-feature-settings: "liga" !important;
+}
+
+/* Remove fake generated symbols */
+html body :is(.fi-modal, .fi-form, .fi-fo-field-wrp, .fi-dropdown-panel) :is(
+    [role="option"],
+    [cmdk-item],
+    .choices__item--choice
+)::before,
+html body :is(.fi-modal, .fi-form, .fi-fo-field-wrp, .fi-dropdown-panel) :is(
+    [role="option"],
+    [cmdk-item],
+    .choices__item--choice
+)::after {
+    content: none !important;
+    display: none !important;
+}
+
+/* Dropdown panel: soft, dynamic, not forced black */
+html body :is(.fi-modal, .fi-form, .fi-fo-field-wrp, .fi-dropdown-panel) :is(
+    [role="listbox"],
+    [cmdk-list],
+    .choices__list--dropdown,
+    .choices__list[aria-expanded]
+) {
+    z-index: 999999999 !important;
+    background: var(--sf-select-bg) !important;
+    border: 1px solid var(--sf-select-border) !important;
+    border-radius: 22px !important;
+    box-shadow: var(--sf-select-shadow) !important;
+    padding: 10px !important;
+    max-height: 340px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    backdrop-filter: blur(18px) saturate(1.15) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(1.15) !important;
+}
+
+/* Option rows */
+html body :is(.fi-modal, .fi-form, .fi-fo-field-wrp, .fi-dropdown-panel) :is(
+    [role="option"],
+    [cmdk-item],
+    .choices__item--choice
+) {
+    min-height: 44px !important;
+    height: auto !important;
+    width: 100% !important;
+    padding: 11px 14px !important;
+    border-radius: 14px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+    color: var(--sf-select-text) !important;
+    background: transparent !important;
+    font-size: 15px !important;
+    font-weight: 750 !important;
+    line-height: 1.35 !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-align: left !important;
+}
+
+/* Selected/current row */
+html body :is(.fi-modal, .fi-form, .fi-fo-field-wrp, .fi-dropdown-panel) :is(
+    [role="option"][aria-selected="true"],
+    [cmdk-item][aria-selected="true"],
+    .choices__item--selectable.is-highlighted
+) {
+    background: var(--sf-select-hover) !important;
+    color: var(--sf-select-hover-text) !important;
+}
+
+/* Hover row */
+html body :is(.fi-modal, .fi-form, .fi-fo-field-wrp, .fi-dropdown-panel) :is(
+    [role="option"]:hover,
+    [cmdk-item]:hover,
+    .choices__item--choice:hover
+) {
+    background: var(--sf-select-hover) !important;
+    color: var(--sf-select-hover-text) !important;
+}
+
+/* Search input inside dropdown */
+html body :is(.fi-modal, .fi-form, .fi-fo-field-wrp) :is(
+    [cmdk-input],
+    .choices__input
+) {
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif !important;
+    color: var(--sf-select-text) !important;
+    background: var(--sf-select-bg-soft) !important;
+}
+
+/* Empty/no-results messages */
+html body :is(.fi-modal, .fi-form, .fi-fo-field-wrp, .fi-dropdown-panel) :is(
+    .choices__notice,
+    [cmdk-empty]
+) {
+    color: var(--sf-select-muted) !important;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif !important;
+}
+
+/* Let modals show dropdowns without clipping */
+html body .fi-modal-window,
+html body .fi-modal-content,
+html body .fi-modal form,
+html body .fi-modal .fi-fo-component-ctn,
+html body .fi-modal .fi-fo-field-wrp,
+html body .fi-modal .fi-fo-field-wrp-control {
+    overflow: visible !important;
+}
+
+
+/* =========================================================
+   GLOBAL SELECT + MATERIAL SAFETY PATCH
+   Prevent Material font from leaking into dropdown option text.
+   ========================================================= */
+
+.fi-modal [role="option"],
+.fi-modal [role="option"] *,
+.fi-modal .choices__item--choice,
+.fi-modal .choices__item--choice *,
+.fi-fo-field-wrp [role="option"],
+.fi-fo-field-wrp [role="option"] *,
+.fi-fo-field-wrp .choices__item--choice,
+.fi-fo-field-wrp .choices__item--choice *,
+.fi-form [role="option"],
+.fi-form [role="option"] *,
+.fi-form .choices__item--choice,
+.fi-form .choices__item--choice *,
+.choices__list--dropdown .choices__item,
+.choices__list[aria-expanded] .choices__item {
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+    font-feature-settings: normal !important;
+    letter-spacing: normal !important;
+    text-transform: none !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+}
+
+.fi-modal [role="option"]::before,
+.fi-modal [role="option"]::after,
+.fi-modal .choices__item--choice::before,
+.fi-modal .choices__item--choice::after,
+.fi-fo-field-wrp [role="option"]::before,
+.fi-fo-field-wrp [role="option"]::after,
+.fi-fo-field-wrp .choices__item--choice::before,
+.fi-fo-field-wrp .choices__item--choice::after,
+.fi-form [role="option"]::before,
+.fi-form [role="option"]::after,
+.fi-form .choices__item--choice::before,
+.fi-form .choices__item--choice::after,
+.choices__list--dropdown .choices__item::before,
+.choices__list--dropdown .choices__item::after {
+    content: none !important;
+    display: none !important;
+}
+
+.fi-modal .choices__list--dropdown,
+.fi-modal .choices__list[aria-expanded],
+.fi-fo-field-wrp .choices__list--dropdown,
+.fi-fo-field-wrp .choices__list[aria-expanded],
+.fi-form .choices__list--dropdown,
+.fi-form .choices__list[aria-expanded],
+.choices__list--dropdown,
+.choices__list[aria-expanded] {
+    overflow: auto !important;
+    z-index: 9999999 !important;
+}
+
+.dark .fi-modal [role="option"],
+.dark .fi-modal .choices__item--choice,
+.dark .fi-fo-field-wrp [role="option"],
+.dark .fi-fo-field-wrp .choices__item--choice,
+.dark .fi-form [role="option"],
+.dark .fi-form .choices__item--choice,
+.dark .choices__list--dropdown .choices__item,
+.dark .choices__list[aria-expanded] .choices__item {
+    color: #e5e7eb !important;
+}
+
+.dark .fi-modal [role="option"]:hover,
+.dark .fi-modal [role="option"][aria-selected="true"],
+.dark .fi-modal .choices__item--choice.is-highlighted,
+.dark .fi-fo-field-wrp [role="option"]:hover,
+.dark .fi-fo-field-wrp [role="option"][aria-selected="true"],
+.dark .fi-fo-field-wrp .choices__item--choice.is-highlighted,
+.dark .fi-form [role="option"]:hover,
+.dark .fi-form [role="option"][aria-selected="true"],
+.dark .fi-form .choices__item--choice.is-highlighted {
+    color: #f8fafc !important;
+    background: rgba(20, 184, 166, .16) !important;
+}
+
+/* =========================================================
+   SADA FEZZAN ERP - FINAL FILAMENT HEADER WRAP FIX
+   Fixes compressed page titles like Pre-Employment Profile.
+   Loaded globally from public/css/sf-md3-admin.css
+   ========================================================= */
+
+.fi-main .fi-header,
+.fi-main .fi-page-header {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    gap: 22px !important;
+    width: min(1500px, calc(100vw - 72px)) !important;
+    max-width: 1500px !important;
+    margin-inline: auto !important;
+    overflow: visible !important;
+}
+
+.fi-main .fi-header > *,
+.fi-main .fi-page-header > *,
+.fi-main .fi-header > div,
+.fi-main .fi-page-header > div {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+}
+
+.fi-main .fi-header .fi-header-heading,
+.fi-main .fi-page-header .fi-header-heading,
+.fi-main .fi-header .fi-page-header-heading,
+.fi-main .fi-page-header .fi-page-header-heading,
+.fi-main .fi-header [class*="heading"],
+.fi-main .fi-page-header [class*="heading"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 100% !important;
+    flex: 0 0 100% !important;
+    display: block !important;
+    overflow: visible !important;
+}
+
+.fi-main .fi-header h1,
+.fi-main .fi-page-header h1,
+.fi-main .fi-header [class*="heading"] h1,
+.fi-main .fi-page-header [class*="heading"] h1 {
+    display: block !important;
+    width: auto !important;
+    max-width: 100% !important;
+    min-width: max-content !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+    hyphens: none !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    line-height: .98 !important;
+}
+
+/* Actions must move under title and wrap naturally */
+.fi-main .fi-header-actions,
+.fi-main .fi-page-header-actions,
+.fi-main [class*="header"] [class*="actions"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 12px !important;
+    overflow: visible !important;
+}
+
+.fi-main .fi-header-actions .fi-btn,
+.fi-main .fi-page-header-actions .fi-btn,
+.fi-main .fi-header-actions a,
+.fi-main .fi-page-header-actions a,
+.fi-main .fi-header-actions button,
+.fi-main .fi-page-header-actions button {
+    flex: 0 1 auto !important;
+    min-width: max-content !important;
+    max-width: 100% !important;
+    white-space: nowrap !important;
+}
+
+/* Pre-Employment specific fallback */
+.fi-main:has([href*="pre-employments"]) .fi-header,
+.fi-main:has([href*="pre-employments"]) .fi-page-header,
+.fi-main:has(.pe-hero) .fi-header,
+.fi-main:has(.pe-hero) .fi-page-header {
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+.fi-main:has(.pe-hero) .fi-header h1,
+.fi-main:has(.pe-hero) .fi-page-header h1 {
+    min-width: max-content !important;
+    white-space: nowrap !important;
+}
+
+/* Tablet and mobile */
+@media (max-width: 900px) {
+    .fi-main .fi-header,
+    .fi-main .fi-page-header {
+        width: calc(100vw - 32px) !important;
+    }
+
+    .fi-main .fi-header h1,
+    .fi-main .fi-page-header h1 {
+        min-width: 0 !important;
+        white-space: normal !important;
+        word-break: normal !important;
+        overflow-wrap: normal !important;
+    }
+
+    .fi-main .fi-header-actions,
+    .fi-main .fi-page-header-actions,
+    .fi-main [class*="header"] [class*="actions"] {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+    }
+
+    .fi-main .fi-header-actions .fi-btn,
+    .fi-main .fi-page-header-actions .fi-btn,
+    .fi-main .fi-header-actions a,
+    .fi-main .fi-page-header-actions a,
+    .fi-main .fi-header-actions button,
+    .fi-main .fi-page-header-actions button {
+        width: 100% !important;
+        min-width: 0 !important;
+        justify-content: center !important;
+    }
+}
+
+
+/* =========================================================
+   SADA FEZZAN ERP - FINAL HEADER ACTIONS ALIGNMENT
+   Keeps Filament page actions under title and inside viewport.
+   ========================================================= */
+
+.fi-main .fi-header,
+.fi-main .fi-page-header {
+    align-items: flex-start !important;
+}
+
+.fi-main .fi-header-actions,
+.fi-main .fi-page-header-actions {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-top: 18px !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    gap: 12px !important;
+
+    overflow: visible !important;
+    transform: none !important;
+}
+
+.fi-main .fi-header-actions > *,
+.fi-main .fi-page-header-actions > * {
+    flex: 0 1 auto !important;
+    max-width: 100% !important;
+}
+
+/* Prevent action row from being pushed to the far right by Filament flex wrappers */
+.fi-main .fi-header > div,
+.fi-main .fi-page-header > div,
+.fi-main .fi-header > div > div,
+.fi-main .fi-page-header > div > div {
+    justify-content: flex-start !important;
+    align-items: flex-start !important;
+}
+
+.fi-main .fi-header .fi-ac,
+.fi-main .fi-page-header .fi-ac,
+.fi-main .fi-header-actions .fi-ac,
+.fi-main .fi-page-header-actions .fi-ac {
+    justify-content: flex-start !important;
+    flex-wrap: wrap !important;
+}
+
+/* Make buttons premium and consistent without overflowing */
+.fi-main .fi-header-actions .fi-btn,
+.fi-main .fi-page-header-actions .fi-btn {
+    min-height: 46px !important;
+    border-radius: 999px !important;
+    padding-inline: 18px !important;
+    white-space: nowrap !important;
+}
+
+/* Wide screens: keep actions on same left grid as title */
+@media (min-width: 901px) {
+    .fi-main .fi-header-actions,
+    .fi-main .fi-page-header-actions {
+        max-width: min(1200px, calc(100vw - 96px)) !important;
+    }
+}
+
+/* Mobile/tablet */
+@media (max-width: 900px) {
+    .fi-main .fi-header-actions,
+    .fi-main .fi-page-header-actions {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        width: 100% !important;
+    }
+
+    .fi-main .fi-header-actions .fi-btn,
+    .fi-main .fi-page-header-actions .fi-btn {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+}
+
+
+/* =========================================================
+   Pre-Employment duplicate hero cleanup / summary card polish
+   ========================================================= */
+.pe-summary-grid-clean {
+    width: min(1280px, calc(100vw - 48px)) !important;
+    margin: 34px auto 22px !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+}
+
+.pe-summary-grid-clean .pe-stat {
+    border-radius: 26px !important;
+    padding: 20px 22px !important;
+    min-height: 104px !important;
+    background:
+        radial-gradient(circle at top right, rgba(34, 211, 238, .08), transparent 36%),
+        rgba(255, 255, 255, .94) !important;
+    border: 1px solid rgba(15, 23, 42, .08) !important;
+    box-shadow: 0 14px 34px rgba(15, 23, 42, .07) !important;
+}
+
+.pe-summary-grid-clean .pe-stat-label {
+    font-size: 11px !important;
+    font-weight: 950 !important;
+    letter-spacing: .12em !important;
+    text-transform: uppercase !important;
+    color: #64748b !important;
+    margin-bottom: 10px !important;
+}
+
+.pe-summary-grid-clean .pe-stat-value {
+    font-size: clamp(20px, 1.7vw, 30px) !important;
+    line-height: 1.05 !important;
+    font-weight: 950 !important;
+    letter-spacing: -.045em !important;
+    color: #0f172a !important;
+    word-break: break-word !important;
+}
+
+.dark .pe-summary-grid-clean .pe-stat {
+    background:
+        radial-gradient(circle at top right, rgba(34, 211, 238, .12), transparent 36%),
+        rgba(15, 23, 42, .74) !important;
+    border-color: rgba(148, 163, 184, .18) !important;
+    box-shadow: 0 18px 44px rgba(0, 0, 0, .22) !important;
+}
+
+.dark .pe-summary-grid-clean .pe-stat-label {
+    color: #94a3b8 !important;
+}
+
+.dark .pe-summary-grid-clean .pe-stat-value {
+    color: #ffffff !important;
+}
+
+@media (max-width: 1180px) {
+    .pe-summary-grid-clean {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+}
+
+@media (max-width: 680px) {
+    .pe-summary-grid-clean {
+        width: calc(100vw - 28px) !important;
+        grid-template-columns: 1fr !important;
+        margin-top: 22px !important;
+    }
+}
+
+
+/* SF FORCE REMOVE FILAMENT NATIVE PAGE HEADER START
+   Purpose:
+   Remove Filament's default page breadcrumb/title/action header globally,
+   because all ERP pages use custom premium headers/heroes.
+   This does NOT hide topbar, sidebar, modals, forms, tables, or content.
+*/
+
+.fi-header:not(.fi-topbar):not(.fi-sidebar-header),
+header.fi-header:not(.fi-topbar):not(.fi-sidebar-header),
+.fi-page-header,
+header.fi-page-header,
+.fi-page-header-heading,
+.fi-page-header-breadcrumbs,
+.fi-page-header-actions,
+.fi-page-header-ctas,
+.fi-header-heading,
+.fi-header-breadcrumbs,
+.fi-header-actions,
+.fi-header-ctas,
+.fi-main .fi-header:not(.fi-topbar):not(.fi-sidebar-header),
+.fi-main header.fi-header:not(.fi-topbar):not(.fi-sidebar-header),
+.fi-main .fi-page-header,
+.fi-main header.fi-page-header,
+.fi-main .fi-page-header-heading,
+.fi-main .fi-page-header-breadcrumbs,
+.fi-main .fi-page-header-actions,
+.fi-main .fi-page-header-ctas,
+.fi-page > .fi-header,
+.fi-page > header.fi-header,
+.fi-page > .fi-page-header,
+.fi-page > header.fi-page-header,
+main .fi-header:not(.fi-topbar):not(.fi-sidebar-header),
+main header.fi-header:not(.fi-topbar):not(.fi-sidebar-header) {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    max-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+}
+
+/* Keep admin shell elements visible */
+.fi-topbar,
+.fi-sidebar,
+.fi-sidebar-header,
+.fi-main,
+.fi-page,
+.fi-modal,
+.fi-dropdown-panel {
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* SF FORCE REMOVE FILAMENT NATIVE PAGE HEADER END */
+
+

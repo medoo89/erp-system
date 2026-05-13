@@ -1,3 +1,59 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+
+/* Sidebar top logo area */
+.fi-sidebar-header,
+.fi-sidebar-header > div,
+.fi-sidebar-header a,
+.fi-sidebar-header .fi-logo,
+.fi-sidebar-header .fi-logo-link {
+    min-height: 116px !important;
+    height: 116px !important;
+    max-height: none !important;
+    overflow: visible !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* Actual logo image / svg inside sidebar */
+.fi-sidebar-header img,
+.fi-sidebar-header svg,
+.fi-sidebar-header .fi-logo img,
+.fi-sidebar-header .fi-logo svg,
+.fi-logo img,
+.fi-logo svg {
+    height: 96px !important;
+    max-height: 96px !important;
+    width: auto !important;
+    max-width: 220px !important;
+    object-fit: contain !important;
+    transform: scale(1) !important;
+}
+
+/* If the logo is rendered as background image */
+.fi-sidebar-header [style*="background-image"],
+.fi-logo [style*="background-image"] {
+    width: 220px !important;
+    height: 96px !important;
+    max-height: 96px !important;
+    background-size: contain !important;
+    background-repeat: no-repeat !important;
+    background-position: center left !important;
+}
+
+/* Keep the sidebar content pushed down after bigger logo */
+.fi-sidebar-nav {
+    padding-top: 18px !important;
+}
+
+/* Mobile/topbar logo if used */
+.fi-topbar img,
+.fi-topbar svg,
+.fi-topbar .fi-logo img,
+.fi-topbar .fi-logo svg {
+    height: 72px !important;
+    max-height: 72px !important;
+    width: auto !important;
+}

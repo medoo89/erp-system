@@ -3,9 +3,147 @@
 namespace App\Filament\Resources\Employments\Pages;
 
 use App\Filament\Resources\Employments\EmploymentResource;
+use App\Models\User;
 use Filament\Resources\Pages\CreateRecord;
+use Filament\Notifications\Notification;
+use Illuminate\Support\Facades\Hash;
 
 class CreateEmployment extends CreateRecord
 {
-    protected static string $resource = EmploymentResource::class;
+    protected array $erpLoginSetupData = [];
+    
+    protected string $view = 'filament.resources.employments.pages.create-employment-premium';
+protected static string $resource = EmploymentResource::class;
+
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        $this->erpLoginSetupData = [
+            'create' => (bool) ($data['create_erp_user_after_save'] ?? false),
+            'role' => $data['erp_login_role'] ?? 'viewer',
+            'department' => $data['erp_login_department'] ?? ($data['office_department'] ?? 'admin'),
+            'password' => $data['erp_login_temp_password'] ?? 'password123',
+        ];
+
+        unset(
+            $data['create_erp_user_after_save'],
+            $data['erp_login_role'],
+            $data['erp_login_department'],
+            $data['erp_login_temp_password']
+        );
+
+        $data['employee_category'] = $data['employee_category'] ?? 'operational';
+
+        if (($data['employee_category'] ?? 'operational') === 'office') {
+            $data['client_name'] = $data['client_name'] ?? 'Sada Fezzan';
+            $data['project_name'] = $data['project_name'] ?? 'Internal Office';
+            $data['rotation_status'] = $data['rotation_status'] ?? 'scheduled';
+            $data['current_work_status'] = $data['current_work_status'] ?? 'mobilized';
+
+            if (($data['contract_type'] ?? null) === 'open_ended' || ($data['is_open_ended_contract'] ?? false)) {
+                $data['is_open_ended_contract'] = true;
+                $data['contract_end_date'] = null;
+            }
+        }
+
+        return $data;
+    }
+
+    public function getView(): string
+    {
+        return 'filament.resources.employments.pages.create-employment-premium';
+    }
+
+    public static function canAccess(array $parameters = []): bool
+    {
+        return (bool) (auth()->user()?->canErp('employments', 'create') ?? false);
+    }
+
+
+    protected function afterCreate(): void
+    {
+        $this->syncErpLoginFromSetup();
+    }
+
+    protected function syncErpLoginFromSetup(): void
+    {
+        $employment = $this->record;
+
+        if (! $employment) {
+            return;
+        }
+
+        if ((string) ($employment->employee_category ?? 'operational') !== 'office') {
+            return;
+        }
+
+        if (! (bool) ($this->erpLoginSetupData['create'] ?? false)) {
+            return;
+        }
+
+        if (blank($employment->employee_email)) {
+            Notification::make()
+                ->title('ERP user was not created')
+                ->body('Employee email is required to create ERP login.')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $role = $this->erpLoginSetupData['role'] ?? 'viewer';
+        $department = $this->erpLoginSetupData['department'] ?? ($employment->office_department ?: 'admin');
+        $password = $this->erpLoginSetupData['password'] ?? 'password123';
+
+        $user = User::query()
+            ->where('email', strtolower(trim($employment->employee_email)))
+            ->first();
+
+        $permissions = User::defaultErpPermissionsForRole($role);
+
+        if ($user) {
+            $payload = [
+                'employment_id' => $user->employment_id ?: $employment->id,
+                'name' => $employment->employee_name ?: $user->name,
+                'is_admin' => true,
+                'user_type' => User::TYPE_ADMIN,
+                'erp_role' => $role,
+                'erp_department' => $department,
+                'erp_permissions' => json_encode($permissions, JSON_UNESCAPED_UNICODE),
+            ];
+
+            if (filled($password)) {
+                $payload['password'] = Hash::make($password);
+            }
+
+            $user->forceFill($payload)->save();
+
+            Notification::make()
+                ->title('ERP user updated')
+                ->body('Default page rules were applied based on the selected role.')
+                ->success()
+                ->send();
+
+            return;
+        }
+
+        User::query()->create([
+            'employment_id' => $employment->id,
+            'name' => $employment->employee_name,
+            'email' => strtolower(trim($employment->employee_email)),
+            'password' => Hash::make($password),
+            'is_admin' => true,
+            'user_type' => User::TYPE_ADMIN,
+            'erp_role' => $role,
+            'erp_department' => $department,
+            'erp_permissions' => json_encode($permissions, JSON_UNESCAPED_UNICODE),
+        ]);
+
+        Notification::make()
+            ->title('ERP user created')
+            ->body('Default page rules were applied based on the selected role.')
+            ->success()
+            ->send();
+    }
+
+
 }

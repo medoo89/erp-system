@@ -12,7 +12,7 @@ class RecruitmentCalendarOverview extends Widget
 
     protected int|string|array $columnSpan = 'full';
 
-    protected static ?int $sort = 3;
+    protected static ?int $sort = 99;
 
     public function getViewData(): array
     {
@@ -28,7 +28,7 @@ class RecruitmentCalendarOverview extends Widget
     protected function buildUpcomingTaskGroups(array $events): array
     {
         $today = Carbon::today();
-        $until = Carbon::today()->addDays(30);
+        $until = Carbon::today()->addDays(45);
 
         $filtered = array_filter($events, function (array $event) use ($today, $until) {
             if (empty($event['start'])) {
@@ -54,8 +54,9 @@ class RecruitmentCalendarOverview extends Widget
             }
 
             $groups[$dateKey]['items'][] = [
-                'title' => $event['title'],
-                'backgroundColor' => $event['backgroundColor'] ?? '#94a3b8',
+                'title' => $event['title'] ?? 'Event',
+                'type' => $event['type'] ?? 'event',
+                'backgroundColor' => $event['backgroundColor'] ?? '#2563eb',
                 'job_title' => $event['job_title'] ?? null,
                 'notes' => $event['notes'] ?? null,
             ];

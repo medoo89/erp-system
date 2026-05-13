@@ -28,6 +28,10 @@ class CandidateRequest extends Model
         'responded_at',
         'created_by',
         'public_token',
+        'accepted_salary',
+        'accepted_currency',
+        'negotiation_result',
+        'is_final_offer',
     ];
 
     protected $casts = [
@@ -38,6 +42,8 @@ class CandidateRequest extends Model
         'requires_approval' => 'boolean',
         'proposed_salary' => 'decimal:2',
         'candidate_counter_offer' => 'decimal:2',
+        'accepted_salary' => 'decimal:2',
+        'is_final_offer' => 'boolean',
     ];
 
     public function jobApplication(): BelongsTo
@@ -50,6 +56,19 @@ class CandidateRequest extends Model
         return $this->hasMany(CandidateRequestItem::class, 'candidate_request_id')
             ->orderBy('sort_order')
             ->orderBy('id');
+    }
+
+    public function financeProfiles(): HasMany
+    {
+        return $this->hasMany(CandidateFinanceProfile::class, 'source_candidate_request_id')
+            ->latest('id');
+    }
+
+    public function salaryTermsHistory(): HasMany
+    {
+        return $this->hasMany(SalaryTermsHistory::class, 'source_candidate_request_id')
+            ->latest('effective_from')
+            ->latest('id');
     }
 
     public function isNegotiation(): bool

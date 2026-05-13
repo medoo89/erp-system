@@ -26,6 +26,7 @@ class EditPreEmployment extends EditRecord
                 ->url(fn () => PreEmploymentResource::getUrl('view', ['record' => $this->record])),
 
             Action::make('saveChanges')
+                ->hidden(fn () => ! (bool) auth()->user()?->canErp('pre_employments', 'edit'))
                 ->label('Save Changes')
                 ->color('primary')
                 ->requiresConfirmation()
@@ -42,6 +43,7 @@ class EditPreEmployment extends EditRecord
                 }),
 
             DeleteAction::make()
+                ->hidden(fn () => ! (bool) auth()->user()?->canErp('pre_employments', 'delete'))
                 ->label('Delete')
                 ->color('danger')
                 ->requiresConfirmation()
@@ -55,4 +57,10 @@ class EditPreEmployment extends EditRecord
     {
         return [];
     }
+
+    public static function canAccess(array $parameters = []): bool
+    {
+        return (bool) (auth()->user()?->canErp('pre_employments', 'edit') ?? false);
+    }
+
 }

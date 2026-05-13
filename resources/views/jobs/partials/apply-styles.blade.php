@@ -636,3 +636,165 @@
         }
     }
 </style>
+
+<style id="sf-jobs-apply-md3-polish-v1">
+    /*
+     * Public Job Apply page visual polish only.
+     * Does not change fields, names, validation, routes, or submit behavior.
+     */
+
+    body {
+        background:
+            radial-gradient(circle at 88% 10%, rgba(32, 201, 190, .16), transparent 32%),
+            radial-gradient(circle at 8% 18%, rgba(37, 99, 235, .10), transparent 28%),
+            linear-gradient(180deg, #f4fafb 0%, #eef6f8 100%) !important;
+        color: #0f172a !important;
+    }
+
+    .container,
+    .wrap,
+    main,
+    .job-apply-wrap {
+        max-width: 1120px !important;
+    }
+
+    form,
+    .card,
+    .apply-card,
+    .job-apply-card {
+        border-radius: 34px !important;
+        border: 1px solid rgba(15, 23, 42, .08) !important;
+        background:
+            radial-gradient(circle at 94% 10%, rgba(20, 184, 166, .10), transparent 28%),
+            rgba(255, 255, 255, .94) !important;
+        box-shadow: 0 24px 70px rgba(15, 23, 42, .08) !important;
+        overflow: hidden !important;
+    }
+
+    form {
+        padding: clamp(22px, 3vw, 36px) !important;
+    }
+
+    form > * + * {
+        margin-top: 18px !important;
+    }
+
+    label {
+        color: #64748b !important;
+        font-size: 12px !important;
+        font-weight: 950 !important;
+        letter-spacing: .10em !important;
+        text-transform: uppercase !important;
+        margin-bottom: 8px !important;
+        display: inline-block !important;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="number"],
+    input[type="date"],
+    input[type="file"],
+    textarea,
+    select {
+        width: 100% !important;
+        min-height: 54px !important;
+        border-radius: 20px !important;
+        border: 1px solid rgba(15, 23, 42, .10) !important;
+        background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%) !important;
+        color: #0f172a !important;
+        padding: 14px 16px !important;
+        font-size: 14px !important;
+        font-weight: 750 !important;
+        outline: none !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.70), 0 10px 24px rgba(15,23,42,.035) !important;
+        transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease !important;
+    }
+
+    textarea {
+        min-height: 140px !important;
+        resize: vertical !important;
+        line-height: 1.65 !important;
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+        border-color: rgba(37, 99, 235, .42) !important;
+        box-shadow:
+            0 0 0 5px rgba(37, 99, 235, .08),
+            0 16px 34px rgba(15, 23, 42, .06) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    input[type="file"] {
+        cursor: pointer !important;
+        background:
+            linear-gradient(135deg, rgba(236,253,245,.90), rgba(239,246,255,.95)) !important;
+        border-style: dashed !important;
+        border-color: rgba(20, 184, 166, .38) !important;
+    }
+
+    button[type="submit"],
+    input[type="submit"],
+    .btn-primary,
+    .apply-submit,
+    a[href*="apply"].btn {
+        min-height: 54px !important;
+        border-radius: 999px !important;
+        border: 0 !important;
+        padding: 0 24px !important;
+        color: #ffffff !important;
+        background: linear-gradient(135deg, #14b8a6 0%, #2563eb 100%) !important;
+        box-shadow: 0 18px 38px rgba(37, 99, 235, .22) !important;
+        font-size: 14px !important;
+        font-weight: 950 !important;
+        cursor: pointer !important;
+        transition: transform .18s ease, box-shadow .18s ease, filter .18s ease !important;
+    }
+
+    button[type="submit"]:hover,
+    input[type="submit"]:hover {
+        transform: translateY(-1px) !important;
+        filter: saturate(1.08) contrast(1.02) !important;
+        box-shadow: 0 22px 46px rgba(37, 99, 235, .28) !important;
+    }
+
+    h1, h2, h3 {
+        color: #244f78 !important;
+        letter-spacing: -.045em !important;
+        font-weight: 950 !important;
+    }
+
+    .error,
+    .alert-danger,
+    .invalid-feedback {
+        border-radius: 16px !important;
+        background: #fff1f2 !important;
+        border: 1px solid #fecdd3 !important;
+        color: #be123c !important;
+        font-weight: 800 !important;
+    }
+
+    .success,
+    .alert-success {
+        border-radius: 16px !important;
+        background: #ecfdf5 !important;
+        border: 1px solid #a7f3d0 !important;
+        color: #047857 !important;
+        font-weight: 800 !important;
+    }
+
+    @media (max-width: 760px) {
+        form,
+        .card,
+        .apply-card,
+        .job-apply-card {
+            border-radius: 24px !important;
+        }
+
+        form {
+            padding: 20px !important;
+        }
+    }
+</style>

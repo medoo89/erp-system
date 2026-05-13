@@ -1,5 +1,7 @@
 <?php
 
+use App\Console\Commands\CreatePortalAccountFromEmployment;
+
 namespace App\Console;
 
 use Illuminate\Console\Scheduling\Schedule;
@@ -10,6 +12,7 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         $schedule->command('jobs:close-expired')->hourly();
+        $schedule->command('salary-slips:auto-generate')->monthlyOn(1, '02:00');
     }
 
     protected function commands(): void

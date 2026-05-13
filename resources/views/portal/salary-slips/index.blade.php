@@ -2,6 +2,11 @@
 @extends('portal.layouts.app')
 
 @php
+
+    $salaryDisplayAmount = function ($slip) {
+        return number_format((float) ($slip->payment_total_amount ?? $slip->net_amount ?? 0), 2);
+    };
+
     $pageTitle = 'Portal Salary Slips';
 
     $statusBadge = function (?string $status): array {
@@ -17,6 +22,78 @@
 @endphp
 
 @section('content')
+
+<style id="sf-candidate-request-decision-colors">
+    /*
+     * Colored decision buttons — visual only.
+     */
+
+    form:has(textarea[name*="negotiation"]) label:has(input[type="radio"]),
+    form:has(textarea[name*="candidate"]) label:has(input[type="radio"]),
+    form:has(textarea[name*="response"]) label:has(input[type="radio"]) {
+        overflow: hidden !important;
+    }
+
+    form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="approve"]),
+    form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="approve"]),
+    form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="approve"]) {
+        background: linear-gradient(135deg, #ecfdf5, #d1fae5) !important;
+        border-color: rgba(34,197,94,.42) !important;
+        color: #047857 !important;
+        box-shadow: 0 12px 28px rgba(34,197,94,.10) !important;
+    }
+
+    form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="decline"]),
+    form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="decline"]),
+    form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="decline"]) {
+        background: linear-gradient(135deg, #fef2f2, #fee2e2) !important;
+        border-color: rgba(239,68,68,.38) !important;
+        color: #b91c1c !important;
+        box-shadow: 0 12px 28px rgba(239,68,68,.10) !important;
+    }
+
+    form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="reconsider"]),
+    form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="reconsider"]),
+    form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="reconsider"]) {
+        background: linear-gradient(135deg, #fff7ed, #ffedd5) !important;
+        border-color: rgba(249,115,22,.38) !important;
+        color: #c2410c !important;
+        box-shadow: 0 12px 28px rgba(249,115,22,.10) !important;
+    }
+
+    form:has(textarea[name*="negotiation"]) label:has(input[type="radio"]:checked),
+    form:has(textarea[name*="candidate"]) label:has(input[type="radio"]:checked),
+    form:has(textarea[name*="response"]) label:has(input[type="radio"]:checked) {
+        transform: translateY(-1px) !important;
+        filter: saturate(1.12) !important;
+        box-shadow: 0 0 0 5px rgba(37,99,235,.10), 0 18px 38px rgba(15,23,42,.12) !important;
+    }
+
+    .dark form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="approve"]),
+    .dark form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="approve"]),
+    .dark form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="approve"]) {
+        background: rgba(6,78,59,.55) !important;
+        border-color: rgba(52,211,153,.34) !important;
+        color: #a7f3d0 !important;
+    }
+
+    .dark form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="decline"]),
+    .dark form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="decline"]),
+    .dark form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="decline"]) {
+        background: rgba(127,29,29,.48) !important;
+        border-color: rgba(248,113,113,.34) !important;
+        color: #fecaca !important;
+    }
+
+    .dark form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="reconsider"]),
+    .dark form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="reconsider"]),
+    .dark form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="reconsider"]) {
+        background: rgba(124,45,18,.48) !important;
+        border-color: rgba(251,146,60,.34) !important;
+        color: #fed7aa !important;
+    }
+</style>
+
 
 <style>
     .sf-dashboard-receipt-inline {
@@ -117,8 +194,27 @@
                     </thead>
                     <tbody>
                         @foreach($salarySlips as $item)
-                            @php([$badgeText, $badgeClass] = $statusBadge($item->status))
-                            <tr>
+                            
+                        @php
+                            $badge = match ((string) ($item->status ?? 'draft')) {
+                                'approved' => ['Approved', 'portal-badge portal-badge--info'],
+                                'sent_to_bank' => ['Sent to Bank', 'portal-badge portal-badge--warning'],
+                                'paid' => ['Paid', 'portal-badge portal-badge--success'],
+                                'bank_rejected' => ['Bank Rejected', 'portal-badge portal-badge--danger'],
+                                'cancelled' => ['Cancelled', 'portal-badge portal-badge--danger'],
+                                default => ['Draft', 'portal-badge portal-badge--slate'],
+                            };
+
+                            $badgeText = $badge[0];
+                            $badgeClass = $badge[1];
+                        
+                            $badgeText = $badge[0];
+                            $badgeClass = $badge[1];
+                        
+                            $badgeText = $badge[0];
+                            $badgeClass = $badge[1];
+                        @endphp
+<tr>
                                 <td style="background:#f8fbff;padding:16px 12px;border-top-left-radius:16px;border-bottom-left-radius:16px;">
                                     <div style="font-weight:800;color:#0f172a;">
                                         {{ sprintf('%02d / %04d', (int) ($item->salary_month ?? 0), (int) ($item->salary_year ?? 0)) }}
@@ -133,7 +229,7 @@
                                     {{ \App\Models\SalarySlip::paymentMethodLabels()[$item->payment_method] ?? '-' }}
                                 </td>
                                 <td style="background:#f8fbff;padding:16px 12px;">
-                                    <span class="{{ $badgeClass }}">{{ $badgeText }}</span>
+                                    <span class="{{ $badgeClass ?? 'portal-badge portal-badge--slate' }}">{{ $badgeText ?? ucfirst(str_replace('_', ' ', (string) ($item->status ?? 'draft'))) }}</span>
                                 </td>
                                 <td style="background:#f8fbff;padding:16px 12px;border-top-right-radius:16px;border-bottom-right-radius:16px;">
                                     <a href="{{ route('portal.salary-slips.show', $item) }}" style="font-weight:800;color:#2563eb;">Open</a>
@@ -154,3 +250,54 @@
         @endif
     </section>
 @endsection
+
+<style id="sf-portal-salary-scroll-final">
+    .sf-attendance-table,
+    .sf-attendance-days,
+    .salary-attendance-table,
+    .portal-attendance-table,
+    [data-attendance-table],
+    [data-salary-attendance],
+    .sf-salary-attendance,
+    .sf-slip-attendance {
+        max-height: 430px !important;
+        overflow-y: auto !important;
+        display: block !important;
+        scrollbar-width: thin;
+    }
+
+    .sf-attendance-table::-webkit-scrollbar,
+    .sf-attendance-days::-webkit-scrollbar,
+    .salary-attendance-table::-webkit-scrollbar,
+    .portal-attendance-table::-webkit-scrollbar,
+    [data-attendance-table]::-webkit-scrollbar,
+    [data-salary-attendance]::-webkit-scrollbar,
+    .sf-salary-attendance::-webkit-scrollbar,
+    .sf-slip-attendance::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .sf-attendance-table::-webkit-scrollbar-thumb,
+    .sf-attendance-days::-webkit-scrollbar-thumb,
+    .salary-attendance-table::-webkit-scrollbar-thumb,
+    .portal-attendance-table::-webkit-scrollbar-thumb,
+    [data-attendance-table]::-webkit-scrollbar-thumb,
+    [data-salary-attendance]::-webkit-scrollbar-thumb,
+    .sf-salary-attendance::-webkit-scrollbar-thumb,
+    .sf-slip-attendance::-webkit-scrollbar-thumb {
+        background: rgba(37,99,235,.24);
+        border-radius: 999px;
+    }
+
+    table.sf-attendance-table,
+    table.salary-attendance-table,
+    table.portal-attendance-table {
+        display: table !important;
+        width: 100% !important;
+    }
+
+    .sf-portal-attendance-scroll {
+        max-height: 430px !important;
+        overflow-y: auto !important;
+    }
+</style>

@@ -87,9 +87,7 @@ class ArchivedPreEmploymentsTable
                             default => ucfirst(str_replace('_', ' ', (string) $state)),
                         };
                     })
-                    ->color(function ($state) {
-                        return filled($state) ? 'danger' : 'gray';
-                    }),
+                    ->color(fn ($state) => filled($state) ? 'danger' : 'gray'),
 
                 Tables\Columns\TextColumn::make('decline_notes')
                     ->label('Decline Notes')
@@ -171,9 +169,17 @@ class ArchivedPreEmploymentsTable
             ])
             ->recordActions([
                 Action::make('restore')
-                    ->label('Restore')
+                    ->visible(fn () => (bool) auth()->user()?->canErp('archive', 'restore'))
+                    ->label('')
+                    ->tooltip('Restore')
                     ->icon('heroicon-o-arrow-uturn-left')
-                    ->color('success')
+                    ->iconButton()
+                    ->color('warning')
+                    ->extraAttributes([
+                        'class' => 'sf-archive-row-action sf-archive-row-action-restore',
+                        'title' => 'Restore',
+                        'aria-label' => 'Restore',
+                    ])
                     ->requiresConfirmation()
                     ->modalHeading('Restore Pre-Employment Record')
                     ->modalDescription('Are you sure you want to restore this Pre-Employment record back to the active list?')
@@ -197,14 +203,25 @@ class ArchivedPreEmploymentsTable
                     }),
 
                 DeleteAction::make()
-                    ->label('Permanent Delete')
-                    ->color('danger')
+                    ->visible(fn () => (bool) auth()->user()?->canErp('archive', 'delete'))
+                    ->label('')
+                    ->tooltip('Permanent Delete')
+                    ->icon('heroicon-o-trash')
+                    ->iconButton()
+                    ->color('gray')
+                    ->extraAttributes([
+                        'class' => 'sf-archive-row-action sf-archive-row-action-delete',
+                        'title' => 'Permanent Delete',
+                        'aria-label' => 'Permanent Delete',
+                    ])
                     ->requiresConfirmation(),
             ])
             ->bulkActions([
                 BulkAction::make('restore_selected')
+                    ->visible(fn () => (bool) auth()->user()?->canErp('archive', 'restore'))
                     ->label('Restore Selected')
-                    ->color('success')
+                    ->icon('heroicon-o-arrow-uturn-left')
+                    ->color('warning')
                     ->requiresConfirmation()
                     ->action(function (Collection $records) {
                         foreach ($records as $record) {
@@ -227,7 +244,9 @@ class ArchivedPreEmploymentsTable
                     }),
 
                 BulkAction::make('bulk_delete')
+                    ->visible(fn () => (bool) auth()->user()?->canErp('archive', 'delete'))
                     ->label('Permanent Delete')
+                    ->icon('heroicon-o-trash')
                     ->color('danger')
                     ->requiresConfirmation()
                     ->action(function (Collection $records) {

@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers\Portal;
 
+use App\Models\PreEmploymentPortalValue;
+use App\Models\PreEmploymentPortalField;
 use App\Models\CandidateFinanceProfile;
+use App\Models\FinanceExpense;
 use App\Models\SalarySlip;
 use App\Models\SalaryTermsHistory;
 use App\Support\RecruitmentCalendarEvents;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 
 class PortalDashboardController extends PortalBaseController
 {
@@ -80,7 +84,9 @@ class PortalDashboardController extends PortalBaseController
         }
 
         $recentFiles = $this->buildPortalFiles($employment, $preEmployment)->take(3);
-        $latestUpdates = $this->buildLatestUpdates($employment, $preEmployment, $recentSalarySlips, $recentFiles)->take(3);
+        $latestUpdates = $this->buildLatestUpdates($employment, $preEmployment, $recentSalarySlips, $recentFiles)->take(12);
+
+        $dashboardReimbursementClaims = $this->buildDashboardReimbursementClaims($employment, $preEmployment)->take(5);
 
 
         $pendingPaymentConfirmations = collect();
@@ -153,14 +159,38 @@ class PortalDashboardController extends PortalBaseController
 
         $compensationSnapshot = $this->resolveCompensationSnapshot($employment, $preEmployment);
 
-        return view('portal.dashboard', array_merge($shared, [
+        
+        $pendingFileRequests = collect();
+
+        if ($employment?->preEmployment) {
+            $submittedFieldIds = PreEmploymentPortalValue::query()
+                ->where('pre_employment_id', $employment->preEmployment->id)
+                ->whereNotNull('value')
+                ->where('value', '!=', '')
+                ->pluck('portal_field_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            $pendingFileRequests = PreEmploymentPortalField::query()
+                ->where('pre_employment_id', $employment->preEmployment->id)
+                ->where('field_type', 'file')
+                ->where('is_active', true)
+                ->where('visible_to_candidate', true)
+                ->when(! empty($submittedFieldIds), fn ($query) => $query->whereNotIn('id', $submittedFieldIds))
+                ->orderByDesc('id')
+                ->get();
+        }
+
+return view('portal.dashboard', array_merge($shared, [
             'currentIdentity' => $currentIdentity,
             'latestNotifications' => $latestNotifications->take(3),
             'latestTimeline' => $latestUpdates,
             'recentSalarySlips' => $recentSalarySlips,
             'pendingPaymentConfirmations' => $pendingPaymentConfirmations,
             'unreadNotificationsCount' => $portalAccount?->unreadNotifications()->count() ?? 0,
+            'pendingFileRequests' => $pendingFileRequests,
             'recentFiles' => $recentFiles,
+            'dashboardReimbursementClaims' => $dashboardReimbursementClaims ?? collect(),
             'calendarMonthLabel' => $calendar['monthLabel'],
             'calendarWeeks' => $calendar['weeks'],
             'calendarToday' => now()->format('Y-m-d'),
@@ -346,166 +376,162 @@ class PortalDashboardController extends PortalBaseController
 
     protected function buildLatestUpdates($employment, $preEmployment, Collection $recentSalarySlips, Collection $recentFiles): Collection
     {
-        $updates = collect();
+        $items = collect();
 
+        /*
+         * Salary slips visible to employee.
+         */
         foreach ($recentSalarySlips as $slip) {
-            $updates->push([
-                'title' => 'Salary Slip ' . sprintf('%02d/%04d', (int) ($slip->salary_month ?? 0), (int) ($slip->salary_year ?? 0)),
-                'description' => 'Net Amount: ' . number_format((float) ($slip->net_amount ?? 0), 2) . ' ' . ($slip->currency ?: ''),
+            $period = trim(sprintf('%02d / %04d', (int) ($slip->salary_month ?? 0), (int) ($slip->salary_year ?? 0)));
+
+            $items->push([
+                'type' => 'salary_slip',
+                'title' => 'Salary Slip',
+                'description' => 'Salary slip for ' . $period . ' is ' . str_replace('_', ' ', (string) ($slip->status ?: 'draft')) . '.',
+                'badge_status' => $slip->status ?: 'draft',
                 'event_date' => $slip->updated_at ?: $slip->created_at,
-                'badge_status' => (string) $slip->status,
+                'color' => '#2563eb',
             ]);
         }
 
-        if ($employment?->currentRotation) {
-            $rotation = $employment->currentRotation;
-            $updates->push([
-                'title' => 'Current Rotation Updated',
-                'description' => trim(implode(' · ', array_filter([
-                    $rotation->from_date ? 'From: ' . $rotation->from_date->format('Y-m-d') : null,
-                    $rotation->to_date ? 'To: ' . $rotation->to_date->format('Y-m-d') : null,
-                    $employment->rotation_status ? 'Status: ' . $employment->rotation_status : null,
-                ]))),
-                'event_date' => $rotation->updated_at ?: $rotation->created_at,
-                'badge_status' => 'rotation',
-            ]);
-        }
-
-        if ($employment?->travel_status || $employment?->mobilization_date || $employment?->demobilization_date) {
-            $updates->push([
-                'title' => 'Travel / Mobilization Update',
-                'description' => trim(implode(' · ', array_filter([
-                    $employment->travel_status ? 'Travel: ' . $employment->travel_status : null,
-                    $employment->mobilization_date ? 'Mobilization: ' . $employment->mobilization_date->format('Y-m-d') : null,
-                    $employment->demobilization_date ? 'Demobilization: ' . $employment->demobilization_date->format('Y-m-d') : null,
-                ]))),
-                'event_date' => $employment->updated_at ?: $employment->created_at,
-                'badge_status' => 'travel',
-            ]);
-        }
-
-        if ($employment?->contract_status) {
-            $updates->push([
-                'title' => 'Contract Status Updated',
-                'description' => 'Contract Status: ' . $employment->contract_status,
-                'event_date' => $employment->updated_at ?: $employment->created_at,
-                'badge_status' => 'contract',
-            ]);
-        }
-
-        if ($employment?->visa_status) {
-            $updates->push([
-                'title' => 'Visa Status Updated',
-                'description' => trim(implode(' · ', array_filter([
-                    'Visa Status: ' . $employment->visa_status,
-                    $employment->visa_expiry_date ? 'Expiry: ' . $employment->visa_expiry_date->format('Y-m-d') : null,
-                ]))),
-                'event_date' => $employment->updated_at ?: $employment->created_at,
-                'badge_status' => 'visa',
-            ]);
-        }
-
-        if ($employment?->medical_status) {
-            $updates->push([
-                'title' => 'Medical Status Updated',
-                'description' => trim(implode(' · ', array_filter([
-                    'Medical Status: ' . $employment->medical_status,
-                    $employment->medical_expiry_date ? 'Expiry: ' . $employment->medical_expiry_date->format('Y-m-d') : null,
-                ]))),
-                'event_date' => $employment->updated_at ?: $employment->created_at,
-                'badge_status' => 'medical',
-            ]);
-        }
-
+        /*
+         * Employee files / documents visible in portal.
+         */
         foreach ($recentFiles as $file) {
-            $updates->push([
-                'title' => $file['title'],
-                'description' => $file['description'] ?: 'File added',
-                'event_date' => $file['date'],
-                'badge_status' => $file['badge_status'] ?? 'file',
+            $items->push([
+                'type' => 'file',
+                'title' => $file['title'] ?? 'Portal File',
+                'description' => 'A portal-visible file was added or updated.',
+                'badge_status' => $file['description'] ?? 'file',
+                'event_date' => $file['date'] ?? now(),
+                'color' => '#0ea5e9',
             ]);
         }
 
-        return $updates
-            ->sortByDesc(fn ($item) => optional($item['event_date'])->timestamp ?? 0)
+        /*
+         * Employment lifecycle updates.
+         */
+        if ($employment) {
+            $employment->loadMissing(['rotations', 'files']);
+
+            foreach ([
+                ['field' => 'mobilization_date', 'title' => 'Mobilization', 'type' => 'mobilization', 'color' => '#0ea5e9'],
+                ['field' => 'demobilization_date', 'title' => 'Demobilization', 'type' => 'demobilization', 'color' => '#8b5cf6'],
+                ['field' => 'contract_start_date', 'title' => 'Contract Start', 'type' => 'contract', 'color' => '#16a34a'],
+                ['field' => 'contract_end_date', 'title' => 'Contract End', 'type' => 'contract', 'color' => '#d97706'],
+                ['field' => 'visa_expiry_date', 'title' => 'Visa Expiry', 'type' => 'visa', 'color' => '#2563eb'],
+                ['field' => 'medical_expiry_date', 'title' => 'Medical Expiry', 'type' => 'medical', 'color' => '#16a34a'],
+            ] as $event) {
+                $date = $employment->{$event['field']} ?? null;
+
+                if ($date) {
+                    $items->push([
+                        'type' => $event['type'],
+                        'title' => $event['title'],
+                        'description' => $event['title'] . ' date recorded for this employment profile.',
+                        'badge_status' => $event['type'],
+                        'event_date' => $date,
+                        'color' => $event['color'],
+                    ]);
+                }
+            }
+
+            foreach (($employment->rotations ?? collect()) as $rotation) {
+                foreach ([
+                    ['field' => 'from_date', 'title' => 'Rotation Start', 'type' => 'rotation_start', 'color' => '#16a34a'],
+                    ['field' => 'to_date', 'title' => 'Rotation End', 'type' => 'rotation_end', 'color' => '#16a34a'],
+                    ['field' => 'mobilization_date', 'title' => 'Rotation Mobilization', 'type' => 'mobilization', 'color' => '#0ea5e9'],
+                    ['field' => 'demobilization_date', 'title' => 'Rotation Demobilization', 'type' => 'demobilization', 'color' => '#8b5cf6'],
+                    ['field' => 'travel_request_date', 'title' => 'Travel Request', 'type' => 'travel_request', 'color' => '#d97706'],
+                ] as $event) {
+                    $date = $rotation->{$event['field']} ?? null;
+
+                    if ($date) {
+                        $items->push([
+                            'type' => $event['type'],
+                            'title' => $event['title'],
+                            'description' => 'Rotation / travel update recorded.',
+                            'badge_status' => $event['type'],
+                            'event_date' => $rotation->updated_at ?: $rotation->created_at,
+                            'sort_date' => $rotation->updated_at ?: $rotation->created_at,
+                            'color' => $event['color'],
+                        ]);
+                    }
+                }
+
+                if (filled($rotation->ticket_file_path ?? null)) {
+                    $items->push([
+                        'type' => 'ticket',
+                        'title' => 'Ticket Uploaded',
+                        'description' => 'A travel ticket was uploaded for your rotation.',
+                        'badge_status' => 'ticket',
+                        'event_date' => $rotation->updated_at ?: $rotation->created_at,
+                        'sort_date' => $rotation->updated_at ?: $rotation->created_at,
+                        'color' => '#d97706',
+                    ]);
+                }
+
+                if (filled($rotation->travel_request_file_path ?? null)) {
+                    $items->push([
+                        'type' => 'travel_request',
+                        'title' => 'Travel Request Uploaded',
+                        'description' => 'A travel request document was uploaded.',
+                        'badge_status' => 'travel_request',
+                        'event_date' => $rotation->updated_at ?: $rotation->created_at,
+                        'sort_date' => $rotation->updated_at ?: $rotation->created_at,
+                        'color' => '#d97706',
+                    ]);
+                }
+            }
+        }
+
+        /*
+         * Reimbursement claims only, not all expenses.
+         */
+        $expenseQuery = FinanceExpense::query()
+            ->where(function ($query) use ($employment, $preEmployment) {
+                if ($employment?->id) {
+                    $query->orWhere('employment_id', $employment->id);
+                }
+
+                if ($preEmployment?->id) {
+                    $query->orWhere('pre_employment_id', $preEmployment->id);
+                }
+            })
+            ->where(function ($query) {
+                $query->where('reimbursement_required', true)
+                    ->orWhere('paid_by', FinanceExpense::PAID_BY_CANDIDATE);
+            })
+            ->where(function ($query) {
+                $query->whereNull('reimbursement_status')
+                    ->orWhere('reimbursement_status', '!=', FinanceExpense::REIMBURSEMENT_NOT_APPLICABLE);
+            })
+            ->latest('updated_at')
+            ->limit(20)
+            ->get();
+
+        foreach ($expenseQuery as $expense) {
+            $items->push([
+                'type' => 'reimbursement',
+                'title' => 'Reimbursement Claim: ' . ($expense->title ?: 'Expense Claim'),
+                'description' => trim(
+                    number_format((float) ($expense->reimbursement_amount ?: $expense->amount ?: 0), 2)
+                    . ' '
+                    . ($expense->reimbursement_currency ?: $expense->currency ?: '')
+                    . ' · '
+                    . str_replace('_', ' ', (string) ($expense->reimbursement_status ?: 'pending'))
+                ),
+                'badge_status' => $expense->reimbursement_status ?: 'pending',
+                'event_date' => $expense->updated_at ?: $expense->created_at ?: $expense->expense_date,
+                'sort_date' => $expense->updated_at ?: $expense->created_at ?: $expense->expense_date,
+                'color' => '#f59e0b',
+            ]);
+        }
+
+        return $items
+            ->filter(fn ($item) => ! empty($item['event_date']))
+            ->sortByDesc(fn ($item) => optional($item['sort_date'] ?? $item['event_date'])->timestamp ?? 0)
             ->values();
-    }
-
-    protected function resolveCompensationSnapshot($employment, $preEmployment): array
-    {
-        $snapshot = [
-            'salary_basis' => null,
-            'daily_rate' => null,
-            'monthly_salary' => null,
-            'salary_currency' => null,
-            'source_label' => null,
-        ];
-
-        if ($employment) {
-            $employment->loadMissing(['currentFinanceProfile', 'preEmployment.currentFinanceProfile']);
-        }
-
-        $profile = $employment?->currentFinanceProfile;
-        if ($profile instanceof CandidateFinanceProfile) {
-            $snapshot = $this->snapshotFromFinanceProfile($profile, 'Employment Finance Profile');
-            if ($this->snapshotHasValues($snapshot)) {
-                return $snapshot;
-            }
-        }
-
-        if ($employment?->id) {
-            $history = SalaryTermsHistory::query()
-                ->where('employment_id', $employment->id)
-                ->latest('effective_from')
-                ->latest('id')
-                ->first();
-
-            if ($history) {
-                $snapshot = $this->snapshotFromSalaryHistory($history, 'Employment Salary History');
-                if ($this->snapshotHasValues($snapshot)) {
-                    return $snapshot;
-                }
-            }
-        }
-
-        $preProfile = $preEmployment?->currentFinanceProfile;
-        if ($preProfile instanceof CandidateFinanceProfile) {
-            $snapshot = $this->snapshotFromFinanceProfile($preProfile, 'Pre-Employment Finance Profile');
-            if ($this->snapshotHasValues($snapshot)) {
-                return $snapshot;
-            }
-        }
-
-        if ($preEmployment?->id) {
-            $history = SalaryTermsHistory::query()
-                ->where('pre_employment_id', $preEmployment->id)
-                ->latest('effective_from')
-                ->latest('id')
-                ->first();
-
-            if ($history) {
-                $snapshot = $this->snapshotFromSalaryHistory($history, 'Pre-Employment Salary History');
-                if ($this->snapshotHasValues($snapshot)) {
-                    return $snapshot;
-                }
-            }
-        }
-
-        if ($employment) {
-            $snapshot = [
-                'salary_basis' => $employment->salary_basis ?? null,
-                'daily_rate' => $employment->daily_rate ?? null,
-                'monthly_salary' => $employment->monthly_salary ?? null,
-                'salary_currency' => $employment->salary_currency ?? null,
-                'source_label' => 'Employment Record',
-            ];
-
-            if ($this->snapshotHasValues($snapshot)) {
-                return $snapshot;
-            }
-        }
-
-        return $snapshot;
     }
 
     protected function snapshotFromFinanceProfile(CandidateFinanceProfile $profile, string $sourceLabel): array
@@ -545,72 +571,102 @@ class PortalDashboardController extends PortalBaseController
             return collect();
         }
 
-        $employment->loadMissing(['rotations', 'files']);
+        $employmentId = (int) $employment->id;
+        $preEmploymentId = (int) ($employment->pre_employment_id ?? 0);
 
-        $events = collect();
+        $employeeName = strtolower(trim((string) ($employment->employee_name ?? '')));
+        $employeeCode = strtolower(trim((string) ($employment->employment_code ?? $employment->employee_code ?? '')));
+        $jobTitle = strtolower(trim((string) ($employment->job?->title ?? $employment->position_title ?? '')));
 
-        $push = function ($date, string $title, string $type, ?string $notes = null) use ($events) {
-            if (! $date) {
-                return;
-            }
+        $events = collect(RecruitmentCalendarEvents::make());
 
-            try {
-                $carbonDate = Carbon::parse($date)->startOfDay();
-            } catch (\Throwable) {
-                return;
-            }
+        return $events
+            ->filter(function (array $event) use ($employmentId, $preEmploymentId, $employeeName, $employeeCode, $jobTitle) {
+                $linkedType = (string) ($event['linked_type'] ?? '');
+                $linkedId = (int) ($event['linked_id'] ?? 0);
+                $source = (string) ($event['source'] ?? '');
 
-            $events->push([
-                'title' => $title,
-                'date' => $carbonDate,
-                'type' => $type,
-                'notes' => $notes,
-                'color' => RecruitmentCalendarEvents::colorForType($type),
-            ]);
-        };
+                /*
+                 * Finance expense / reimbursement operational calendar events.
+                 * Show only if the linked finance expense belongs to this employment/pre-employment.
+                 */
+                if ($linkedType === \App\Models\FinanceExpense::class || $source === \App\Models\FinanceExpense::class) {
+                    if ($linkedId <= 0 || ! \Illuminate\Support\Facades\Schema::hasTable('finance_expenses')) {
+                        return false;
+                    }
 
-        $push($employment->mobilization_date, 'Mobilization Date', 'mobilization');
-        $push($employment->demobilization_date, 'Demobilization Date', 'demobilization');
-        $push($employment->visa_expiry_date, 'Visa Expiry', 'visa_expiry');
-        $push($employment->medical_expiry_date, 'Medical Expiry', 'medical_expiry');
-        $push($employment->contract_end_date, 'Contract End', 'contract_end');
+                    return \Illuminate\Support\Facades\DB::table('finance_expenses')
+                        ->where('id', $linkedId)
+                        ->where(function ($q) use ($employmentId, $preEmploymentId) {
+                            $q->where('employment_id', $employmentId);
 
-        foreach (($employment->rotations ?? collect()) as $rotation) {
-            $label = $rotation->rotation_label ?: ('Rotation #' . $rotation->id);
+                            if ($preEmploymentId > 0) {
+                                $q->orWhere('pre_employment_id', $preEmploymentId);
+                            }
+                        })
+                        ->exists();
+                }
 
-            $push($rotation->mobilization_date, 'Travel / Mobilization', 'ticket_travel', $label);
-            $push($rotation->from_date, 'Rotation Start', 'rotation_start', $label);
-            $push($rotation->to_date, 'Rotation End', 'rotation_end', $label);
-            $push($rotation->demobilization_date, 'Demobilization', 'demobilization', $label);
-        }
+                /*
+                 * Employment rotation / travel / document events generated by the global calendar.
+                 * The global events already contain employee name/code in title/notes in most cases.
+                 * Portal must show only events that mention this employee/code/job.
+                 */
+                $blob = strtolower(trim(implode(' ', array_filter([
+                    $event['title'] ?? '',
+                    $event['notes'] ?? '',
+                    $event['job_title'] ?? '',
+                    $event['source'] ?? '',
+                    $event['type'] ?? '',
+                ]))));
 
-        foreach (($employment->files ?? collect()) as $file) {
-            if (! (bool) ($file->is_current ?? true) || blank($file->expiry_date)) {
-                continue;
-            }
+                if ($employeeCode !== '' && str_contains($blob, $employeeCode)) {
+                    return true;
+                }
 
-            $category = strtolower((string) ($file->category ?? 'file'));
+                if ($employeeName !== '' && str_contains($blob, $employeeName)) {
+                    return true;
+                }
 
-            $type = match (true) {
-                str_contains($category, 'visa') => 'visa_expiry',
-                str_contains($category, 'medical') => 'medical_expiry',
-                str_contains($category, 'contract') => 'contract_end',
-                str_contains($category, 'passport') => 'passport_expiry',
-                str_contains($category, 'certificate') => 'certificate_expiry',
-                str_contains($category, 'desert') => 'desert_pass_expiry',
-                str_contains($category, 'ticket') => 'ticket_expiry',
-                default => 'file_expiry',
-            };
+                if ($jobTitle !== '' && str_contains($blob, $jobTitle) && str_contains($blob, 'employee')) {
+                    return true;
+                }
 
-            $push(
-                $file->expiry_date,
-                ($file->title ?: ucfirst(str_replace('_', ' ', $category))) . ' Expiry',
-                $type,
-                ucfirst(str_replace('_', ' ', $category))
-            );
-        }
+                return false;
+            })
+            ->map(function (array $event) {
+                $type = (string) ($event['type'] ?? $event['event_type'] ?? 'event');
 
-        return $events->sortBy('date')->values();
+                $start = $event['start'] ?? $event['date'] ?? null;
+                $date = null;
+
+                if ($start instanceof \Carbon\CarbonInterface) {
+                    $date = $start->copy()->startOfDay();
+                } elseif (filled($start)) {
+                    try {
+                        $date = \Carbon\Carbon::parse($start)->startOfDay();
+                    } catch (\Throwable $e) {
+                        $date = null;
+                    }
+                }
+
+                $color = $event['color']
+                    ?? $event['backgroundColor']
+                    ?? RecruitmentCalendarEvents::colorForType($type);
+
+                $event['type'] = $type;
+                $event['date'] = $date;
+                $event['start'] = $date?->toDateString() ?? ($event['start'] ?? null);
+                $event['color'] = $color;
+                $event['backgroundColor'] = $event['backgroundColor'] ?? $color;
+                $event['borderColor'] = $event['borderColor'] ?? $color;
+                $event['icon'] = $event['icon'] ?? RecruitmentCalendarEvents::iconForType($type);
+
+                return $event;
+            })
+            ->filter(fn (array $event) => ! empty($event['date']))
+            ->sortBy('date')
+            ->values();
     }
 
     protected function buildCalendar(Carbon $date, array $eventDates = []): array
@@ -649,4 +705,109 @@ class PortalDashboardController extends PortalBaseController
             'weeks' => $weeks,
         ];
     }
+
+    protected function buildDashboardReimbursementClaims($employment, $preEmployment): \Illuminate\Support\Collection
+    {
+        if (! class_exists(FinanceExpense::class)) {
+            return collect();
+        }
+
+        try {
+            return FinanceExpense::query()
+                ->where(function ($query) use ($employment, $preEmployment) {
+                    $hasFilter = false;
+
+                    if ($employment?->id) {
+                        $query->orWhere('employment_id', $employment->id);
+                        $hasFilter = true;
+                    }
+
+                    if ($preEmployment?->id) {
+                        $query->orWhere('pre_employment_id', $preEmployment->id);
+                        $hasFilter = true;
+                    }
+
+                    if (! $hasFilter) {
+                        $query->whereRaw('1 = 0');
+                    }
+                })
+                ->where(function ($query) {
+                    $query->where('reimbursement_required', true)
+                        ->orWhere('paid_by', FinanceExpense::PAID_BY_CANDIDATE);
+                })
+                ->where(function ($query) {
+                    $query->whereNull('reimbursement_status')
+                        ->orWhere('reimbursement_status', '!=', FinanceExpense::REIMBURSEMENT_NOT_APPLICABLE);
+                })
+                ->latest('updated_at')
+                ->latest('id')
+                ->get()
+                ->map(function ($claim) {
+                    $status = $claim->reimbursement_status ?: FinanceExpense::REIMBURSEMENT_PENDING;
+                    $amount = $claim->reimbursement_amount ?: $claim->amount;
+                    $currency = $claim->reimbursement_currency ?: $claim->currency;
+
+                    return [
+                        'id' => $claim->id,
+                        'title' => $claim->title ?: 'Reimbursement Claim',
+                        'category' => $claim->category ?: $claim->expense_category ?: 'claim',
+                        'status' => $status,
+                        'amount' => $amount,
+                        'currency' => $currency ?: 'EUR',
+                        'date' => $claim->expense_date ?: $claim->created_at,
+                        'updated_at' => $claim->updated_at ?: $claim->created_at,
+                        'description' => $claim->description ?: $claim->notes,
+                    ];
+                })
+                ->values();
+        } catch (\Throwable $e) {
+            return collect();
+        }
+    }
+
+
+
+    protected function resolveCompensationSnapshot($employment, $preEmployment): array
+    {
+        $profile = null;
+        $sourceLabel = null;
+
+        try {
+            if ($employment) {
+                $employment->loadMissing('currentFinanceProfile');
+
+                if ($employment->currentFinanceProfile) {
+                    $profile = $employment->currentFinanceProfile;
+                    $sourceLabel = 'Employment Finance Profile';
+                }
+            }
+
+            if (! $profile && $preEmployment) {
+                $preEmployment->loadMissing('currentFinanceProfile');
+
+                if ($preEmployment->currentFinanceProfile) {
+                    $profile = $preEmployment->currentFinanceProfile;
+                    $sourceLabel = 'Pre-Employment Finance Profile';
+                }
+            }
+        } catch (\Throwable $e) {
+            $profile = null;
+        }
+
+        $basis = $profile?->salary_basis ?: CandidateFinanceProfile::BASIS_DAILY_RATE;
+
+        return [
+            'source_label' => $sourceLabel,
+            'salary_basis' => $basis,
+            'daily_rate' => $profile?->daily_rate,
+            'monthly_salary' => $profile?->monthly_salary,
+            'salary_currency' => $profile?->payout_currency ?: $profile?->agreed_salary_currency,
+            'client_billing_basis' => $profile?->client_billing_basis,
+            'client_billing_rate' => $profile?->client_billing_rate,
+            'client_billing_currency' => $profile?->client_billing_currency,
+            'finance_notes' => $profile?->finance_notes,
+        ];
+    }
+
+
 }

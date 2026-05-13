@@ -1,4 +1,9 @@
 @php
+
+    $salaryDisplayAmount = function ($slip) {
+        return number_format((float) ($slip->payment_total_amount ?? $slip->net_amount ?? 0), 2);
+    };
+
     $portalSlipRecord = $salarySlip ?? $slip ?? $record ?? null;
 
     $confirmationStatus = $portalSlipRecord?->employee_confirmation_status ?? null;

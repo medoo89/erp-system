@@ -41,6 +41,7 @@ class EditJobApplication extends EditRecord
 
         $statusActions = [
             Action::make('set_screening')
+                ->hidden(fn () => ! (bool) auth()->user()?->canErp('job_applications', 'screening'))
                 ->label('Screening')
                 ->color('warning')
                 ->requiresConfirmation()
@@ -78,6 +79,7 @@ class EditJobApplication extends EditRecord
             ),
 
             Action::make('set_declined')
+                ->hidden(fn () => ! (bool) auth()->user()?->canErp('job_applications', 'decline'))
                 ->label('Declined')
                 ->color('warning')
                 ->form([
@@ -130,11 +132,13 @@ class EditJobApplication extends EditRecord
                 ->url(JobApplicationResource::getUrl('view', ['record' => $this->record])),
 
             Action::make('save')
+                ->hidden(fn () => ! (bool) auth()->user()?->canErp('job_applications', 'edit'))
                 ->label('Save Changes')
                 ->color('primary')
                 ->action(fn () => $this->save()),
 
             DeleteAction::make()
+                ->hidden(fn () => ! (bool) auth()->user()?->canErp('job_applications', 'delete'))
                 ->label('Delete')
                 ->color('danger')
                 ->requiresConfirmation()
@@ -150,11 +154,22 @@ class EditJobApplication extends EditRecord
         return array_merge($baseActions, $statusActions);
     }
 
+
+    protected function statusPermissionAction(string $status): string
+    {
+        return match ($status) {
+            'hired' => 'hire',
+            'declined' => 'decline',
+            default => 'screening',
+        };
+    }
+
     protected function makeStatusAction(string $name, string $label, string $color, string $status): Action
     {
         return Action::make($name)
             ->label($label)
             ->color($color)
+            ->hidden(fn () => ! (bool) auth()->user()?->canErp('job_applications', $this->statusPermissionAction($status)))
             ->form([
                 Toggle::make('send_email')
                     ->label('Send email notification')
@@ -330,4 +345,10 @@ class EditJobApplication extends EditRecord
             default => 'Declined',
         };
     }
+
+    public static function canAccess(array $parameters = []): bool
+    {
+        return (bool) (auth()->user()?->canErp('job_applications', 'edit') ?? false);
+    }
+
 }

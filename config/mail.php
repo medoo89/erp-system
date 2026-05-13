@@ -46,7 +46,25 @@ return [
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
             'timeout' => null,
-            'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+            'local_domain' => env(
+                'MAIL_EHLO_DOMAIN',
+                parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)
+            ),
+        ],
+
+        'finance_smtp' => [
+            'transport' => 'smtp',
+            'scheme' => env('FINANCE_MAIL_SCHEME', env('MAIL_SCHEME')),
+            'url' => env('FINANCE_MAIL_URL'),
+            'host' => env('FINANCE_MAIL_HOST', env('MAIL_HOST', '127.0.0.1')),
+            'port' => env('FINANCE_MAIL_PORT', env('MAIL_PORT', 2525)),
+            'username' => env('FINANCE_MAIL_USERNAME', env('MAIL_USERNAME')),
+            'password' => env('FINANCE_MAIL_PASSWORD', env('MAIL_PASSWORD')),
+            'timeout' => null,
+            'local_domain' => env(
+                'FINANCE_MAIL_EHLO_DOMAIN',
+                env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST))
+            ),
         ],
 
         'ses' => [
@@ -82,6 +100,7 @@ return [
         'failover' => [
             'transport' => 'failover',
             'mailers' => [
+                'finance_smtp',
                 'smtp',
                 'log',
             ],
@@ -91,8 +110,8 @@ return [
         'roundrobin' => [
             'transport' => 'roundrobin',
             'mailers' => [
-                'ses',
-                'postmark',
+                'finance_smtp',
+                'smtp',
             ],
             'retry_after' => 60,
         ],

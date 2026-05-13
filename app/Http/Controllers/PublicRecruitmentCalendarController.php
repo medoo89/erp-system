@@ -54,6 +54,7 @@ class PublicRecruitmentCalendarController extends Controller
                 'job_title' => $event['job_title'] ?? null,
                 'notes' => $event['notes'] ?? null,
                 'source' => $event['source'] ?? null,
+                'icon' => $event['icon'] ?? \App\Support\RecruitmentCalendarEvents::iconForType($event['type'] ?? null),
             ];
         }
 

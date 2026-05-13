@@ -2,23 +2,37 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\JobApplication;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\Request;
 
 class JobApplicationDocumentController extends Controller
 {
-    public function openCv(JobApplication $jobApplication)
+    public function __invoke(Request $request)
     {
-        if (blank($jobApplication->cv_path)) {
-            abort(404, 'CV file not found.');
-        }
+        abort(404);
+    }
 
-        if (! Storage::disk('public')->exists($jobApplication->cv_path)) {
-            abort(404, 'CV file does not exist on storage.');
-        }
+    public function index(Request $request)
+    {
+        abort(404);
+    }
 
-        $fullPath = Storage::disk('public')->path($jobApplication->cv_path);
+    public function show(Request $request)
+    {
+        abort(404);
+    }
 
-        return response()->download($fullPath);
+    public function store(Request $request)
+    {
+        abort(404);
+    }
+
+    public function download(Request $request)
+    {
+        abort(404);
+    }
+
+    public function destroy(Request $request)
+    {
+        abort(404);
     }
 }

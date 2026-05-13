@@ -88,6 +88,13 @@ class PreEmployment extends Model
         });
     }
 
+    public function financeExpenses()
+    {
+        return $this->hasMany(FinanceExpense::class, 'pre_employment_id')
+            ->orderByDesc('expense_date')
+            ->orderByDesc('id');
+    }
+
     public function jobApplication()
     {
         return $this->belongsTo(JobApplication::class, 'job_application_id');
@@ -128,5 +135,19 @@ class PreEmployment extends Model
     public function files()
     {
         return $this->hasMany(PreEmploymentFile::class)->latest();
+    }
+
+    public function financeProfiles()
+    {
+        return $this->hasMany(CandidateFinanceProfile::class, 'pre_employment_id')
+            ->latest('effective_from')
+            ->latest('id');
+    }
+
+    public function currentFinanceProfile()
+    {
+        return $this->hasOne(CandidateFinanceProfile::class, 'pre_employment_id')
+            ->where('is_current', true)
+            ->latest('id');
     }
 }

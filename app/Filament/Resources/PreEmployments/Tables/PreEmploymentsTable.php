@@ -8,12 +8,29 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class PreEmploymentsTable
 {
     public static function configure(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query) => $query
+                ->where('is_archived', false)
+                ->where('is_declined', false)
+                ->whereNull('declined_at')
+                ->whereNull('converted_to_employment_at')
+                ->where(function (Builder $stageQuery): void {
+                    $stageQuery
+                        ->whereNull('status')
+                        ->orWhereNotIn('status', [
+                            'returned_to_job_application',
+                            'converted_to_employment',
+                            'declined',
+                            'archived',
+                        ]);
+                })
+            )
             ->defaultSort('id', 'desc')
             ->recordUrl(fn ($record) => PreEmploymentResource::getUrl('view', ['record' => $record]))
             ->columns([
@@ -92,11 +109,13 @@ class PreEmploymentsTable
                 //
             ])
             ->recordActions([
-                ViewAction::make(),
+                ViewAction::make()
+                    ->visible(fn () => (bool) auth()->user()?->canErp('pre_employments', 'view')),
             ])
             ->bulkActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                    DeleteBulkAction::make()
+                            ->visible(fn () => (bool) auth()->user()?->canErp('pre_employments', 'delete')),
                 ]),
             ]);
     }

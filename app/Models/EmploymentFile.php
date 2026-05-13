@@ -8,6 +8,7 @@ class EmploymentFile extends Model
 {
     protected $fillable = [
         'employment_id',
+        'pre_employment_id',
         'title',
         'category',
         'document_status',
@@ -21,6 +22,7 @@ class EmploymentFile extends Model
         'uploaded_by_user_id',
         'notes',
         'is_active',
+        'is_visible_to_employee_portal',
     ];
 
     protected $casts = [
@@ -28,6 +30,7 @@ class EmploymentFile extends Model
         'expiry_date' => 'date',
         'is_current' => 'boolean',
         'is_active' => 'boolean',
+        'is_visible_to_employee_portal' => 'boolean',
         'apply_to_current_rotation' => 'boolean',
     ];
 
@@ -45,13 +48,12 @@ class EmploymentFile extends Model
         });
 
         static::saved(function (self $file) {
-            if ($file->is_current && filled($file->category)) {
-                static::query()
-                    ->where('employment_id', $file->employment_id)
-                    ->where('category', $file->category)
-                    ->where('id', '!=', $file->id)
-                    ->update(['is_current' => false]);
-            }
+            /*
+             * Do NOT automatically mark all files in the same category as old.
+             * The Employment upload modal now controls this:
+             * - New Document: separate file, does not close other files.
+             * - New Version: only the selected parent file is marked old from ViewEmployment.
+             */
 
             $employment = $file->employment;
 

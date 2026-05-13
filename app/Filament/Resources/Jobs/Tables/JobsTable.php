@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Jobs\Tables;
 
+use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -56,7 +57,36 @@ class JobsTable
                 //
             ])
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()
+                    ->label('')
+                    ->tooltip('Edit job opening')
+                    ->icon('heroicon-o-pencil-square')
+                    ->iconButton()
+                    ->color('gray')
+                    ->extraAttributes([
+                        'class' => 'sf-job-row-action sf-job-row-action-edit',
+                    ])
+                    ->visible(fn () => (bool) auth()->user()?->canErp('jobs', 'edit')),
+
+                Action::make('archive')
+                    ->label('')
+                    ->tooltip('Archive job opening')
+                    ->icon('heroicon-o-archive-box')
+                    ->iconButton()
+                    ->color('gray')
+                    ->requiresConfirmation()
+                    ->modalHeading('Archive Job Opening')
+                    ->modalDescription('This job opening will be moved to the archive. You can restore it later from the Archive section.')
+                    ->modalSubmitActionLabel('Archive')
+                    ->action(function ($record): void {
+                        $record->forceFill([
+                            'is_archived' => true,
+                        ])->save();
+                    })
+                    ->extraAttributes([
+                        'class' => 'sf-job-row-action sf-job-row-action-archive',
+                    ])
+                    ->visible(fn () => (bool) auth()->user()?->canErp('jobs', 'edit')),
             ])
             ->defaultSort('created_at', 'desc');
     }

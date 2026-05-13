@@ -1,8 +1,11 @@
 <?php
 
+
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Illuminate\Auth\Access\AuthorizationException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -11,8 +14,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+$middleware->alias([
+            'portal.auth' => \App\Http\Middleware\PortalAuthenticate::class,
+        ]);
     })
-    ->withExceptions(function (Exceptions $exceptions): void {
+->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->render(function (AccessDeniedHttpException|AuthorizationException $e, $request) {
+            return response()->view('errors.403', [], 403);
+        });
+
         //
     })->create();

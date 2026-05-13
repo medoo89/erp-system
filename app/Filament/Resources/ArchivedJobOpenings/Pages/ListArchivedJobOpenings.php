@@ -3,17 +3,26 @@
 namespace App\Filament\Resources\ArchivedJobOpenings\Pages;
 
 use App\Filament\Resources\ArchivedJobOpenings\ArchivedJobOpeningResource;
-use App\Models\Job;
 use Filament\Resources\Pages\ListRecords;
-use Illuminate\Database\Eloquent\Builder;
 
 class ListArchivedJobOpenings extends ListRecords
 {
     protected static string $resource = ArchivedJobOpeningResource::class;
 
-    protected function getTableQuery(): Builder
+    protected string $view = 'filament.resources.archived-job-openings.pages.list-archived-job-openings-premium';
+
+    public function getTitle(): string
     {
-        return Job::query()
-            ->where('is_archived', true);
+        return 'Archived Job Openings';
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [];
+    }
+
+    public static function canAccess(array $parameters = []): bool
+    {
+        return (bool) (auth()->user()?->canErp('archive', 'view') ?? false);
     }
 }

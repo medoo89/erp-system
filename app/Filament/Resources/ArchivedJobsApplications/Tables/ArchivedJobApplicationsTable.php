@@ -148,9 +148,17 @@ class ArchivedJobApplicationsTable
             ])
             ->recordActions([
                 Action::make('restore')
-                    ->label('Restore')
+                    ->visible(fn () => (bool) auth()->user()?->canErp('archive', 'restore'))
+                    ->label('')
+                    ->tooltip('Restore application')
                     ->icon('heroicon-o-arrow-uturn-left')
-                    ->color('success')
+                    ->iconButton()
+                    ->color('warning')
+                    ->extraAttributes([
+                        'class' => 'sf-archive-row-action sf-archive-row-action-restore',
+                        'title' => 'Restore',
+                        'aria-label' => 'Restore',
+                    ])
                     ->requiresConfirmation()
                     ->action(function ($record) {
                         $record->update([
@@ -169,14 +177,25 @@ class ArchivedJobApplicationsTable
                     }),
 
                 DeleteAction::make()
-                    ->label('Permanent Delete')
-                    ->color('danger')
+                    ->visible(fn () => (bool) auth()->user()?->canErp('archive', 'delete'))
+                    ->label('')
+                    ->tooltip('Permanent Delete')
+                    ->icon('heroicon-o-trash')
+                    ->iconButton()
+                    ->color('gray')
+                    ->extraAttributes([
+                        'class' => 'sf-archive-row-action sf-archive-row-action-delete',
+                        'title' => 'Permanent Delete',
+                        'aria-label' => 'Permanent Delete',
+                    ])
                     ->requiresConfirmation(),
             ])
             ->bulkActions([
                 BulkAction::make('restore_selected')
+                    ->visible(fn () => (bool) auth()->user()?->canErp('archive', 'restore'))
                     ->label('Restore Selected')
-                    ->color('success')
+                    ->icon('heroicon-o-arrow-uturn-left')
+                    ->color('warning')
                     ->requiresConfirmation()
                     ->action(function (Collection $records) {
                         foreach ($records as $record) {
@@ -197,7 +216,9 @@ class ArchivedJobApplicationsTable
                     }),
 
                 BulkAction::make('bulk_delete')
+                    ->visible(fn () => (bool) auth()->user()?->canErp('archive', 'delete'))
                     ->label('Permanent Delete')
+                    ->icon('heroicon-o-trash')
                     ->color('danger')
                     ->requiresConfirmation()
                     ->action(function (Collection $records) {

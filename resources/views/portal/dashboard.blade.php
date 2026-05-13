@@ -25,6 +25,294 @@
 @endphp
 
 @section('content')
+    @include('portal.partials.pending-file-requests')
+
+<style id="sf-pending-requests-clean-style">
+    .sf-pending-requests-clean {
+        margin: 22px 0 28px;
+        overflow: hidden;
+        border-radius: 30px;
+        background: rgba(255,255,255,.96);
+        border: 1px solid rgba(15,23,42,.08);
+        box-shadow: 0 22px 58px rgba(15,23,42,.08);
+    }
+
+    .sf-pending-head {
+        padding: 24px 28px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        flex-wrap: wrap;
+        background:
+            radial-gradient(circle at top right, rgba(34,211,238,.10), transparent 35%),
+            linear-gradient(135deg, #0f172a, #234b74);
+        color: #fff;
+    }
+
+    .sf-pending-kicker {
+        font-size: 11px;
+        font-weight: 950;
+        letter-spacing: .20em;
+        text-transform: uppercase;
+        opacity: .78;
+        margin-bottom: 8px;
+    }
+
+    .sf-pending-title {
+        margin: 0;
+        font-size: 28px;
+        line-height: 1.1;
+        font-weight: 950;
+        letter-spacing: -.04em;
+        color: #fff;
+    }
+
+    .sf-pending-subtitle {
+        margin-top: 8px;
+        color: rgba(255,255,255,.78);
+        font-size: 14px;
+        font-weight: 750;
+        line-height: 1.55;
+    }
+
+    .sf-pending-open-files,
+    .sf-pending-download-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        padding: 0 18px;
+        border-radius: 999px;
+        background: #2563eb;
+        color: #fff !important;
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 950;
+        box-shadow: 0 12px 28px rgba(37,99,235,.22);
+    }
+
+    .sf-pending-body {
+        padding: 22px 24px 26px;
+        display: grid;
+        gap: 16px;
+    }
+
+    .sf-pending-card {
+        border-radius: 26px;
+        padding: 20px;
+        background:
+            radial-gradient(circle at top right, rgba(34,211,238,.10), transparent 35%),
+            rgba(255,255,255,.96);
+        border: 1px solid rgba(15,23,42,.08);
+    }
+
+    .sf-pending-card-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        margin-bottom: 14px;
+    }
+
+    .sf-pending-label {
+        color: #0f172a;
+        font-size: 20px;
+        font-weight: 950;
+        letter-spacing: -.03em;
+    }
+
+    .sf-pending-help {
+        color: #64748b;
+        font-size: 13px;
+        line-height: 1.6;
+        font-weight: 750;
+        margin-top: 5px;
+    }
+
+    .sf-pending-badge {
+        border-radius: 999px;
+        padding: 8px 13px;
+        background: #eff6ff;
+        color: #075985;
+        font-size: 11px;
+        font-weight: 950;
+        letter-spacing: .10em;
+        text-transform: uppercase;
+    }
+
+    .sf-pending-download-line {
+        margin: 12px 0 16px;
+        padding: 12px;
+        border-radius: 20px;
+        background: #f8fafc;
+        border: 1px solid rgba(15,23,42,.08);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    .sf-pending-form-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(160px, .6fr));
+        gap: 12px;
+        align-items: end;
+    }
+
+    .sf-pending-field label {
+        display: block;
+        color: #334155;
+        font-size: 11px;
+        font-weight: 950;
+        letter-spacing: .10em;
+        text-transform: uppercase;
+        margin-bottom: 7px;
+    }
+
+    .sf-pending-input,
+    .sf-pending-textarea {
+        width: 100%;
+        min-height: 46px;
+        border-radius: 18px;
+        border: 1px solid rgba(15,23,42,.12);
+        background: rgba(248,250,252,.95);
+        color: #0f172a;
+        padding: 10px 14px;
+        font-size: 13px;
+        font-weight: 750;
+        outline: none;
+    }
+
+    .sf-pending-textarea {
+        min-height: 80px;
+        resize: vertical;
+        margin-top: 12px;
+    }
+
+    .sf-pending-submit {
+        margin-top: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 46px;
+        border: none;
+        border-radius: 999px;
+        padding: 0 22px;
+        background: #0f172a;
+        color: #ffffff;
+        font-size: 13px;
+        font-weight: 950;
+        cursor: pointer;
+    }
+
+    .dark .sf-pending-requests-clean,
+    .dark .sf-pending-card {
+        background: rgba(15,23,42,.86);
+        border-color: rgba(255,255,255,.10);
+    }
+
+    .dark .sf-pending-label {
+        color: #fff;
+    }
+
+    .dark .sf-pending-help,
+    .dark .sf-pending-download-line {
+        color: rgba(226,232,240,.76);
+    }
+
+    .dark .sf-pending-input,
+    .dark .sf-pending-textarea,
+    .dark .sf-pending-download-line {
+        background: rgba(15,23,42,.70);
+        border-color: rgba(255,255,255,.12);
+        color: #ffffff;
+    }
+
+    @media (max-width: 900px) {
+        .sf-pending-form-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,600,0,0" rel="stylesheet">
+
+<style id="sf-candidate-request-decision-colors">
+    /*
+     * Colored decision buttons — visual only.
+     */
+
+    form:has(textarea[name*="negotiation"]) label:has(input[type="radio"]),
+    form:has(textarea[name*="candidate"]) label:has(input[type="radio"]),
+    form:has(textarea[name*="response"]) label:has(input[type="radio"]) {
+        overflow: hidden !important;
+    }
+
+    form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="approve"]),
+    form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="approve"]),
+    form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="approve"]) {
+        background: linear-gradient(135deg, #ecfdf5, #d1fae5) !important;
+        border-color: rgba(34,197,94,.42) !important;
+        color: #047857 !important;
+        box-shadow: 0 12px 28px rgba(34,197,94,.10) !important;
+    }
+
+    form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="decline"]),
+    form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="decline"]),
+    form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="decline"]) {
+        background: linear-gradient(135deg, #fef2f2, #fee2e2) !important;
+        border-color: rgba(239,68,68,.38) !important;
+        color: #b91c1c !important;
+        box-shadow: 0 12px 28px rgba(239,68,68,.10) !important;
+    }
+
+    form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="reconsider"]),
+    form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="reconsider"]),
+    form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="reconsider"]) {
+        background: linear-gradient(135deg, #fff7ed, #ffedd5) !important;
+        border-color: rgba(249,115,22,.38) !important;
+        color: #c2410c !important;
+        box-shadow: 0 12px 28px rgba(249,115,22,.10) !important;
+    }
+
+    form:has(textarea[name*="negotiation"]) label:has(input[type="radio"]:checked),
+    form:has(textarea[name*="candidate"]) label:has(input[type="radio"]:checked),
+    form:has(textarea[name*="response"]) label:has(input[type="radio"]:checked) {
+        transform: translateY(-1px) !important;
+        filter: saturate(1.12) !important;
+        box-shadow: 0 0 0 5px rgba(37,99,235,.10), 0 18px 38px rgba(15,23,42,.12) !important;
+    }
+
+    .dark form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="approve"]),
+    .dark form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="approve"]),
+    .dark form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="approve"]) {
+        background: rgba(6,78,59,.55) !important;
+        border-color: rgba(52,211,153,.34) !important;
+        color: #a7f3d0 !important;
+    }
+
+    .dark form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="decline"]),
+    .dark form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="decline"]),
+    .dark form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="decline"]) {
+        background: rgba(127,29,29,.48) !important;
+        border-color: rgba(248,113,113,.34) !important;
+        color: #fecaca !important;
+    }
+
+    .dark form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="reconsider"]),
+    .dark form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="reconsider"]),
+    .dark form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="reconsider"]) {
+        background: rgba(124,45,18,.48) !important;
+        border-color: rgba(251,146,60,.34) !important;
+        color: #fed7aa !important;
+    }
+</style>
+
 
 <style id="sf-dashboard-job-title-line-style">
     .sf-dashboard-job-title-line {
@@ -101,198 +389,10 @@
 
 
 
-
-
-
-<style id="sf-portal-calendar-popover-style">
-    .sf-calendar-legend {
-        margin-top: 16px;
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-        align-items: center;
-    }
-
-    .sf-calendar-legend-item {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        min-height: 34px;
-        padding: 0 12px;
-        border-radius: 999px;
-        background: rgba(255,255,255,.78);
-        border: 1px solid rgba(15,23,42,.08);
-        color: #334155;
-        font-size: 11px;
-        font-weight: 900;
-        letter-spacing: .05em;
-        text-transform: uppercase;
-        box-shadow: 0 8px 20px rgba(15,23,42,.035);
-    }
-
-    .sf-calendar-legend-dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 999px;
-        display: inline-block;
-        flex-shrink: 0;
-    }
-
-    .sf-calendar-day-clickable {
-        cursor: pointer;
-        transition: transform .16s ease, box-shadow .16s ease;
-    }
-
-    .sf-calendar-day-clickable:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 14px 34px rgba(15,23,42,.10);
-    }
-
-    .sf-calendar-popover {
-        position: fixed;
-        z-index: 9999;
-        width: min(420px, calc(100vw - 32px));
-        border-radius: 26px;
-        background:
-            radial-gradient(circle at top right, rgba(76,167,168,.13), transparent 36%),
-            linear-gradient(180deg,#ffffff 0%,#f8fbff 100%);
-        border: 1px solid rgba(215,226,229,.95);
-        box-shadow: 0 28px 80px rgba(15,23,42,.22);
-        padding: 16px;
-        display: none;
-    }
-
-    .sf-calendar-popover.is-open {
-        display: block;
-    }
-
-    .sf-calendar-popover-head {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 12px;
-        padding-bottom: 12px;
-        border-bottom: 1px solid rgba(215,226,229,.85);
-    }
-
-    .sf-calendar-popover-kicker {
-        color: #2459d3;
-        font-size: 10px;
-        font-weight: 950;
-        letter-spacing: .14em;
-        text-transform: uppercase;
-        margin-bottom: 5px;
-    }
-
-    .sf-calendar-popover-title {
-        color: #0f172a;
-        font-size: 20px;
-        line-height: 1.1;
-        font-weight: 950;
-        letter-spacing: -.04em;
-    }
-
-    .sf-calendar-popover-close {
-        width: 38px;
-        height: 38px;
-        border: 0;
-        border-radius: 999px;
-        background: #eff6ff;
-        color: #1d4ed8;
-        font-size: 22px;
-        line-height: 1;
-        cursor: pointer;
-        font-weight: 700;
-    }
-
-    .sf-calendar-popover-list {
-        display: grid;
-        gap: 10px;
-        margin-top: 13px;
-        max-height: 330px;
-        overflow: auto;
-        padding-right: 2px;
-    }
-
-    .sf-calendar-popover-item {
-        position: relative;
-        border-radius: 18px;
-        background: rgba(255,255,255,.88);
-        border: 1px solid rgba(15,23,42,.08);
-        padding: 13px 13px 13px 17px;
-        box-shadow: 0 10px 24px rgba(15,23,42,.04);
-        overflow: hidden;
-    }
-
-    .sf-calendar-popover-item::before {
-        content: "";
-        position: absolute;
-        left: 0;
-        top: 12px;
-        bottom: 12px;
-        width: 5px;
-        border-radius: 999px;
-        background: var(--event-color, #2563eb);
-    }
-
-    .sf-calendar-popover-item-title {
-        color: #0f172a;
-        font-size: 14px;
-        line-height: 1.3;
-        font-weight: 950;
-        letter-spacing: -.02em;
-    }
-
-    .sf-calendar-popover-item-meta {
-        margin-top: 5px;
-        color: #64748b;
-        font-size: 12px;
-        line-height: 1.45;
-        font-weight: 700;
-    }
-
-    .sf-calendar-popover-item-type {
-        margin-top: 8px;
-        display: inline-flex;
-        border-radius: 999px;
-        padding: 6px 9px;
-        background: #eff6ff;
-        color: #2459d3;
-        font-size: 10px;
-        font-weight: 950;
-        letter-spacing: .08em;
-        text-transform: uppercase;
-    }
-
-    .dark .sf-calendar-legend-item,
-    .dark .sf-calendar-popover,
-    .dark .sf-calendar-popover-item {
-        background: rgba(15,23,42,.86);
-        border-color: rgba(255,255,255,.10);
-    }
-
-    .dark .sf-calendar-popover-title,
-    .dark .sf-calendar-popover-item-title {
-        color: #ffffff;
-    }
-
-    .dark .sf-calendar-popover-item-meta,
-    .dark .sf-calendar-legend-item {
-        color: rgba(226,232,240,.74);
-    }
-</style>
-
-
 @php
     $dashboardUpdateIcon = function (?string $status, ?string $title = null) {
         $text = strtolower(trim(($status ?? '') . ' ' . ($title ?? '')));
 
-        if (str_contains($text, 'salary') || str_contains($text, 'paid') || str_contains($text, 'bank')) return 'salary';
-        if (str_contains($text, 'rotation') || str_contains($text, 'mobilization') || str_contains($text, 'demobilization')) return 'rotation';
-        if (str_contains($text, 'travel') || str_contains($text, 'ticket') || str_contains($text, 'flight')) return 'travel';
-        if (str_contains($text, 'file') || str_contains($text, 'document')) return 'file';
-        if (str_contains($text, 'medical')) return 'medical';
-        if (str_contains($text, 'visa')) return 'visa';
 
         return 'update';
     };
@@ -419,6 +519,25 @@
         border-color: rgba(239,68,68,.18);
     }
 
+    .sf-dash-update-badge--reimbursement {
+        background: #fff7ed;
+        color: #c2410c;
+        border-color: rgba(249,115,22,.22);
+    }
+
+    .sf-dash-update-badge--travel {
+        background: #f0f9ff;
+        color: #0369a1;
+        border-color: rgba(14,165,233,.20);
+    }
+
+    .sf-dash-update-badge--rotation {
+        background: #ecfdf5;
+        color: #047857;
+        border-color: rgba(16,185,129,.20);
+    }
+
+
     .dark .sf-dash-update-card {
         background: rgba(15,23,42,.72);
         border-color: rgba(255,255,255,.10);
@@ -438,14 +557,6 @@
     $dashboardFileIcon = function (?string $type, ?string $title = null) {
         $text = strtolower(trim(($type ?? '') . ' ' . ($title ?? '')));
 
-        if (str_contains($text, 'passport')) return 'id';
-        if (str_contains($text, 'visa')) return 'verified';
-        if (str_contains($text, 'medical')) return 'medical';
-        if (str_contains($text, 'certificate')) return 'award';
-        if (str_contains($text, 'contract')) return 'contract';
-        if (str_contains($text, 'ticket') || str_contains($text, 'travel')) return 'flight';
-        if (str_contains($text, 'cv') || str_contains($text, 'resume')) return 'badge';
-        if (str_contains($text, 'photo') || str_contains($text, 'image')) return 'image';
 
         return 'folder';
     };
@@ -597,7 +708,83 @@
     </section>
 @include('portal.partials.dashboard-payment-confirmations')
 
+    {{-- SF_MONEY_REQUESTS_DASHBOARD_START --}}
+    <section class="portal-card portal-card-soft sf-money-requests-card">
+        <div class="portal-section-head">
+            <div>
+                <div class="portal-title-md">Reimbursement Claims</div>
+                <div class="portal-muted" style="margin-top:8px;">
+                    Candidate-submitted and candidate-paid reimbursement claims pending or tracked by finance.
+                </div>
+            </div>
+            <span class="portal-badge portal-badge--slate">Finance</span>
+        </div>
 
+        @php
+            $moneyRequests = $dashboardReimbursementClaims ?? collect();
+
+            $moneyStatusClass = function (?string $status) {
+                $status = strtolower((string) $status);
+
+                return match ($status) {
+                    'paid' => 'sf-money-badge sf-money-badge--success',
+                    'approved' => 'sf-money-badge sf-money-badge--info',
+                    'rejected', 'cancelled', 'bank_rejected' => 'sf-money-badge sf-money-badge--danger',
+                    'pending', 'draft' => 'sf-money-badge sf-money-badge--warning',
+                    default => 'sf-money-badge sf-money-badge--slate',
+                };
+            };
+
+            $moneyPretty = fn ($value) => strtoupper(str_replace('_', ' ', (string) $value));
+        @endphp
+
+        @if($moneyRequests->count())
+            <div class="sf-money-list">
+                @foreach($moneyRequests as $request)
+                    @php
+                        $status = $request['status'] ?? 'pending';
+                        $amount = $request['amount'] ?? 0;
+                        $currency = $request['currency'] ?? 'EUR';
+                        $date = $request['date'] ?? null;
+                    @endphp
+
+                    <div class="sf-money-item">
+                        <div class="sf-money-main">
+                            <div class="sf-money-title">{{ $request['title'] ?? 'Reimbursement Claim' }}</div>
+
+                            <div class="sf-money-meta">
+                                {{ ucfirst(str_replace('_', ' ', $request['category'] ?? 'other')) }}
+                                @if($date)
+                                    · {{ \Carbon\Carbon::parse($date)->format('M d, Y') }}
+                                @endif
+                            </div>
+
+                            <div class="sf-money-badges">
+                                <span class="{{ $moneyStatusClass($status) }}">{{ $moneyPretty($status) }}</span>
+                                <span class="sf-money-badge sf-money-badge--purple">{{ $request['source'] ?? 'Request' }}</span>
+                                <span class="sf-money-badge sf-money-badge--slate">{{ $moneyPretty($request['paid_by'] ?? 'candidate') }}</span>
+
+                                @if(!empty($request['has_receipt']))
+                                    <span class="sf-money-badge sf-money-badge--success">Receipt Uploaded</span>
+                                @else
+                                    <span class="sf-money-badge sf-money-badge--slate">No Receipt</span>
+                                @endif
+                            </div>
+                        </div>
+
+                        <div class="sf-money-amount">
+                            {{ number_format((float) $amount, 2) }} {{ $currency }}
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        @else
+            <div class="portal-empty" style="margin-top:14px;">
+                No reimbursement claims recorded yet.
+            </div>
+        @endif
+    </section>
+    {{-- SF_MONEY_REQUESTS_DASHBOARD_END --}}
 
 
     <section class="portal-grid-2">
@@ -620,36 +807,178 @@
                 @foreach($calendarWeeks as $week)
                     @foreach($week as $cell)
                         @php
-                            $eventBg = match ($cell['eventType'] ?? null) {
-                                'travel' => '#fff7ed',
+                            $rawEventValue = $cell['eventType'] ?? '';
+
+                            if (is_array($rawEventValue)) {
+                                $rawEventValue = $rawEventValue['type']
+                                    ?? $rawEventValue['title']
+                                    ?? $rawEventValue[0]
+                                    ?? 'other';
+                            }
+
+                            $rawEventType = strtolower(trim((string) $rawEventValue));
+                            $normalizedEventType = str_replace([' ', '-', '/', '\\'], '_', $rawEventType);
+
+                            if (str_contains($normalizedEventType, 'rotation')) {
+                                $normalizedEventType = 'rotation';
+                            } elseif (str_contains($normalizedEventType, 'hotel') || str_contains($normalizedEventType, 'accommodation')) {
+                                $normalizedEventType = 'hotel';
+                            } elseif (str_contains($normalizedEventType, 'expiry') || str_contains($normalizedEventType, 'expire') || str_contains($normalizedEventType, 'expiration')) {
+                                $normalizedEventType = 'document_expiry';
+                            } elseif (str_contains($normalizedEventType, 'mobilization') || str_contains($normalizedEventType, 'demobilization') || str_contains($normalizedEventType, 'travel')) {
+                                $normalizedEventType = str_contains($normalizedEventType, 'ticket') || str_contains($normalizedEventType, 'request')
+                                    ? 'ticket_travel'
+                                    : 'travel';
+                            } elseif (str_contains($normalizedEventType, 'ticket') || str_contains($normalizedEventType, 'request')) {
+                                $normalizedEventType = 'ticket_travel';
+                            } elseif (str_contains($normalizedEventType, 'visa') || str_contains($normalizedEventType, 'document')) {
+                                $normalizedEventType = 'visa';
+                            } else {
+                                $normalizedEventType = 'other';
+                            }
+
+                            $eventBg = match ($normalizedEventType) {
+                                'rotation' => '#ecfdf5',
+                                'travel' => '#e0f2fe',
+                                'ticket_travel' => '#fff7ed',
+                                'hotel' => '#ccfbf1',
                                 'visa' => '#eff6ff',
-                                'medical' => '#ecfdf5',
-                                default => '#ffffff',
+                                'document_expiry' => '#fef2f2',
+                                default => '#f8fafc',
                             };
 
-                            $eventBorder = match ($cell['eventType'] ?? null) {
-                                'travel' => '#fdba74',
+                            $eventBorder = match ($normalizedEventType) {
+                                'rotation' => '#86efac',
+                                'travel' => '#7dd3fc',
+                                'ticket_travel' => '#fdba74',
+                                'hotel' => '#5eead4',
                                 'visa' => '#93c5fd',
-                                'medical' => '#86efac',
-                                default => '#d9e4ef',
+                                'document_expiry' => '#fca5a5',
+                                default => '#cbd5e1',
                             };
 
-                            $eventDot = match ($cell['eventType'] ?? null) {
-                                'travel' => '#d97706',
+                            $eventDot = match ($normalizedEventType) {
+                                'rotation' => '#16a34a',
+                                'travel' => '#0ea5e9',
+                                'ticket_travel' => '#d97706',
+                                'hotel' => '#14b8a6',
                                 'visa' => '#2563eb',
-                                'medical' => '#16a34a',
+                                'document_expiry' => '#dc2626',
                                 default => '#94a3b8',
                             };
                         @endphp
 
-                        <div class="
-                            portal-calendar-cell
-                            {{ !$cell['isCurrentMonth'] ? 'portal-calendar-cell--muted' : '' }}
-                            {{ $cell['isToday'] ? 'portal-calendar-cell--today' : '' }}
-                        "
-                        style="
-                            {{ $cell['hasEvent'] ? 'background:' . $eventBg . '; border-color:' . $eventBorder . ';' : '' }}
-                        ">
+                        @php
+                            $cellDateValue = $cell['date'] ?? ($cell['dateString'] ?? ($cell['day_date'] ?? null));
+
+                            if ($cellDateValue instanceof \Carbon\CarbonInterface) {
+                                $cellDateString = $cellDateValue->format('Y-m-d');
+                            } elseif (is_array($cellDateValue)) {
+                                $cellDateString = (string) (
+                                    $cellDateValue['date']
+                                    ?? $cellDateValue['value']
+                                    ?? $cellDateValue['formatted']
+                                    ?? $cellDateValue[0]
+                                    ?? ''
+                                );
+                            } else {
+                                $cellDateString = (string) ($cellDateValue ?: '');
+                            }
+
+                            if ($cellDateString === '' && !empty($calendarMonthLabel ?? null)) {
+                                $cellDateString = (string) ($cell['fullDate'] ?? $cell['full_date'] ?? '');
+                            }
+
+                            $cellEventItems = collect($cell['items'] ?? $cell['events'] ?? []);
+
+                            $safeEventTypeValue = $cell['eventType'] ?? 'event';
+
+                            if (is_array($safeEventTypeValue)) {
+                                $safeEventTypeValue = $safeEventTypeValue['type']
+                                    ?? $safeEventTypeValue['title']
+                                    ?? $safeEventTypeValue[0]
+                                    ?? 'event';
+                            }
+
+                            $safeEventTypeValue = (string) ($safeEventTypeValue ?: 'event');
+
+                            if (($cell['hasEvent'] ?? false) && $cellEventItems->isEmpty()) {
+                                $cellEventItems = collect([[
+                                    'title' => ucfirst(str_replace('_', ' ', $safeEventTypeValue)),
+                                    'type' => $safeEventTypeValue,
+                                    'notes' => null,
+                                    'color' => $eventDot,
+                                    'date' => $cellDateString,
+                                ]]);
+                            }
+
+                            $cellEventsJson = $cellEventItems
+                                ->map(function ($event) use ($eventDot, $cellDateString) {
+                                    if (is_object($event)) {
+                                        $event = (array) $event;
+                                    }
+
+                                    if (! is_array($event)) {
+                                        $event = [
+                                            'title' => (string) $event,
+                                            'type' => 'event',
+                                        ];
+                                    }
+
+                                    $eventDate = $event['date'] ?? $cellDateString;
+
+                                    if ($eventDate instanceof \Carbon\CarbonInterface) {
+                                        $eventDate = $eventDate->format('Y-m-d');
+                                    } elseif (is_array($eventDate)) {
+                                        $eventDate = (string) (
+                                            $eventDate['date']
+                                            ?? $eventDate['value']
+                                            ?? $eventDate['formatted']
+                                            ?? $eventDate[0]
+                                            ?? $cellDateString
+                                        );
+                                    } else {
+                                        $eventDate = (string) ($eventDate ?: $cellDateString);
+                                    }
+
+                                    $eventType = $event['type'] ?? 'event';
+
+                                    if (is_array($eventType)) {
+                                        $eventType = $eventType['type']
+                                            ?? $eventType['title']
+                                            ?? $eventType[0]
+                                            ?? 'event';
+                                    }
+
+                                    return [
+                                        'title' => (string) ($event['title'] ?? 'Event'),
+                                        'type' => (string) ($eventType ?: 'event'),
+                                        'notes' => is_array($event['notes'] ?? null) ? null : ($event['notes'] ?? null),
+                                        'color' => (string) ($event['color'] ?? $eventDot),
+                                        'date' => $eventDate,
+                                    ];
+                                })
+                                ->values()
+                                ->toJson();
+                        @endphp
+
+                        <div
+                            class="
+                                portal-calendar-cell
+                                {{ !$cell['isCurrentMonth'] ? 'portal-calendar-cell--muted' : '' }}
+                                {{ $cell['isToday'] ? 'portal-calendar-cell--today' : '' }}
+                                {{ $cell['hasEvent'] ? 'sf-calendar-day-clickable' : 'sf-calendar-day-empty' }}
+                            "
+                            style="{{ $cell['hasEvent'] ? 'background:' . $eventBg . '; border-color:' . $eventBorder . ';' : '' }}"
+                            @if($cell['hasEvent'])
+                                role="button"
+                                tabindex="0"
+                                data-date="{{ $cellDateString }}"
+                                data-events='{{ e($cellEventsJson) }}'
+                                onclick="window.sfOpenCalendarDayPopover(this)"
+                                onkeydown="if(event.key === 'Enter' || event.key === ' '){ event.preventDefault(); window.sfOpenCalendarDayPopover(this); }"
+                            @endif
+                        >
                             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
                                 <span>{{ $cell['day'] }}</span>
 
@@ -663,50 +992,49 @@
             </div>
 
             <div class="sf-calendar-legends">
-                <span class="sf-calendar-legend-pill">
-                    <span class="sf-calendar-legend-dot" style="background:#16a34a;"></span>
-                    Rotation
-                </span>
-
-                <span class="sf-calendar-legend-pill">
-                    <span class="sf-calendar-legend-dot" style="background:#0ea5e9;"></span>
-                    Travel / Mobilization
-                </span>
-
-                <span class="sf-calendar-legend-pill">
-                    <span class="sf-calendar-legend-dot" style="background:#d97706;"></span>
-                    Ticket / Travel Request
-                </span>
-
-                <span class="sf-calendar-legend-pill">
-                    <span class="sf-calendar-legend-dot" style="background:#2563eb;"></span>
-                    Visa / Documents
-                </span>
-
-                <span class="sf-calendar-legend-pill">
-                    <span class="sf-calendar-legend-dot" style="background:#94a3b8;"></span>
-                    Other
-                </span>
+                    <span class="sf-calendar-legend-pill"><span class="sf-calendar-legend-dot" style="background:#16a34a;"></span> Rotation</span>
+                    <span class="sf-calendar-legend-pill"><span class="sf-calendar-legend-dot" style="background:#0ea5e9;"></span> Travel / Mobilization</span>
+                    <span class="sf-calendar-legend-pill"><span class="sf-calendar-legend-dot" style="background:#f97316;"></span> Ticket / Travel Request</span>
+                    <span class="sf-calendar-legend-pill"><span class="sf-calendar-legend-dot" style="background:#14b8a6;"></span> Hotel</span>
+                    <span class="sf-calendar-legend-pill"><span class="sf-calendar-legend-dot" style="background:#2563eb;"></span> Visa / Documents</span>
+                    <span class="sf-calendar-legend-pill"><span class="sf-calendar-legend-dot" style="background:#dc2626;"></span> Document Expiry</span>
+                    <span class="sf-calendar-legend-pill"><span class="sf-calendar-legend-dot" style="background:#94a3b8;"></span> Other</span>
+                </div>
             </div>
 
-        </div>
-
         <div style="display:flex;flex-direction:column;gap:18px;">
-            <section class="portal-card portal-card-soft">
+            <section class="portal-card portal-card-soft sf-ne-card">
                 <div class="portal-section-head">
                     <div class="portal-title-md">Next Events</div>
                     <span class="portal-badge portal-badge--slate">Important</span>
                 </div>
 
                 @if($nextEvents->count())
-                    <div class="portal-list">
+                    <div class="sf-ne-list">
                         @foreach($nextEvents as $event)
-                            <div class="portal-list-item">
-                                <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
-                                    <div class="portal-list-title">{{ $event['title'] }}</div>
-                                    <span class="portal-badge portal-badge--info">{{ $event['type'] }}</span>
+                            @php
+                                $neColor = $event['color'] ?? '#2563eb';
+                                $neTitle = $event['title'] ?? 'Event';
+                                $neType = strtoupper(str_replace('_', ' ', (string) ($event['type'] ?? 'event')));
+                                $neDate = !empty($event['date']) ? $event['date']->format('Y-m-d') : '—';
+                                $neNotes = $event['notes'] ?? null;
+                            @endphp
+
+                            <div class="sf-ne-item" style="--ne-color: {{ $neColor }};">
+                                <span class="sf-ne-bar"></span>
+
+                                <div class="sf-ne-content">
+                                    <div class="sf-ne-title">{{ $neTitle }}</div>
+
+                                    @if($neNotes)
+                                        <div class="sf-ne-notes">{{ $neNotes }}</div>
+                                    @endif
+
+                                    <div class="sf-ne-meta">
+                                        <span class="sf-ne-pill sf-ne-type">{{ $neType }}</span>
+                                        <span class="sf-ne-pill sf-ne-date">{{ $neDate }}</span>
+                                    </div>
                                 </div>
-                                <div class="portal-list-meta">{{ $event['date']->format('Y-m-d') }}</div>
                             </div>
                         @endforeach
                     </div>
@@ -826,13 +1154,12 @@
     </section>
 
     <section class="portal-grid-2">
-        
         <div class="portal-card portal-card-soft">
             <div class="portal-section-head">
                 <div>
                     <div class="portal-title-md">Latest Updates</div>
                     <div class="portal-muted" style="margin-top:8px;">
-                        A quick timeline of your latest salary, rotation, travel, file, and portal updates.
+                        A live feed of your latest salary slips, reimbursement claims, mobilization, rotation, travel, ticket, file, and portal updates.
                     </div>
                 </div>
                 <a class="portal-section-link" href="{{ route('portal.timeline.index') }}">View All</a>
@@ -849,10 +1176,19 @@
                             $updateIconKey = $dashboardUpdateIcon($updateStatus, $updateTitle . ' ' . $updateDescription);
 
                             $badgeClass = 'sf-dash-update-badge';
-                            if (($updateStatus ?? null) === 'paid') {
+                            $updateType = (string) ($item['type'] ?? '');
+                            $updateStatusText = (string) ($updateStatus ?? '');
+
+                            if (in_array($updateStatusText, ['paid', 'approved', 'active'], true)) {
                                 $badgeClass .= ' sf-dash-update-badge--success';
-                            } elseif(in_array(($updateStatus ?? ''), ['bank_rejected', 'cancelled'], true)) {
+                            } elseif (in_array($updateStatusText, ['bank_rejected', 'cancelled', 'rejected'], true)) {
                                 $badgeClass .= ' sf-dash-update-badge--danger';
+                            } elseif ($updateType === 'reimbursement' || str_contains($updateType, 'reimbursement')) {
+                                $badgeClass .= ' sf-dash-update-badge--reimbursement';
+                            } elseif (str_contains($updateType, 'travel') || str_contains($updateType, 'ticket') || str_contains($updateType, 'mobilization')) {
+                                $badgeClass .= ' sf-dash-update-badge--travel';
+                            } elseif (str_contains($updateType, 'rotation')) {
+                                $badgeClass .= ' sf-dash-update-badge--rotation';
                             }
                         @endphp
 
@@ -885,9 +1221,6 @@
                 </div>
             @endif
         </div>
-
-
-        
         <div class="portal-card portal-card-soft">
             <div class="portal-section-head">
                 <div>
@@ -994,62 +1327,372 @@
         @endif
     </section>
 
-<script>
-    window.portalOpenCalendarDay = function (cell) {
-        const count = parseInt(cell.dataset.eventsCount || '0', 10);
-        const popover = document.getElementById('portalDayPopover');
-        const title = document.getElementById('portalDayPopoverTitle');
-        const list = document.getElementById('portalDayPopoverList');
 
-        if (!popover || !title || !list || count < 1) return;
 
-        let events = [];
-        try {
-            events = JSON.parse(cell.dataset.events || '[]');
-        } catch (e) {
-            events = [];
+
+
+
+
+<style id="sf-clean-next-events-final-fix">
+    .sf-clean-next-events {
+        display: grid !important;
+        gap: 14px !important;
+        margin-top: 16px !important;
+    }
+
+    .sf-clean-next-event {
+        position: relative !important;
+        display: grid !important;
+        grid-template-columns: 8px minmax(0, 1fr) !important;
+        gap: 14px !important;
+        align-items: stretch !important;
+        min-height: 92px !important;
+        padding: 16px !important;
+        border-radius: 24px !important;
+        background:
+            radial-gradient(circle at top right, rgba(76,167,168,.10), transparent 36%),
+            rgba(255,255,255,.94) !important;
+        border: 1px solid rgba(15,23,42,.08) !important;
+        box-shadow: 0 14px 34px rgba(15,23,42,.055) !important;
+        overflow: hidden !important;
+    }
+
+    .sf-clean-next-dot {
+        width: 8px !important;
+        min-height: 100% !important;
+        border-radius: 999px !important;
+        background: linear-gradient(180deg, #14b8a6, #2563eb) !important;
+    }
+
+    .sf-clean-next-main {
+        min-width: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+    }
+
+    .sf-clean-next-title {
+        color: #0f172a !important;
+        font-size: 16px !important;
+        line-height: 1.25 !important;
+        font-weight: 950 !important;
+        letter-spacing: -.025em !important;
+        overflow-wrap: anywhere !important;
+    }
+
+    .sf-clean-next-meta {
+        margin-top: 6px !important;
+        color: #64748b !important;
+        font-size: 12px !important;
+        line-height: 1.45 !important;
+        font-weight: 700 !important;
+    }
+
+    .sf-clean-next-footer {
+        margin-top: 11px !important;
+        display: flex !important;
+        gap: 8px !important;
+        flex-wrap: wrap !important;
+        align-items: center !important;
+    }
+
+    .sf-clean-next-badge,
+    .sf-clean-next-date {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-height: 30px !important;
+        padding: 0 11px !important;
+        border-radius: 999px !important;
+        font-size: 10px !important;
+        font-weight: 950 !important;
+        letter-spacing: .08em !important;
+        text-transform: uppercase !important;
+        white-space: nowrap !important;
+        border: 1px solid rgba(15,23,42,.10) !important;
+    }
+
+    .sf-clean-next-date {
+        background: #f8fafc !important;
+        color: #334155 !important;
+    }
+
+    .sf-clean-next-badge--success {
+        background: #ecfdf5 !important;
+        color: #047857 !important;
+        border-color: rgba(16,185,129,.20) !important;
+    }
+
+    .sf-clean-next-badge--info {
+        background: #f0f9ff !important;
+        color: #0369a1 !important;
+        border-color: rgba(14,165,233,.20) !important;
+    }
+
+    .sf-clean-next-badge--warning {
+        background: #fff7ed !important;
+        color: #c2410c !important;
+        border-color: rgba(249,115,22,.20) !important;
+    }
+
+    .sf-clean-next-badge--blue {
+        background: #eff6ff !important;
+        color: #2459d3 !important;
+        border-color: rgba(36,89,211,.16) !important;
+    }
+
+    .sf-clean-next-badge--slate {
+        background: #f1f5f9 !important;
+        color: #475569 !important;
+        border-color: rgba(100,116,139,.16) !important;
+    }
+
+    .dark .sf-clean-next-event {
+        background: rgba(15,23,42,.78) !important;
+        border-color: rgba(255,255,255,.10) !important;
+        box-shadow: 0 18px 46px rgba(0,0,0,.26) !important;
+    }
+
+    .dark .sf-clean-next-title {
+        color: #ffffff !important;
+    }
+
+    .dark .sf-clean-next-meta {
+        color: rgba(226,232,240,.74) !important;
+    }
+
+    .dark .sf-clean-next-date {
+        background: rgba(15,23,42,.88) !important;
+        color: rgba(226,232,240,.82) !important;
+        border-color: rgba(255,255,255,.10) !important;
+    }
+
+    @media (max-width: 760px) {
+        .sf-clean-next-event {
+            grid-template-columns: 6px minmax(0, 1fr) !important;
+            border-radius: 20px !important;
+            padding: 14px !important;
         }
+    }
+</style>
 
-        title.textContent = 'Events on ' + (cell.dataset.date || 'selected day');
-        list.innerHTML = '';
 
-        if (!events.length) {
-            list.innerHTML = '<div class="portal-day-event"><div class="portal-day-event-main"><strong>No details available</strong><span>Event exists on this date.</span></div></div>';
-        } else {
-            events.forEach(function (event) {
-                const item = document.createElement('div');
-                item.className = 'portal-day-event';
-                item.style.setProperty('--event-color', event.color || '#2563eb');
 
-                const dot = document.createElement('div');
-                dot.className = 'portal-day-event-dot';
 
-                const main = document.createElement('div');
-                main.className = 'portal-day-event-main';
 
-                const strong = document.createElement('strong');
-                strong.textContent = event.title || 'Event';
 
-                const meta = document.createElement('span');
-                meta.textContent = [event.type ? event.type.replaceAll('_', ' ') : null, event.notes || null].filter(Boolean).join(' · ');
 
-                main.appendChild(strong);
-                main.appendChild(meta);
-                item.appendChild(dot);
-                item.appendChild(main);
-                list.appendChild(item);
-            });
-        }
 
-        popover.style.display = 'block';
-        popover.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    };
 
-    window.portalCloseCalendarDay = function () {
-        const popover = document.getElementById('portalDayPopover');
-        if (popover) popover.style.display = 'none';
-    };
-</script>
+
+
+<style id="sf-next-events-hard-reset-clean-v2">
+    .sf-ne-card {
+        overflow: hidden !important;
+    }
+
+    .sf-ne-list {
+        margin-top: 18px !important;
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 14px !important;
+        width: 100% !important;
+        background: transparent !important;
+    }
+
+    .sf-ne-list,
+    .sf-ne-list *,
+    .sf-ne-list *::before,
+    .sf-ne-list *::after {
+        box-sizing: border-box !important;
+        writing-mode: horizontal-tb !important;
+        text-orientation: mixed !important;
+        direction: ltr !important;
+        transform: none !important;
+        rotate: none !important;
+        word-break: normal !important;
+    }
+
+    .sf-ne-list *::before,
+    .sf-ne-list *::after {
+        content: none !important;
+        display: none !important;
+    }
+
+    .sf-ne-item {
+        position: relative !important;
+        display: grid !important;
+        grid-template-columns: 8px minmax(0, 1fr) !important;
+        gap: 16px !important;
+        align-items: center !important;
+        width: 100% !important;
+        min-height: 92px !important;
+        height: auto !important;
+        padding: 18px 20px !important;
+        border-radius: 24px !important;
+        overflow: hidden !important;
+        background:
+            radial-gradient(circle at top right, color-mix(in srgb, var(--ne-color) 10%, transparent), transparent 34%),
+            rgba(255,255,255,.92) !important;
+        border: 1px solid color-mix(in srgb, var(--ne-color) 26%, rgba(15,23,42,.08)) !important;
+        box-shadow: 0 12px 28px rgba(15,23,42,.045) !important;
+    }
+
+    .sf-ne-bar {
+        display: block !important;
+        width: 8px !important;
+        height: 56px !important;
+        border-radius: 999px !important;
+        background: var(--ne-color) !important;
+        flex-shrink: 0 !important;
+    }
+
+    .sf-ne-content {
+        display: block !important;
+        min-width: 0 !important;
+        width: 100% !important;
+    }
+
+    .sf-ne-title {
+        display: block !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        color: #0f172a !important;
+        font-size: 17px !important;
+        line-height: 1.25 !important;
+        font-weight: 950 !important;
+        letter-spacing: -.035em !important;
+        white-space: normal !important;
+        text-align: left !important;
+    }
+
+    .sf-ne-notes {
+        display: block !important;
+        margin-top: 5px !important;
+        color: #64748b !important;
+        font-size: 12px !important;
+        line-height: 1.45 !important;
+        font-weight: 700 !important;
+        white-space: normal !important;
+        text-align: left !important;
+    }
+
+    .sf-ne-meta {
+        margin-top: 12px !important;
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 8px !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        flex-wrap: wrap !important;
+    }
+
+    .sf-ne-pill {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        min-height: 30px !important;
+        padding: 0 12px !important;
+        border-radius: 999px !important;
+        font-size: 10px !important;
+        line-height: 1 !important;
+        font-weight: 950 !important;
+        letter-spacing: .08em !important;
+        text-transform: uppercase !important;
+        white-space: nowrap !important;
+    }
+
+    .sf-ne-type {
+        background: color-mix(in srgb, var(--ne-color) 11%, white) !important;
+        color: color-mix(in srgb, var(--ne-color) 74%, #0f172a) !important;
+        border: 1px solid color-mix(in srgb, var(--ne-color) 22%, transparent) !important;
+    }
+
+    .sf-ne-date {
+        background: #f8fafc !important;
+        color: #334155 !important;
+        border: 1px solid rgba(15,23,42,.10) !important;
+    }
+
+    .dark .sf-ne-item {
+        background: rgba(15,23,42,.78) !important;
+        border-color: color-mix(in srgb, var(--ne-color) 30%, rgba(255,255,255,.10)) !important;
+        box-shadow: 0 16px 42px rgba(0,0,0,.24) !important;
+    }
+
+    .dark .sf-ne-title {
+        color: #ffffff !important;
+    }
+
+    .dark .sf-ne-notes {
+        color: rgba(226,232,240,.74) !important;
+    }
+
+    .dark .sf-ne-date {
+        background: rgba(15,23,42,.92) !important;
+        color: rgba(226,232,240,.82) !important;
+        border-color: rgba(255,255,255,.10) !important;
+    }
+</style>
+
+
+<style id="sf-calendar-event-day-color-polish">
+    .portal-calendar-cell[style*="background"] {
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.65), 0 10px 24px rgba(15,23,42,.045) !important;
+    }
+
+    .portal-calendar-cell[style*="background"]:not(.portal-calendar-cell--muted) {
+        font-weight: 950 !important;
+    }
+
+    .portal-calendar-cell[style*="background"]:hover {
+        transform: translateY(-1px) !important;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.72), 0 16px 34px rgba(15,23,42,.09) !important;
+    }
+
+    .dark .portal-calendar-cell[style*="background"] {
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.08), 0 12px 30px rgba(0,0,0,.22) !important;
+    }
+</style>
+
+
+<style id="sf-calendar-event-day-color-force">
+    .portal-calendar-cell[style*="background:#ecfdf5"],
+    .portal-calendar-cell[style*="background: #ecfdf5"] {
+        background: linear-gradient(180deg, #ecfdf5 0%, #dcfce7 100%) !important;
+        border-color: #86efac !important;
+    }
+
+    .portal-calendar-cell[style*="background:#e0f2fe"],
+    .portal-calendar-cell[style*="background: #e0f2fe"] {
+        background: linear-gradient(180deg, #e0f2fe 0%, #dbeafe 100%) !important;
+        border-color: #7dd3fc !important;
+    }
+
+    .portal-calendar-cell[style*="background:#fff7ed"],
+    .portal-calendar-cell[style*="background: #fff7ed"] {
+        background: linear-gradient(180deg, #fff7ed 0%, #ffedd5 100%) !important;
+        border-color: #fdba74 !important;
+    }
+
+    .portal-calendar-cell[style*="background:#eff6ff"],
+    .portal-calendar-cell[style*="background: #eff6ff"] {
+        background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%) !important;
+        border-color: #93c5fd !important;
+    }
+
+    .portal-calendar-cell[style*="background"] {
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.72), 0 12px 26px rgba(15,23,42,.055) !important;
+    }
+
+    .portal-calendar-cell[style*="background"] span:first-child {
+        color: #0f172a !important;
+        font-weight: 950 !important;
+    }
+</style>
 
 
 <div id="sfCalendarPopover" class="sf-calendar-popover" aria-hidden="true">
@@ -1064,7 +1707,156 @@
     <div id="sfCalendarPopoverList" class="sf-calendar-popover-list"></div>
 </div>
 
-<script>
+<style id="sf-clickable-calendar-days-final">
+    .sf-calendar-day-clickable {
+        cursor: pointer !important;
+        position: relative !important;
+        transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease !important;
+    }
+
+    .sf-calendar-day-clickable:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.72), 0 18px 36px rgba(15,23,42,.10) !important;
+    }
+
+    .sf-calendar-day-clickable:focus {
+        outline: 3px solid rgba(37,99,235,.25) !important;
+        outline-offset: 3px !important;
+    }
+
+    .sf-calendar-popover {
+        position: fixed !important;
+        z-index: 999999 !important;
+        width: min(430px, calc(100vw - 28px)) !important;
+        display: none;
+        border-radius: 26px !important;
+        background:
+            radial-gradient(circle at top right, rgba(76,167,168,.14), transparent 38%),
+            linear-gradient(180deg,#ffffff 0%,#f8fbff 100%) !important;
+        border: 1px solid rgba(215,226,229,.95) !important;
+        box-shadow: 0 30px 90px rgba(15,23,42,.24) !important;
+        padding: 16px !important;
+    }
+
+    .sf-calendar-popover.is-open {
+        display: block !important;
+    }
+
+    .sf-calendar-popover-head {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: flex-start !important;
+        gap: 12px !important;
+        padding-bottom: 12px !important;
+        border-bottom: 1px solid rgba(215,226,229,.85) !important;
+    }
+
+    .sf-calendar-popover-kicker {
+        color: #2459d3 !important;
+        font-size: 10px !important;
+        font-weight: 950 !important;
+        letter-spacing: .14em !important;
+        text-transform: uppercase !important;
+        margin-bottom: 5px !important;
+    }
+
+    .sf-calendar-popover-title {
+        color: #0f172a !important;
+        font-size: 20px !important;
+        line-height: 1.1 !important;
+        font-weight: 950 !important;
+        letter-spacing: -.04em !important;
+    }
+
+    .sf-calendar-popover-close {
+        width: 38px !important;
+        height: 38px !important;
+        border: 0 !important;
+        border-radius: 999px !important;
+        background: #eff6ff !important;
+        color: #1d4ed8 !important;
+        font-size: 22px !important;
+        line-height: 1 !important;
+        cursor: pointer !important;
+        font-weight: 800 !important;
+    }
+
+    .sf-calendar-popover-list {
+        display: grid !important;
+        gap: 10px !important;
+        margin-top: 13px !important;
+        max-height: 330px !important;
+        overflow: auto !important;
+        padding-right: 2px !important;
+    }
+
+    .sf-calendar-popover-item {
+        position: relative !important;
+        border-radius: 18px !important;
+        background: rgba(255,255,255,.90) !important;
+        border: 1px solid rgba(15,23,42,.08) !important;
+        padding: 13px 13px 13px 18px !important;
+        box-shadow: 0 10px 24px rgba(15,23,42,.04) !important;
+        overflow: hidden !important;
+    }
+
+    .sf-calendar-popover-item::before {
+        content: "" !important;
+        position: absolute !important;
+        left: 0 !important;
+        top: 12px !important;
+        bottom: 12px !important;
+        width: 5px !important;
+        border-radius: 999px !important;
+        background: var(--event-color, #2563eb) !important;
+        display: block !important;
+    }
+
+    .sf-calendar-popover-item-title {
+        color: #0f172a !important;
+        font-size: 14px !important;
+        line-height: 1.35 !important;
+        font-weight: 950 !important;
+    }
+
+    .sf-calendar-popover-item-meta {
+        margin-top: 5px !important;
+        color: #64748b !important;
+        font-size: 12px !important;
+        line-height: 1.45 !important;
+        font-weight: 700 !important;
+    }
+
+    .sf-calendar-popover-item-type {
+        margin-top: 8px !important;
+        display: inline-flex !important;
+        border-radius: 999px !important;
+        padding: 6px 10px !important;
+        background: #eff6ff !important;
+        color: #2459d3 !important;
+        font-size: 10px !important;
+        font-weight: 950 !important;
+        letter-spacing: .08em !important;
+        text-transform: uppercase !important;
+    }
+
+    .dark .sf-calendar-popover,
+    .dark .sf-calendar-popover-item {
+        background: rgba(15,23,42,.92) !important;
+        border-color: rgba(255,255,255,.10) !important;
+    }
+
+    .dark .sf-calendar-popover-title,
+    .dark .sf-calendar-popover-item-title {
+        color: #ffffff !important;
+    }
+
+    .dark .sf-calendar-popover-item-meta {
+        color: rgba(226,232,240,.74) !important;
+    }
+</style>
+
+<script id="sf-clickable-calendar-days-final-js">
     window.sfCloseCalendarDayPopover = function () {
         const popover = document.getElementById('sfCalendarPopover');
         if (!popover) return;
@@ -1084,51 +1876,51 @@
 
         try {
             events = JSON.parse(cell.getAttribute('data-events') || '[]');
-        } catch (e) {
+        } catch (error) {
             events = [];
         }
 
         const date = cell.getAttribute('data-date') || 'Selected Day';
-
-        title.textContent = date;
+        title.textContent = 'Events on ' + date;
 
         if (!events.length) {
-            list.innerHTML = `
-                <div class="sf-calendar-popover-item">
-                    <div class="sf-calendar-popover-item-title">Event recorded</div>
-                    <div class="sf-calendar-popover-item-meta">There is an event on this day.</div>
-                    <div class="sf-calendar-popover-item-type">Event</div>
-                </div>
-            `;
-        } else {
-            list.innerHTML = events.map(function (event) {
-                const color = event.color || '#2563eb';
-                const itemTitle = event.title || 'Event';
-                const type = event.type || 'event';
-                const notes = event.notes || '';
-
-                return `
-                    <div class="sf-calendar-popover-item" style="--event-color:${color};">
-                        <div class="sf-calendar-popover-item-title">${escapeHtml(itemTitle)}</div>
-                        ${notes ? `<div class="sf-calendar-popover-item-meta">${escapeHtml(notes)}</div>` : ''}
-                        <div class="sf-calendar-popover-item-type">${escapeHtml(type)}</div>
-                    </div>
-                `;
-            }).join('');
+            events = [{
+                title: 'Event recorded',
+                type: 'event',
+                notes: 'There is an event on this day.',
+                color: '#2563eb',
+                date: date
+            }];
         }
 
+        list.innerHTML = events.map(function (event) {
+            const color = event.color || '#2563eb';
+            const itemTitle = event.title || 'Event';
+            const type = event.type || 'event';
+            const notes = event.notes || '';
+            const eventDate = event.date || date;
+
+            return `
+                <div class="sf-calendar-popover-item" style="--event-color:${escapeHtml(color)};">
+                    <div class="sf-calendar-popover-item-title">${escapeHtml(itemTitle)}</div>
+                    ${notes ? `<div class="sf-calendar-popover-item-meta">${escapeHtml(notes)}</div>` : ''}
+                    <div class="sf-calendar-popover-item-type">${escapeHtml(type)} · ${escapeHtml(eventDate)}</div>
+                </div>
+            `;
+        }).join('');
+
         const rect = cell.getBoundingClientRect();
-        const width = Math.min(420, window.innerWidth - 32);
+        const width = Math.min(430, window.innerWidth - 28);
 
         let left = rect.left;
         let top = rect.bottom + 12;
 
-        if (left + width > window.innerWidth - 16) {
-            left = window.innerWidth - width - 16;
+        if (left + width > window.innerWidth - 14) {
+            left = window.innerWidth - width - 14;
         }
 
-        if (top + 360 > window.innerHeight) {
-            top = Math.max(16, rect.top - 360);
+        if (top + 380 > window.innerHeight) {
+            top = Math.max(14, rect.top - 380);
         }
 
         popover.style.left = left + 'px';
@@ -1138,7 +1930,7 @@
     };
 
     function escapeHtml(value) {
-        return String(value)
+        return String(value ?? '')
             .replaceAll('&', '&amp;')
             .replaceAll('<', '&lt;')
             .replaceAll('>', '&gt;')
@@ -1167,1237 +1959,640 @@
     });
 </script>
 
+
+
+<style id="sf-calendar-click-modal-final">
+    .sf-calendar-day-clickable {
+        cursor: pointer !important;
+        position: relative !important;
+    }
+
+    .sf-calendar-day-clickable:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.75), 0 18px 38px rgba(15,23,42,.12) !important;
+    }
+
+    .sf-calendar-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 99998;
+        display: none;
+        background: rgba(15,23,42,.38);
+        backdrop-filter: blur(8px);
+    }
+
+    .sf-calendar-modal-backdrop.is-open {
+        display: block;
+    }
+
+    .sf-calendar-modal {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        z-index: 99999;
+        width: min(540px, calc(100vw - 32px));
+        max-height: min(680px, calc(100vh - 48px));
+        transform: translate(-50%, -50%);
+        display: none;
+        overflow: hidden;
+        border-radius: 30px;
+        background:
+            radial-gradient(circle at top right, rgba(76,167,168,.14), transparent 36%),
+            linear-gradient(180deg,#ffffff 0%,#f8fbff 100%);
+        border: 1px solid rgba(215,226,229,.96);
+        box-shadow: 0 35px 100px rgba(15,23,42,.28);
+    }
+
+    .sf-calendar-modal.is-open {
+        display: block;
+    }
+
+    .sf-calendar-modal-head {
+        padding: 20px 22px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 14px;
+        border-bottom: 1px solid rgba(215,226,229,.85);
+    }
+
+    .sf-calendar-modal-kicker {
+        color: #2459d3;
+        font-size: 11px;
+        font-weight: 950;
+        letter-spacing: .16em;
+        text-transform: uppercase;
+        margin-bottom: 7px;
+    }
+
+    .sf-calendar-modal-title {
+        color: #0f172a;
+        font-size: 25px;
+        line-height: 1.08;
+        font-weight: 950;
+        letter-spacing: -.045em;
+    }
+
+    .sf-calendar-modal-close {
+        width: 42px;
+        height: 42px;
+        border: 0;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        font-size: 26px;
+        line-height: 1;
+        cursor: pointer;
+        font-weight: 800;
+    }
+
+    .sf-calendar-modal-body {
+        padding: 18px;
+        display: grid;
+        gap: 12px;
+        max-height: 520px;
+        overflow: auto;
+    }
+
+    .sf-calendar-modal-event {
+        position: relative;
+        overflow: hidden;
+        border-radius: 22px;
+        padding: 16px 16px 16px 24px;
+        background: rgba(255,255,255,.90);
+        border: 1px solid rgba(15,23,42,.08);
+        box-shadow: 0 12px 30px rgba(15,23,42,.045);
+    }
+
+    .sf-calendar-modal-event::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 14px;
+        bottom: 14px;
+        width: 6px;
+        border-radius: 999px;
+        background: var(--event-color, #2563eb);
+    }
+
+    .sf-calendar-modal-event-title {
+        color: #0f172a;
+        font-size: 16px;
+        line-height: 1.25;
+        font-weight: 950;
+        letter-spacing: -.025em;
+    }
+
+    .sf-calendar-modal-event-notes {
+        margin-top: 7px;
+        color: #64748b;
+        font-size: 13px;
+        line-height: 1.55;
+        font-weight: 700;
+    }
+
+    .sf-calendar-modal-event-meta {
+        margin-top: 11px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .sf-calendar-modal-pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
+        padding: 0 11px;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #2459d3;
+        border: 1px solid rgba(36,89,211,.14);
+        font-size: 10px;
+        font-weight: 950;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+    }
+
+    .dark .sf-calendar-modal {
+        background: rgba(15,23,42,.96);
+        border-color: rgba(255,255,255,.12);
+    }
+
+    .dark .sf-calendar-modal-head {
+        border-bottom-color: rgba(255,255,255,.10);
+    }
+
+    .dark .sf-calendar-modal-title,
+    .dark .sf-calendar-modal-event-title {
+        color: #ffffff;
+    }
+
+    .dark .sf-calendar-modal-event {
+        background: rgba(15,23,42,.82);
+        border-color: rgba(255,255,255,.10);
+    }
+
+    .dark .sf-calendar-modal-event-notes {
+        color: rgba(226,232,240,.76);
+    }
+</style>
+
+
+<div id="sfCalendarModalBackdrop" class="sf-calendar-modal-backdrop"></div>
+
+<div id="sfCalendarModal" class="sf-calendar-modal" aria-hidden="true">
+    <div class="sf-calendar-modal-head">
+        <div>
+            <div class="sf-calendar-modal-kicker">Calendar Day</div>
+            <div id="sfCalendarModalTitle" class="sf-calendar-modal-title">Selected Day</div>
+        </div>
+        <button type="button" id="sfCalendarModalClose" class="sf-calendar-modal-close">×</button>
+    </div>
+    <div id="sfCalendarModalBody" class="sf-calendar-modal-body"></div>
+</div>
+
+
+<script id="sf-calendar-click-modal-final-js">
+(function () {
+    function escapeHtml(value) {
+        return String(value || '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    }
+
+    function closeCalendarModal() {
+        const modal = document.getElementById('sfCalendarModal');
+        const backdrop = document.getElementById('sfCalendarModalBackdrop');
+
+        if (modal) {
+            modal.classList.remove('is-open');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+
+        if (backdrop) {
+            backdrop.classList.remove('is-open');
+        }
+    }
+
+    function openCalendarModal(cell) {
+        if (!cell) return;
+
+        const hasEvent = cell.classList.contains('sf-calendar-day-clickable') || parseInt(cell.dataset.eventsCount || '0', 10) > 0;
+        if (!hasEvent) return;
+
+        const modal = document.getElementById('sfCalendarModal');
+        const backdrop = document.getElementById('sfCalendarModalBackdrop');
+        const title = document.getElementById('sfCalendarModalTitle');
+        const body = document.getElementById('sfCalendarModalBody');
+
+        if (!modal || !backdrop || !title || !body) return;
+
+        let events = [];
+        try {
+            events = JSON.parse(cell.getAttribute('data-events') || cell.dataset.events || '[]');
+        } catch (error) {
+            events = [];
+        }
+
+        const date = cell.getAttribute('data-date') || cell.dataset.date || 'Selected Day';
+        title.textContent = 'Events on ' + date;
+
+        if (!events.length) {
+            const dayText = (cell.innerText || '').trim().split(/\s+/)[0] || '';
+            events = [{
+                title: 'Event recorded',
+                type: 'event',
+                notes: dayText ? 'Event exists on day ' + dayText + '.' : 'Event exists on this date.',
+                color: '#2563eb',
+                date: date
+            }];
+        }
+
+        body.innerHTML = events.map(function (event) {
+            const color = event.color || '#2563eb';
+            const eventTitle = event.title || 'Event';
+            const type = event.type || 'event';
+            const notes = event.notes || '';
+            const eventDate = event.date || date;
+
+            return `
+                <div class="sf-calendar-modal-event" style="--event-color:${escapeHtml(color)};">
+                    <div class="sf-calendar-modal-event-title">${escapeHtml(eventTitle)}</div>
+                    ${notes ? `<div class="sf-calendar-modal-event-notes">${escapeHtml(notes)}</div>` : ''}
+                    <div class="sf-calendar-modal-event-meta">
+                        <span class="sf-calendar-modal-pill">${escapeHtml(type)}</span>
+                        <span class="sf-calendar-modal-pill">${escapeHtml(eventDate)}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        backdrop.classList.add('is-open');
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    window.sfPortalCalendarOpenFinal = openCalendarModal;
+    window.sfPortalCalendarCloseFinal = closeCalendarModal;
+
+    document.addEventListener('click', function (event) {
+        const cell = event.target.closest('.portal-calendar-cell');
+
+        if (cell && (cell.classList.contains('sf-calendar-day-clickable') || parseInt(cell.dataset.eventsCount || '0', 10) > 0)) {
+            event.preventDefault();
+            event.stopPropagation();
+            openCalendarModal(cell);
+            return;
+        }
+
+        if (
+            event.target.id === 'sfCalendarModalBackdrop' ||
+            event.target.id === 'sfCalendarModalClose'
+        ) {
+            event.preventDefault();
+            closeCalendarModal();
+        }
+    }, true);
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+            closeCalendarModal();
+        }
+
+        if ((event.key === 'Enter' || event.key === ' ') && event.target.classList && event.target.classList.contains('sf-calendar-day-clickable')) {
+            event.preventDefault();
+            openCalendarModal(event.target);
+        }
+    }, true);
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.portal-calendar-cell').forEach(function (cell) {
+            const hasDot = !!cell.querySelector('span[style*="border-radius:999px"]');
+            const hasColor = (cell.getAttribute('style') || '').includes('background:');
+            const count = parseInt(cell.dataset.eventsCount || '0', 10);
+
+            if ((hasDot || hasColor || count > 0) && !cell.classList.contains('portal-calendar-cell--muted')) {
+                cell.classList.add('sf-calendar-day-clickable');
+                cell.setAttribute('role', 'button');
+                cell.setAttribute('tabindex', '0');
+
+                if (!cell.dataset.eventsCount || cell.dataset.eventsCount === '0') {
+                    cell.dataset.eventsCount = '1';
+                }
+
+                if (!cell.dataset.date) {
+                    const day = (cell.innerText || '').trim().split(/\s+/)[0] || '';
+                    cell.dataset.date = day;
+                }
+
+                if (!cell.dataset.events) {
+                    cell.dataset.events = JSON.stringify([{
+                        title: 'Event recorded',
+                        type: 'event',
+                        notes: 'Event exists on this calendar day.',
+                        color: '#2563eb',
+                        date: cell.dataset.date || ''
+                    }]);
+                }
+            }
+        });
+    });
+})();
+</script>
+
+
+<style id="sf-money-requests-and-next-events-scroll">
+    .sf-money-requests-card {
+        overflow: hidden !important;
+    }
+
+    .sf-money-list {
+        margin-top: 16px;
+        display: grid;
+        gap: 12px;
+        max-height: 390px;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+
+    .sf-money-list::-webkit-scrollbar,
+    .sf-ne-list::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .sf-money-list::-webkit-scrollbar-thumb,
+    .sf-ne-list::-webkit-scrollbar-thumb {
+        background: rgba(100,116,139,.30);
+        border-radius: 999px;
+    }
+
+    .sf-money-item {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: center;
+        border-radius: 24px;
+        padding: 16px 18px;
+        background:
+            radial-gradient(circle at top right, rgba(76,167,168,.10), transparent 34%),
+            rgba(255,255,255,.92);
+        border: 1px solid rgba(15,23,42,.08);
+        box-shadow: 0 12px 28px rgba(15,23,42,.045);
+    }
+
+    .sf-money-title {
+        color: #0f172a;
+        font-size: 16px;
+        line-height: 1.25;
+        font-weight: 950;
+        letter-spacing: -.025em;
+    }
+
+    .sf-money-meta {
+        margin-top: 5px;
+        color: #64748b;
+        font-size: 13px;
+        line-height: 1.45;
+        font-weight: 750;
+    }
+
+    .sf-money-badges {
+        margin-top: 11px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .sf-money-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 30px;
+        padding: 0 11px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 950;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        border: 1px solid transparent;
+    }
+
+    .sf-money-badge--success {
+        background: #ecfdf5;
+        color: #047857;
+        border-color: rgba(16,185,129,.20);
+    }
+
+    .sf-money-badge--info {
+        background: #eff6ff;
+        color: #2459d3;
+        border-color: rgba(36,89,211,.16);
+    }
+
+    .sf-money-badge--warning {
+        background: #fff7ed;
+        color: #c2410c;
+        border-color: rgba(249,115,22,.20);
+    }
+
+    .sf-money-badge--danger {
+        background: #fef2f2;
+        color: #b91c1c;
+        border-color: rgba(239,68,68,.18);
+    }
+
+    .sf-money-badge--purple {
+        background: #f5f3ff;
+        color: #6d28d9;
+        border-color: rgba(124,58,237,.18);
+    }
+
+    .sf-money-badge--slate {
+        background: #f8fafc;
+        color: #475569;
+        border-color: rgba(100,116,139,.16);
+    }
+
+    .sf-money-amount {
+        color: #0f172a;
+        font-size: 18px;
+        line-height: 1;
+        font-weight: 950;
+        white-space: nowrap;
+    }
+
+    .sf-ne-list,
+    .portal-list {
+        scrollbar-width: thin;
+    }
+
+    .sf-ne-card .sf-ne-list,
+    section:has(.portal-title-md):has(+ .portal-list) .portal-list {
+        max-height: 560px !important;
+        overflow-y: auto !important;
+        padding-right: 4px !important;
+    }
+
+    .portal-card:has(.portal-title-md):has(.sf-ne-list) {
+        overflow: hidden !important;
+    }
+
+    .dark .sf-money-item {
+        background: rgba(15,23,42,.78);
+        border-color: rgba(255,255,255,.10);
+        box-shadow: 0 16px 42px rgba(0,0,0,.24);
+    }
+
+    .dark .sf-money-title,
+    .dark .sf-money-amount {
+        color: #ffffff;
+    }
+
+    .dark .sf-money-meta {
+        color: rgba(226,232,240,.74);
+    }
+
+    @media (max-width: 760px) {
+        .sf-money-item {
+            grid-template-columns: 1fr;
+        }
+
+        .sf-money-amount {
+            font-size: 16px;
+        }
+    }
+</style>
+
+
+<style id="sf-dashboard-scrollable-blocks-final">
+    /*
+        Keep portal dashboard blocks compact:
+        - Latest Updates becomes scrollable after a few items.
+        - Reimbursement Claims becomes scrollable after a few items.
+        No data logic is changed here.
+    */
+
+    .sf-dash-updates-list,
+    .sf-dashboard-reimbursement-list,
+    .sf-reimbursement-claims-list,
+    .sf-claims-list,
+    .portal-reimbursement-claims-list {
+        max-height: 390px !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        padding-right: 6px !important;
+        scroll-behavior: smooth !important;
+    }
+
+    .sf-dash-updates-list::-webkit-scrollbar,
+    .sf-dashboard-reimbursement-list::-webkit-scrollbar,
+    .sf-reimbursement-claims-list::-webkit-scrollbar,
+    .sf-claims-list::-webkit-scrollbar,
+    .portal-reimbursement-claims-list::-webkit-scrollbar {
+        width: 8px !important;
+    }
+
+    .sf-dash-updates-list::-webkit-scrollbar-track,
+    .sf-dashboard-reimbursement-list::-webkit-scrollbar-track,
+    .sf-reimbursement-claims-list::-webkit-scrollbar-track,
+    .sf-claims-list::-webkit-scrollbar-track,
+    .portal-reimbursement-claims-list::-webkit-scrollbar-track {
+        background: rgba(148, 163, 184, .12) !important;
+        border-radius: 999px !important;
+    }
+
+    .sf-dash-updates-list::-webkit-scrollbar-thumb,
+    .sf-dashboard-reimbursement-list::-webkit-scrollbar-thumb,
+    .sf-reimbursement-claims-list::-webkit-scrollbar-thumb,
+    .sf-claims-list::-webkit-scrollbar-thumb,
+    .portal-reimbursement-claims-list::-webkit-scrollbar-thumb {
+        background: rgba(36, 89, 211, .35) !important;
+        border-radius: 999px !important;
+    }
+
+    .dark .sf-dash-updates-list::-webkit-scrollbar-thumb,
+    .dark .sf-dashboard-reimbursement-list::-webkit-scrollbar-thumb,
+    .dark .sf-reimbursement-claims-list::-webkit-scrollbar-thumb,
+    .dark .sf-claims-list::-webkit-scrollbar-thumb,
+    .dark .portal-reimbursement-claims-list::-webkit-scrollbar-thumb {
+        background: rgba(96, 165, 250, .45) !important;
+    }
+</style>
+
+
+
+<style id="sf-dashboard-scrollable-latest-claims-fix">
+    /* Keep dashboard blocks compact: latest updates + reimbursement claims scroll instead of stretching the whole page */
+    .sf-dash-updates-list {
+        max-height: 430px !important;
+        overflow-y: auto !important;
+        padding-right: 6px !important;
+        scroll-behavior: smooth !important;
+    }
+
+    .sf-reimbursement-claims-list,
+    .sf-money-requests-list,
+    .sf-dashboard-claims-list {
+        max-height: 360px !important;
+        overflow-y: auto !important;
+        padding-right: 6px !important;
+        scroll-behavior: smooth !important;
+    }
+
+    .sf-dash-updates-list::-webkit-scrollbar,
+    .sf-reimbursement-claims-list::-webkit-scrollbar,
+    .sf-money-requests-list::-webkit-scrollbar,
+    .sf-dashboard-claims-list::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .sf-dash-updates-list::-webkit-scrollbar-thumb,
+    .sf-reimbursement-claims-list::-webkit-scrollbar-thumb,
+    .sf-money-requests-list::-webkit-scrollbar-thumb,
+    .sf-dashboard-claims-list::-webkit-scrollbar-thumb {
+        border-radius: 999px;
+        background: rgba(100, 116, 139, .28);
+    }
+
+    .dark .sf-dash-updates-list::-webkit-scrollbar-thumb,
+    .dark .sf-reimbursement-claims-list::-webkit-scrollbar-thumb,
+    .dark .sf-money-requests-list::-webkit-scrollbar-thumb,
+    .dark .sf-dashboard-claims-list::-webkit-scrollbar-thumb {
+        background: rgba(226, 232, 240, .25);
+    }
+</style>
+
 @endsection
 
 
 <style>
-    /* FINAL DIRECT PATCH ON /portal PAGE */
-    .portal-calendar-cell {
-        position: relative !important;
-        cursor: pointer !important;
-    }
-
-    .portal-calendar-cell.sf-no-events {
-        cursor: default !important;
-    }
-
-    .sf-portal-force-dots {
-        position: absolute !important;
-        top: 12px !important;
-        right: 12px !important;
-        display: flex !important;
-        gap: 5px !important;
-        flex-wrap: wrap !important;
-        justify-content: flex-end !important;
-        max-width: 62px !important;
-        z-index: 100 !important;
-        pointer-events: none !important;
-    }
-
-    .sf-portal-force-dot {
-        width: 11px !important;
-        height: 11px !important;
-        min-width: 11px !important;
-        min-height: 11px !important;
-        border-radius: 999px !important;
-        background: var(--event-color, #2563eb) !important;
-        background-color: var(--event-color, #2563eb) !important;
-        box-shadow: 0 0 0 5px color-mix(in srgb, var(--event-color, #2563eb) 18%, transparent) !important;
-    }
-
-    .sf-portal-force-card {
-        position: relative !important;
-        display: flex !important;
-        align-items: stretch !important;
-        gap: 12px !important;
-        background: color-mix(in srgb, var(--event-color, #2563eb) 12%, #ffffff) !important;
-        border-color: color-mix(in srgb, var(--event-color, #2563eb) 32%, transparent) !important;
-        box-shadow: 0 12px 28px color-mix(in srgb, var(--event-color, #2563eb) 10%, transparent) !important;
-    }
-
-    .sf-portal-force-card::before {
-        content: "" !important;
-        width: 7px !important;
-        border-radius: 999px !important;
-        background: var(--event-color, #2563eb) !important;
-        align-self: stretch !important;
-        flex: 0 0 7px !important;
-    }
-
-    .dark .sf-portal-force-card {
-        background: color-mix(in srgb, var(--event-color, #2563eb) 22%, rgba(15,23,42,.72)) !important;
-        border-color: color-mix(in srgb, var(--event-color, #2563eb) 36%, transparent) !important;
-    }
-
-    .sf-portal-force-badge {
-        background: var(--event-color, #2563eb) !important;
-        color: #ffffff !important;
-        border-color: var(--event-color, #2563eb) !important;
-    }
-
-    .sf-portal-day-box {
-        margin-top: 14px !important;
-        border-radius: 24px !important;
-        padding: 16px !important;
-        background: rgba(255,255,255,.96) !important;
-        border: 1px solid rgba(15,23,42,.08) !important;
-        box-shadow: 0 18px 42px rgba(15,23,42,.08) !important;
-    }
-
-    .dark .sf-portal-day-box {
-        background: rgba(15,23,42,.78) !important;
-        border-color: rgba(148,163,184,.18) !important;
-    }
-
-    .sf-portal-day-head {
-        display: flex !important;
-        justify-content: space-between !important;
-        align-items: center !important;
-        gap: 12px !important;
-        margin-bottom: 12px !important;
-    }
-
-    .sf-portal-day-title {
-        color: #0f172a !important;
-        font-size: 16px !important;
-        font-weight: 950 !important;
-        letter-spacing: -.03em !important;
-    }
-
-    .dark .sf-portal-day-title {
-        color: #fff !important;
-    }
-
-    .sf-portal-day-close {
-        border: 0 !important;
-        border-radius: 999px !important;
-        width: 32px !important;
-        height: 32px !important;
-        cursor: pointer !important;
-        background: #eef6ff !important;
-        color: #234b74 !important;
-        font-weight: 950 !important;
-    }
-
-    .sf-portal-day-list {
-        display: grid !important;
-        gap: 10px !important;
-    }
-
-    .sf-portal-day-item {
-        display: flex !important;
-        gap: 10px !important;
-        align-items: flex-start !important;
-        border-radius: 18px !important;
-        padding: 12px 14px !important;
-        background: color-mix(in srgb, var(--event-color, #2563eb) 10%, #ffffff) !important;
-        border: 1px solid color-mix(in srgb, var(--event-color, #2563eb) 24%, transparent) !important;
-    }
-
-    .dark .sf-portal-day-item {
-        background: color-mix(in srgb, var(--event-color, #2563eb) 18%, rgba(15,23,42,.72)) !important;
-        border-color: color-mix(in srgb, var(--event-color, #2563eb) 28%, transparent) !important;
-    }
-
-    .sf-portal-day-dot {
-        width: 11px !important;
-        height: 11px !important;
-        margin-top: 5px !important;
-        border-radius: 999px !important;
-        background: var(--event-color, #2563eb) !important;
-        flex: 0 0 auto !important;
-    }
-
-    .sf-portal-day-main strong {
-        display: block !important;
-        color: #0f172a !important;
-        font-size: 13px !important;
-        font-weight: 950 !important;
-    }
-
-    .dark .sf-portal-day-main strong {
-        color: #fff !important;
-    }
-
-    .sf-portal-day-main span {
-        display: block !important;
-        margin-top: 3px !important;
-        color: #64748b !important;
-        font-size: 12px !important;
-        font-weight: 700 !important;
-    }
-
-    .dark .sf-portal-day-main span {
-        color: #94a3b8 !important;
-    }
+.sf-event-md-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(37, 99, 235, .10);
+    color: #1d4ed8;
+    margin-right: 10px;
+    vertical-align: middle;
+    flex: 0 0 auto;
+}
+.sf-event-md-icon .material-symbols-rounded {
+    font-size: 20px;
+    line-height: 1;
+}
+.dark .sf-event-md-icon {
+    background: rgba(34, 211, 238, .14);
+    color: #67e8f9;
+}
 </style>
-
-<script>
-(function () {
-    const colors = {
-        ticket_travel: '#0ea5e9',
-        travel: '#0ea5e9',
-        mobilization: '#0ea5e9',
-        rotation_start: '#10b981',
-        rotation_end: '#14b8a6',
-        demobilization: '#6366f1',
-        visa_expiry: '#f97316',
-        medical_expiry: '#ef4444',
-        contract_end: '#8b5cf6',
-        passport_expiry: '#2563eb',
-        certificate_expiry: '#7c3aed',
-        desert_pass_expiry: '#d97706',
-        default: '#2563eb'
-    };
-
-    function normalize(text) {
-        return String(text || '')
-            .trim()
-            .toLowerCase()
-            .replace(/[\s\-\/]+/g, '_')
-            .replace(/[^a-z0-9_]/g, '');
-    }
-
-    function colorFor(text) {
-        const key = normalize(text);
-
-        if (colors[key]) return colors[key];
-
-        if (key.includes('ticket') || key.includes('travel') || key.includes('mobilization')) return colors.ticket_travel;
-        if (key.includes('rotation_start')) return colors.rotation_start;
-        if (key.includes('rotation_end')) return colors.rotation_end;
-        if (key.includes('demobilization')) return colors.demobilization;
-        if (key.includes('visa')) return colors.visa_expiry;
-        if (key.includes('medical')) return colors.medical_expiry;
-        if (key.includes('contract')) return colors.contract_end;
-        if (key.includes('passport')) return colors.passport_expiry;
-        if (key.includes('certificate')) return colors.certificate_expiry;
-        if (key.includes('desert')) return colors.desert_pass_expiry;
-
-        return colors.default;
-    }
-
-    function monthYearFromPage() {
-        const text = document.body.innerText || '';
-        const match = text.match(/\b(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER|JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{4})\b/i);
-        const now = new Date();
-
-        if (!match) {
-            return { month: now.getMonth() + 1, year: now.getFullYear() };
-        }
-
-        const months = {
-            jan:1,january:1,
-            feb:2,february:2,
-            mar:3,march:3,
-            apr:4,april:4,
-            may:5,
-            jun:6,june:6,
-            jul:7,july:7,
-            aug:8,august:8,
-            sep:9,september:9,
-            oct:10,october:10,
-            nov:11,november:11,
-            dec:12,december:12,
-        };
-
-        return {
-            month: months[match[1].toLowerCase()] || now.getMonth() + 1,
-            year: parseInt(match[2], 10) || now.getFullYear()
-        };
-    }
-
-    function dateKey(year, month, day) {
-        return String(year).padStart(4, '0') + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
-    }
-
-    function nextEventsContainer() {
-        const nodes = Array.from(document.querySelectorAll('h1,h2,h3,h4,.portal-title-md,.portal-title,.portal-card-title,div'));
-        const title = nodes.find(el => {
-            const t = (el.textContent || '').trim();
-            return /^Next Events$/i.test(t);
-        });
-
-        return title ? (title.closest('.portal-card,section,article') || title.parentElement) : null;
-    }
-
-    function collectNextEvents() {
-        const container = nextEventsContainer();
-        const map = {};
-
-        if (!container) return map;
-
-        const candidates = Array.from(container.querySelectorAll('div,article,li'))
-            .filter(el => {
-                const text = (el.textContent || '').trim();
-                return /20\d{2}-\d{2}-\d{2}/.test(text) && text.length < 500;
-            })
-            .filter((el, _, arr) => {
-                return !arr.some(other => other !== el && other.contains(el) && /20\d{2}-\d{2}-\d{2}/.test(other.textContent || ''));
-            });
-
-        candidates.forEach(card => {
-            const text = card.textContent || '';
-            const dateMatch = text.match(/20\d{2}-\d{2}-\d{2}/);
-            if (!dateMatch) return;
-
-            const date = dateMatch[0];
-            const lines = text.split('\n').map(v => v.trim()).filter(Boolean);
-
-            const title = lines.find(v =>
-                !/20\d{2}-\d{2}-\d{2}/.test(v)
-                && !/^important$/i.test(v)
-                && !/^[A-Z0-9_]{3,}$/.test(v)
-            ) || 'Event';
-
-            const type = lines.find(v => /^[A-Z0-9_]{3,}$/.test(v)) || title;
-            const color = colorFor(type + ' ' + title);
-
-            card.classList.add('sf-portal-force-card');
-            card.style.setProperty('--event-color', color);
-
-            Array.from(card.querySelectorAll('span,div')).forEach(el => {
-                const t = (el.textContent || '').trim();
-                if (/^[A-Z0-9_]{3,}$/.test(t)) {
-                    el.classList.add('sf-portal-force-badge');
-                    el.style.setProperty('--event-color', color);
-                }
-            });
-
-            if (!map[date]) map[date] = [];
-            map[date].push({ date, title, type, color });
-        });
-
-        return map;
-    }
-
-    function cleanCalendarCell(cell) {
-        cell.querySelectorAll('.sf-portal-force-dots, .portal-calendar-event-dot').forEach(el => el.remove());
-    }
-
-    function applyCalendarDots(eventMap) {
-        const { month, year } = monthYearFromPage();
-        const cells = Array.from(document.querySelectorAll('.portal-calendar-cell'));
-
-        cells.forEach(cell => {
-            cleanCalendarCell(cell);
-
-            const text = cell.textContent || '';
-            const dayMatch = text.match(/\b\d{1,2}\b/);
-
-            if (!dayMatch) return;
-
-            const day = parseInt(dayMatch[0], 10);
-
-            if (!day || cell.classList.contains('portal-calendar-cell--muted')) {
-                cell.classList.add('sf-no-events');
-                cell.onclick = null;
-                return;
-            }
-
-            const key = dateKey(year, month, day);
-            const events = eventMap[key] || [];
-
-            if (!events.length) {
-                cell.classList.add('sf-no-events');
-                cell.onclick = null;
-                return;
-            }
-
-            cell.classList.remove('sf-no-events');
-
-            const wrap = document.createElement('span');
-            wrap.className = 'sf-portal-force-dots';
-
-            events.slice(0, 4).forEach(event => {
-                const dot = document.createElement('span');
-                dot.className = 'sf-portal-force-dot';
-                dot.style.setProperty('--event-color', event.color || colors.default);
-                wrap.appendChild(dot);
-            });
-
-            cell.appendChild(wrap);
-
-            cell.onclick = function () {
-                showDayDetails(key, events, cell);
-            };
-        });
-    }
-
-    function ensureDayBox(anchor) {
-        let box = document.getElementById('sfPortalDayBox');
-
-        if (!box) {
-            box = document.createElement('div');
-            box.id = 'sfPortalDayBox';
-            box.className = 'sf-portal-day-box';
-            box.style.display = 'none';
-            box.innerHTML = `
-                <div class="sf-portal-day-head">
-                    <div class="sf-portal-day-title" id="sfPortalDayTitle">Selected Day</div>
-                    <button type="button" class="sf-portal-day-close" onclick="document.getElementById('sfPortalDayBox').style.display='none'">×</button>
-                </div>
-                <div class="sf-portal-day-list" id="sfPortalDayList"></div>
-            `;
-
-            const calendar = document.querySelector('.portal-calendar-large') || anchor.closest('.portal-card') || anchor.parentElement;
-            calendar.insertAdjacentElement('afterend', box);
-        }
-
-        return box;
-    }
-
-    function showDayDetails(date, events, anchor) {
-        const box = ensureDayBox(anchor);
-        const title = document.getElementById('sfPortalDayTitle');
-        const list = document.getElementById('sfPortalDayList');
-
-        if (!box || !title || !list) return;
-
-        title.textContent = 'Events on ' + date;
-        list.innerHTML = '';
-
-        events.forEach(event => {
-            const item = document.createElement('div');
-            item.className = 'sf-portal-day-item';
-            item.style.setProperty('--event-color', event.color || colors.default);
-            item.innerHTML = `
-                <div class="sf-portal-day-dot"></div>
-                <div class="sf-portal-day-main">
-                    <strong>${event.title || 'Event'}</strong>
-                    <span>${String(event.type || '').replaceAll('_', ' ')}</span>
-                </div>
-            `;
-
-            list.appendChild(item);
-        });
-
-        box.style.display = 'block';
-        box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-
-    function runPortalCalendarColoring() {
-        const map = collectNextEvents();
-        applyCalendarDots(map);
-    }
-
-    document.addEventListener('DOMContentLoaded', function () {
-        setTimeout(runPortalCalendarColoring, 200);
-        setTimeout(runPortalCalendarColoring, 800);
-        setTimeout(runPortalCalendarColoring, 1600);
-        setTimeout(runPortalCalendarColoring, 2600);
-    });
-
-    window.addEventListener('load', function () {
-        setTimeout(runPortalCalendarColoring, 300);
-        setTimeout(runPortalCalendarColoring, 1200);
-    });
-
-    document.addEventListener('click', function (e) {
-        const btn = e.target.closest('a,button');
-        if (!btn) return;
-
-        const text = btn.textContent || '';
-        if (/prev|next/i.test(text)) {
-            setTimeout(runPortalCalendarColoring, 500);
-            setTimeout(runPortalCalendarColoring, 1200);
-        }
-    });
-})();
-</script>
-
-
-<style>
-    /* FINAL PORTAL MD3 POLISH — dashboard only */
-    :root {
-        --sf-md3-primary: #2563eb;
-        --sf-md3-teal: #14b8a6;
-        --sf-md3-ink: #0f172a;
-        --sf-md3-muted: #64748b;
-        --sf-md3-surface: rgba(255,255,255,.92);
-        --sf-md3-border: rgba(15,23,42,.08);
-    }
-
-    .portal-card,
-    .portal-kpi,
-    .portal-panel,
-    .portal-section,
-    .portal-calendar-large,
-    .portal-calendar-cell,
-    .portal-update-card,
-    .portal-file-card,
-    .portal-slip-card {
-        border-radius: 28px !important;
-        border-color: var(--sf-md3-border) !important;
-        box-shadow: 0 16px 40px rgba(15,23,42,.055) !important;
-    }
-
-    .portal-card,
-    .portal-panel,
-    .portal-section {
-        background:
-            radial-gradient(circle at top right, rgba(20,184,166,.07), transparent 36%),
-            rgba(255,255,255,.94) !important;
-    }
-
-    .dark .portal-card,
-    .dark .portal-panel,
-    .dark .portal-section {
-        background:
-            radial-gradient(circle at top right, rgba(20,184,166,.11), transparent 36%),
-            rgba(15,23,42,.74) !important;
-        border-color: rgba(148,163,184,.16) !important;
-    }
-
-    .portal-btn,
-    .portal-nav a,
-    .portal-nav button,
-    button,
-    a.portal-btn {
-        border-radius: 999px !important;
-        font-weight: 850 !important;
-    }
-
-    .portal-title,
-    .portal-title-md,
-    .portal-card-title {
-        letter-spacing: -.04em !important;
-        font-weight: 950 !important;
-    }
-
-    /* Next Events final clean layout */
-    .sf-portal-force-card {
-        display: grid !important;
-        grid-template-columns: 7px minmax(0, 1fr) auto !important;
-        align-items: center !important;
-        gap: 14px !important;
-        min-height: 64px !important;
-        padding: 14px 18px !important;
-        border-radius: 22px !important;
-        background: color-mix(in srgb, var(--event-color, #2563eb) 12%, #ffffff) !important;
-        border: 1px solid color-mix(in srgb, var(--event-color, #2563eb) 32%, transparent) !important;
-        box-shadow: 0 12px 28px color-mix(in srgb, var(--event-color, #2563eb) 10%, transparent) !important;
-    }
-
-    .sf-portal-force-card::before {
-        content: "" !important;
-        width: 7px !important;
-        height: 36px !important;
-        border-radius: 999px !important;
-        background: var(--event-color, #2563eb) !important;
-        grid-column: 1 !important;
-    }
-
-    .sf-portal-force-card .sf-next-main {
-        grid-column: 2 !important;
-        min-width: 0 !important;
-    }
-
-    .sf-portal-force-card .sf-next-title {
-        color: #0f172a !important;
-        font-size: 15px !important;
-        font-weight: 950 !important;
-        letter-spacing: -.025em !important;
-        line-height: 1.25 !important;
-    }
-
-    .sf-portal-force-card .sf-next-type {
-        margin-top: 4px !important;
-        color: #64748b !important;
-        font-size: 12px !important;
-        font-weight: 750 !important;
-    }
-
-    .sf-portal-force-card .sf-next-date {
-        grid-column: 3 !important;
-        justify-self: end !important;
-        color: #334155 !important;
-        background: rgba(255,255,255,.74) !important;
-        border: 1px solid rgba(15,23,42,.07) !important;
-        border-radius: 999px !important;
-        padding: 8px 12px !important;
-        font-size: 13px !important;
-        font-weight: 900 !important;
-        white-space: nowrap !important;
-    }
-
-    .dark .sf-portal-force-card {
-        background: color-mix(in srgb, var(--event-color, #2563eb) 22%, rgba(15,23,42,.72)) !important;
-        border-color: color-mix(in srgb, var(--event-color, #2563eb) 36%, transparent) !important;
-    }
-
-    .dark .sf-portal-force-card .sf-next-title {
-        color: #fff !important;
-    }
-
-    .dark .sf-portal-force-card .sf-next-type {
-        color: #94a3b8 !important;
-    }
-
-    .dark .sf-portal-force-card .sf-next-date {
-        color: #e2e8f0 !important;
-        background: rgba(255,255,255,.08) !important;
-        border-color: rgba(148,163,184,.14) !important;
-    }
-
-    .sf-portal-force-badge {
-        display: none !important;
-    }
-
-    /* hide old inline day box if previous patch created it */
-    #sfPortalDayBox {
-        display: none !important;
-    }
-
-    /* MD3 popup for calendar day */
-    .sf-md3-day-modal-backdrop {
-        position: fixed !important;
-        inset: 0 !important;
-        z-index: 999999 !important;
-        display: none;
-        place-items: center !important;
-        padding: 18px !important;
-        background: rgba(15,23,42,.58) !important;
-        backdrop-filter: blur(10px) !important;
-    }
-
-    .sf-md3-day-modal {
-        width: min(560px, 100%) !important;
-        max-height: min(720px, 88vh) !important;
-        overflow: hidden !important;
-        border-radius: 30px !important;
-        background:
-            radial-gradient(circle at top right, rgba(20,184,166,.10), transparent 38%),
-            #ffffff !important;
-        border: 1px solid rgba(15,23,42,.10) !important;
-        box-shadow: 0 34px 90px rgba(0,0,0,.28) !important;
-    }
-
-    .dark .sf-md3-day-modal {
-        background:
-            radial-gradient(circle at top right, rgba(20,184,166,.15), transparent 38%),
-            #0f172a !important;
-        border-color: rgba(148,163,184,.18) !important;
-    }
-
-    .sf-md3-day-modal-head {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: space-between !important;
-        gap: 14px !important;
-        padding: 20px 22px !important;
-        border-bottom: 1px solid rgba(15,23,42,.08) !important;
-    }
-
-    .dark .sf-md3-day-modal-head {
-        border-color: rgba(148,163,184,.16) !important;
-    }
-
-    .sf-md3-day-kicker {
-        width: fit-content !important;
-        border-radius: 999px !important;
-        padding: 6px 10px !important;
-        background: #eef6ff !important;
-        color: #234b74 !important;
-        font-size: 10px !important;
-        font-weight: 950 !important;
-        letter-spacing: .12em !important;
-        text-transform: uppercase !important;
-        margin-bottom: 8px !important;
-    }
-
-    .sf-md3-day-title {
-        color: #0f172a !important;
-        font-size: 22px !important;
-        font-weight: 950 !important;
-        letter-spacing: -.05em !important;
-    }
-
-    .dark .sf-md3-day-title {
-        color: #fff !important;
-    }
-
-    .sf-md3-day-close {
-        border: 0 !important;
-        width: 40px !important;
-        height: 40px !important;
-        border-radius: 999px !important;
-        cursor: pointer !important;
-        background: #eef6ff !important;
-        color: #234b74 !important;
-        font-size: 22px !important;
-        font-weight: 950 !important;
-    }
-
-    .sf-md3-day-list {
-        padding: 18px !important;
-        overflow-y: auto !important;
-        max-height: 560px !important;
-        display: grid !important;
-        gap: 12px !important;
-    }
-
-    .sf-md3-day-item {
-        display: grid !important;
-        grid-template-columns: 12px minmax(0, 1fr) !important;
-        gap: 12px !important;
-        align-items: start !important;
-        border-radius: 22px !important;
-        padding: 14px !important;
-        background: color-mix(in srgb, var(--event-color, #2563eb) 11%, #ffffff) !important;
-        border: 1px solid color-mix(in srgb, var(--event-color, #2563eb) 28%, transparent) !important;
-    }
-
-    .dark .sf-md3-day-item {
-        background: color-mix(in srgb, var(--event-color, #2563eb) 20%, rgba(15,23,42,.72)) !important;
-        border-color: color-mix(in srgb, var(--event-color, #2563eb) 34%, transparent) !important;
-    }
-
-    .sf-md3-day-dot {
-        width: 12px !important;
-        height: 12px !important;
-        margin-top: 5px !important;
-        border-radius: 999px !important;
-        background: var(--event-color, #2563eb) !important;
-        box-shadow: 0 0 0 5px color-mix(in srgb, var(--event-color, #2563eb) 15%, transparent) !important;
-    }
-
-    .sf-md3-day-item-title {
-        color: #0f172a !important;
-        font-size: 15px !important;
-        font-weight: 950 !important;
-        line-height: 1.35 !important;
-    }
-
-    .dark .sf-md3-day-item-title {
-        color: #fff !important;
-    }
-
-    .sf-md3-day-item-meta {
-        margin-top: 4px !important;
-        color: #64748b !important;
-        font-size: 12px !important;
-        font-weight: 750 !important;
-    }
-
-    .dark .sf-md3-day-item-meta {
-        color: #94a3b8 !important;
-    }
-
-    .sf-md3-no-events {
-        border-radius: 22px !important;
-        padding: 16px !important;
-        background: #f8fafc !important;
-        color: #64748b !important;
-        font-weight: 850 !important;
-    }
-
-    .dark .sf-md3-no-events {
-        background: rgba(255,255,255,.06) !important;
-        color: #94a3b8 !important;
-    }
-
-    @media (max-width: 720px) {
-        .sf-portal-force-card {
-            grid-template-columns: 6px minmax(0, 1fr) !important;
-        }
-
-        .sf-portal-force-card .sf-next-date {
-            grid-column: 2 !important;
-            justify-self: start !important;
-            margin-top: 8px !important;
-        }
-    }
-</style>
-
-<div id="sfMd3DayModalBackdrop" class="sf-md3-day-modal-backdrop">
-    <div class="sf-md3-day-modal">
-        <div class="sf-md3-day-modal-head">
-            <div>
-                <div class="sf-md3-day-kicker">Calendar Day</div>
-                <div id="sfMd3DayModalTitle" class="sf-md3-day-title">Selected Day</div>
-            </div>
-            <button type="button" id="sfMd3DayModalClose" class="sf-md3-day-close">×</button>
-        </div>
-        <div id="sfMd3DayModalList" class="sf-md3-day-list"></div>
-    </div>
-</div>
-
-<script>
-(function () {
-    const colors = {
-        ticket_travel: '#0ea5e9',
-        travel: '#0ea5e9',
-        mobilization: '#0ea5e9',
-        rotation_start: '#10b981',
-        rotation_end: '#14b8a6',
-        demobilization: '#6366f1',
-        visa_expiry: '#f97316',
-        medical_expiry: '#ef4444',
-        contract_end: '#8b5cf6',
-        passport_expiry: '#2563eb',
-        certificate_expiry: '#7c3aed',
-        desert_pass_expiry: '#d97706',
-        default: '#2563eb'
-    };
-
-    function nice(text) {
-        const raw = String(text || '').trim();
-        if (!raw) return '';
-        return raw
-            .toLowerCase()
-            .replace(/_/g, ' ')
-            .replace(/\b\w/g, function (m) { return m.toUpperCase(); });
-    }
-
-    function normalize(text) {
-        return String(text || '')
-            .trim()
-            .toLowerCase()
-            .replace(/[\s\-\/]+/g, '_')
-            .replace(/[^a-z0-9_]/g, '');
-    }
-
-    function colorFor(text) {
-        const key = normalize(text);
-
-        if (colors[key]) return colors[key];
-        if (key.includes('ticket') || key.includes('travel') || key.includes('mobilization')) return colors.ticket_travel;
-        if (key.includes('rotation_start')) return colors.rotation_start;
-        if (key.includes('rotation_end')) return colors.rotation_end;
-        if (key.includes('demobilization')) return colors.demobilization;
-        if (key.includes('visa')) return colors.visa_expiry;
-        if (key.includes('medical')) return colors.medical_expiry;
-        if (key.includes('contract')) return colors.contract_end;
-        if (key.includes('passport')) return colors.passport_expiry;
-        if (key.includes('certificate')) return colors.certificate_expiry;
-        if (key.includes('desert')) return colors.desert_pass_expiry;
-
-        return colors.default;
-    }
-
-    function currentMonthYear() {
-        const text = document.body.innerText || '';
-        const match = text.match(/\b(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER|JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{4})\b/i);
-        const now = new Date();
-
-        if (!match) return { month: now.getMonth() + 1, year: now.getFullYear() };
-
-        const months = {
-            jan:1,january:1,
-            feb:2,february:2,
-            mar:3,march:3,
-            apr:4,april:4,
-            may:5,
-            jun:6,june:6,
-            jul:7,july:7,
-            aug:8,august:8,
-            sep:9,september:9,
-            oct:10,october:10,
-            nov:11,november:11,
-            dec:12,december:12,
-        };
-
-        return {
-            month: months[match[1].toLowerCase()] || now.getMonth() + 1,
-            year: parseInt(match[2], 10) || now.getFullYear()
-        };
-    }
-
-    function dateKey(year, month, day) {
-        return String(year).padStart(4, '0') + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
-    }
-
-    function nextEventsContainer() {
-        const title = Array.from(document.querySelectorAll('h1,h2,h3,h4,.portal-title-md,.portal-title,.portal-card-title,div'))
-            .find(el => /^Next Events$/i.test((el.textContent || '').trim()));
-
-        return title ? (title.closest('.portal-card,section,article') || title.parentElement) : null;
-    }
-
-    function collectEventsAndRewriteCards() {
-        const container = nextEventsContainer();
-        const map = {};
-        if (!container) return map;
-
-        const candidates = Array.from(container.querySelectorAll('div,article,li'))
-            .filter(el => {
-                const text = (el.textContent || '').trim();
-                return /20\d{2}-\d{2}-\d{2}/.test(text) && text.length < 500;
-            })
-            .filter((el, _, arr) => !arr.some(other => other !== el && other.contains(el) && /20\d{2}-\d{2}-\d{2}/.test(other.textContent || '')));
-
-        candidates.forEach(card => {
-            if (card.dataset.sfRewritten === '1') {
-                const date = card.dataset.sfDate;
-                const title = card.dataset.sfTitle;
-                const type = card.dataset.sfType;
-                const color = card.dataset.sfColor || colorFor(type + ' ' + title);
-                if (!map[date]) map[date] = [];
-                map[date].push({ date, title, type, color });
-                return;
-            }
-
-            const text = card.textContent || '';
-            const dateMatch = text.match(/20\d{2}-\d{2}-\d{2}/);
-            if (!dateMatch) return;
-
-            const date = dateMatch[0];
-            const lines = text.split('\n').map(v => v.trim()).filter(Boolean);
-
-            const title = lines.find(v =>
-                !/20\d{2}-\d{2}-\d{2}/.test(v)
-                && !/^important$/i.test(v)
-                && !/^[A-Z0-9_]{3,}$/.test(v)
-            ) || 'Event';
-
-            const typeRaw = lines.find(v => /^[A-Z0-9_]{3,}$/.test(v)) || title;
-            const type = nice(typeRaw);
-            const color = colorFor(typeRaw + ' ' + title);
-
-            card.dataset.sfRewritten = '1';
-            card.dataset.sfDate = date;
-            card.dataset.sfTitle = title;
-            card.dataset.sfType = type;
-            card.dataset.sfColor = color;
-
-            card.classList.add('sf-portal-force-card');
-            card.style.setProperty('--event-color', color);
-
-            card.innerHTML = `
-                <div class="sf-next-main">
-                    <div class="sf-next-title">${title}</div>
-                    <div class="sf-next-type">${type}</div>
-                </div>
-                <div class="sf-next-date">${date}</div>
-            `;
-
-            if (!map[date]) map[date] = [];
-            map[date].push({ date, title, type, color });
-        });
-
-        return map;
-    }
-
-    function cleanCalendarCell(cell) {
-        cell.querySelectorAll('.sf-portal-force-dots, .portal-calendar-event-dot, .sf-force-portal-dots').forEach(el => el.remove());
-    }
-
-    function applyCalendarDots(eventMap) {
-        const { month, year } = currentMonthYear();
-        const cells = Array.from(document.querySelectorAll('.portal-calendar-cell'));
-
-        cells.forEach(cell => {
-            cleanCalendarCell(cell);
-
-            const text = cell.textContent || '';
-            const dayMatch = text.match(/\b\d{1,2}\b/);
-
-            if (!dayMatch) return;
-
-            const day = parseInt(dayMatch[0], 10);
-
-            if (!day || cell.classList.contains('portal-calendar-cell--muted')) {
-                cell.onclick = null;
-                return;
-            }
-
-            const key = dateKey(year, month, day);
-            const events = eventMap[key] || [];
-
-            if (!events.length) {
-                cell.onclick = null;
-                return;
-            }
-
-            const wrap = document.createElement('span');
-            wrap.className = 'sf-portal-force-dots';
-
-            events.slice(0, 4).forEach(event => {
-                const dot = document.createElement('span');
-                dot.className = 'sf-portal-force-dot';
-                dot.style.setProperty('--event-color', event.color || colors.default);
-                wrap.appendChild(dot);
-            });
-
-            cell.appendChild(wrap);
-
-            cell.onclick = function () {
-                openDayModal(key, events);
-            };
-        });
-    }
-
-    function openDayModal(date, events) {
-        const backdrop = document.getElementById('sfMd3DayModalBackdrop');
-        const title = document.getElementById('sfMd3DayModalTitle');
-        const list = document.getElementById('sfMd3DayModalList');
-
-        if (!backdrop || !title || !list) return;
-
-        title.textContent = date;
-        list.innerHTML = '';
-
-        if (!events.length) {
-            list.innerHTML = '<div class="sf-md3-no-events">No events on this date.</div>';
-        } else {
-            events.forEach(event => {
-                const item = document.createElement('div');
-                item.className = 'sf-md3-day-item';
-                item.style.setProperty('--event-color', event.color || colors.default);
-                item.innerHTML = `
-                    <div class="sf-md3-day-dot"></div>
-                    <div>
-                        <div class="sf-md3-day-item-title">${event.title || 'Event'}</div>
-                        <div class="sf-md3-day-item-meta">${event.type || ''}</div>
-                    </div>
-                `;
-                list.appendChild(item);
-            });
-        }
-
-        backdrop.style.display = 'grid';
-        document.body.style.overflow = 'hidden';
-    }
-
-    function closeDayModal() {
-        const backdrop = document.getElementById('sfMd3DayModalBackdrop');
-        if (backdrop) backdrop.style.display = 'none';
-        document.body.style.overflow = '';
-    }
-
-    function cleanUnderscoreTexts() {
-        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-        const nodes = [];
-        while (walker.nextNode()) nodes.push(walker.currentNode);
-
-        nodes.forEach(node => {
-            const text = node.nodeValue;
-            if (!text || !text.includes('_')) return;
-
-            if (/^[\sA-Za-z0-9_/-]+$/.test(text) && /[a-zA-Z]+_[a-zA-Z]+/.test(text)) {
-                node.nodeValue = text.replace(/[A-Za-z]+(?:_[A-Za-z0-9]+)+/g, function (m) {
-                    return nice(m);
-                });
-            }
-        });
-    }
-
-    function run() {
-        cleanUnderscoreTexts();
-        const map = collectEventsAndRewriteCards();
-        applyCalendarDots(map);
-    }
-
-    document.addEventListener('DOMContentLoaded', function () {
-        document.getElementById('sfMd3DayModalClose')?.addEventListener('click', closeDayModal);
-        document.getElementById('sfMd3DayModalBackdrop')?.addEventListener('click', function (e) {
-            if (e.target === this) closeDayModal();
-        });
-
-        setTimeout(run, 200);
-        setTimeout(run, 800);
-        setTimeout(run, 1600);
-        setTimeout(run, 2600);
-    });
-
-    window.addEventListener('load', function () {
-        setTimeout(run, 300);
-        setTimeout(run, 1200);
-    });
-
-    document.addEventListener('click', function (e) {
-        const btn = e.target.closest('a,button');
-        if (!btn) return;
-
-        const text = btn.textContent || '';
-        if (/prev|next/i.test(text)) {
-            setTimeout(run, 500);
-            setTimeout(run, 1200);
-        }
-    });
-})();
-</script>
-
-
-<style>
-    /* FINAL CALENDAR PREV/NEXT BUTTONS TUNE */
-    .portal-calendar-large a,
-    .portal-calendar-large button,
-    .portal-calendar-large .portal-btn,
-    .portal-calendar-large [href*="month"],
-    .portal-calendar-large [href*="year"] {
-        opacity: 1 !important;
-        visibility: visible !important;
-    }
-
-    .portal-calendar-large a[href*="month"],
-    .portal-calendar-large a[href*="year"],
-    .portal-calendar-large .portal-btn {
-        min-height: 42px !important;
-        padding: 0 18px !important;
-        border-radius: 999px !important;
-        background: #eef6ff !important;
-        color: #1d4ed8 !important;
-        border: 1px solid rgba(37,99,235,.16) !important;
-        box-shadow: 0 10px 24px rgba(37,99,235,.10) !important;
-        font-size: 13px !important;
-        font-weight: 950 !important;
-        letter-spacing: -.01em !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        gap: 6px !important;
-    }
-
-    .portal-calendar-large a[href*="month"]:hover,
-    .portal-calendar-large a[href*="year"]:hover,
-    .portal-calendar-large .portal-btn:hover {
-        background: #dbeafe !important;
-        color: #1e40af !important;
-        transform: translateY(-1px) !important;
-    }
-
-    .portal-calendar-large .portal-badge,
-    .portal-calendar-large [class*="badge"] {
-        min-height: 42px !important;
-        padding: 0 18px !important;
-        border-radius: 999px !important;
-        background: #eff6ff !important;
-        color: #1d4ed8 !important;
-        border: 1px solid rgba(37,99,235,.12) !important;
-        font-weight: 950 !important;
-        letter-spacing: .08em !important;
-        text-transform: uppercase !important;
-    }
-</style>
-
-
-<style>
-    /* HARD FIX — Portal calendar Prev / Next / Month visibility */
-    .portal-calendar-large .portal-btn,
-    .portal-calendar-large a,
-    .portal-calendar-large button {
-        opacity: 1 !important;
-        visibility: visible !important;
-        text-shadow: none !important;
-    }
-
-    .portal-calendar-large a[href*="month"],
-    .portal-calendar-large a[href*="year"],
-    .portal-calendar-large .portal-btn {
-        background: #e8f0ff !important;
-        color: #0b57d0 !important;
-        border: 1px solid rgba(11,87,208,.18) !important;
-        min-height: 42px !important;
-        height: 42px !important;
-        padding: 0 18px !important;
-        border-radius: 999px !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        font-size: 13px !important;
-        font-weight: 950 !important;
-        line-height: 1 !important;
-        box-shadow: 0 10px 24px rgba(11,87,208,.10) !important;
-        text-decoration: none !important;
-    }
-
-    .portal-calendar-large a[href*="month"]:hover,
-    .portal-calendar-large a[href*="year"]:hover,
-    .portal-calendar-large .portal-btn:hover {
-        background: #dbe7ff !important;
-        color: #0842a0 !important;
-        transform: translateY(-1px) !important;
-    }
-
-    .portal-calendar-large .portal-badge,
-    .portal-calendar-large [class*="badge"] {
-        background: #eef6ff !important;
-        color: #0b57d0 !important;
-        border: 1px solid rgba(11,87,208,.12) !important;
-        min-height: 42px !important;
-        height: 42px !important;
-        padding: 0 18px !important;
-        border-radius: 999px !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        font-size: 12px !important;
-        font-weight: 950 !important;
-        letter-spacing: .08em !important;
-        text-transform: uppercase !important;
-        box-shadow: none !important;
-    }
-</style>
-
-<script>
-(function () {
-    function hardFixCalendarButtons() {
-        const calendar = document.querySelector('.portal-calendar-large');
-        if (!calendar) return;
-
-        const elements = Array.from(calendar.querySelectorAll('a,button,span,div'));
-
-        elements.forEach(function (el) {
-            const text = (el.textContent || '').trim();
-
-            if (/prev|next|←|→/i.test(text)) {
-                el.style.setProperty('background', '#e8f0ff', 'important');
-                el.style.setProperty('color', '#0b57d0', 'important');
-                el.style.setProperty('border', '1px solid rgba(11,87,208,.18)', 'important');
-                el.style.setProperty('min-height', '42px', 'important');
-                el.style.setProperty('height', '42px', 'important');
-                el.style.setProperty('padding', '0 18px', 'important');
-                el.style.setProperty('border-radius', '999px', 'important');
-                el.style.setProperty('display', 'inline-flex', 'important');
-                el.style.setProperty('align-items', 'center', 'important');
-                el.style.setProperty('justify-content', 'center', 'important');
-                el.style.setProperty('font-size', '13px', 'important');
-                el.style.setProperty('font-weight', '950', 'important');
-                el.style.setProperty('opacity', '1', 'important');
-                el.style.setProperty('visibility', 'visible', 'important');
-                el.style.setProperty('text-shadow', 'none', 'important');
-            }
-
-            if (/^(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{4}$/i.test(text)) {
-                el.style.setProperty('background', '#eef6ff', 'important');
-                el.style.setProperty('color', '#0b57d0', 'important');
-                el.style.setProperty('border', '1px solid rgba(11,87,208,.12)', 'important');
-                el.style.setProperty('min-height', '42px', 'important');
-                el.style.setProperty('height', '42px', 'important');
-                el.style.setProperty('padding', '0 18px', 'important');
-                el.style.setProperty('border-radius', '999px', 'important');
-                el.style.setProperty('display', 'inline-flex', 'important');
-                el.style.setProperty('align-items', 'center', 'important');
-                el.style.setProperty('justify-content', 'center', 'important');
-                el.style.setProperty('font-size', '12px', 'important');
-                el.style.setProperty('font-weight', '950', 'important');
-                el.style.setProperty('letter-spacing', '.08em', 'important');
-                el.style.setProperty('text-transform', 'uppercase', 'important');
-                el.style.setProperty('opacity', '1', 'important');
-                el.style.setProperty('visibility', 'visible', 'important');
-                el.style.setProperty('text-shadow', 'none', 'important');
-            }
-        });
-    }
-
-    document.addEventListener('DOMContentLoaded', function () {
-        setTimeout(hardFixCalendarButtons, 100);
-        setTimeout(hardFixCalendarButtons, 500);
-        setTimeout(hardFixCalendarButtons, 1200);
-    });
-
-    window.addEventListener('load', function () {
-        setTimeout(hardFixCalendarButtons, 300);
-    });
-
-    document.addEventListener('click', function () {
-        setTimeout(hardFixCalendarButtons, 300);
-    });
-})();
-</script>
-
-
 
 

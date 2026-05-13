@@ -2,14 +2,11 @@
 
 namespace App\Filament\Resources\ArchivedJobOpenings\Tables;
 
-use App\Models\Job;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
-use Filament\Actions\DeleteAction;
 use Filament\Notifications\Notification;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
 class ArchivedJobOpeningsTable
@@ -17,8 +14,6 @@ class ArchivedJobOpeningsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query
-                ->where('is_archived', true))
             ->columns([
                 Tables\Columns\TextColumn::make('title')
                     ->label('Job Title')
@@ -44,10 +39,6 @@ class ArchivedJobOpeningsTable
                     ->formatStateUsing(fn ($state) => filled($state) ? ucfirst(str_replace('_', ' ', $state)) : '-')
                     ->color('info'),
 
-                Tables\Columns\IconColumn::make('is_active')
-                    ->label('Active')
-                    ->boolean(),
-
                 Tables\Columns\TextColumn::make('closing_date')
                     ->label('Closing Date')
                     ->date('M j, Y')
@@ -56,26 +47,8 @@ class ArchivedJobOpeningsTable
 
                 Tables\Columns\TextColumn::make('archive_reason')
                     ->label('Archive Reason')
-                    ->badge()
-                    ->formatStateUsing(function ($state) {
-                        return match ($state) {
-                            'expired' => 'Expired',
-                            'closed' => 'Closed',
-                            'filled' => 'Filled',
-                            'archived_manually' => 'Archived Manually',
-                            null, '' => '-',
-                            default => ucfirst(str_replace('_', ' ', (string) $state)),
-                        };
-                    })
-                    ->color(function ($state) {
-                        return match ($state) {
-                            'expired' => 'warning',
-                            'closed' => 'gray',
-                            'filled' => 'success',
-                            'archived_manually' => 'warning',
-                            default => 'gray',
-                        };
-                    }),
+                    ->formatStateUsing(fn ($state) => filled($state) ? $state : '-')
+                    ->toggleable(),
 
                 Tables\Columns\TextColumn::make('archived_at')
                     ->label('Archived At')
@@ -84,84 +57,113 @@ class ArchivedJobOpeningsTable
                     ->placeholder('-'),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('employment_type')
-                    ->label('Employment Type')
-                    ->options([
-                        'full_time' => 'Full Time',
-                        'part_time' => 'Part Time',
-                        'contract' => 'Contract',
-                        'temporary' => 'Temporary',
-                    ]),
-
-                Tables\Filters\SelectFilter::make('archive_reason')
-                    ->label('Archive Reason')
-                    ->options([
-                        'expired' => 'Expired',
-                        'closed' => 'Closed',
-                        'filled' => 'Filled',
-                        'archived_manually' => 'Archived Manually',
-                    ]),
+                //
             ])
             ->recordActions([
                 Action::make('restore')
-                    ->label('Restore')
-                    ->icon('heroicon-o-arrow-uturn-left')
-                    ->color('success')
+                    ->label('')
+                    ->tooltip('Restore job opening')
+                    ->icon('heroicon-o-arrow-path')
+                    ->iconButton()
+                    ->color('gray')
                     ->requiresConfirmation()
-                    ->modalHeading('Restore Job Opening')
-                    ->modalDescription('Are you sure you want to restore this job opening back to the active list?')
-                    ->modalSubmitActionLabel('Yes, Restore')
-                    ->action(function (Job $record) {
-                        $record->update([
-                            'is_archived' => false,
-                            'archive_reason' => null,
-                            'archived_at' => null,
-                        ]);
+                    ->modalHeading('Restore archived job opening?')
+                    ->modalDescription('This job opening will be restored back to the active Job Openings list.')
+                    ->modalSubmitActionLabel('Restore')
+                    ->action(function ($record): void {
+                        $data = ['is_archived' => false];
 
-                        Notification::make()
-                            ->title('Job opening restored successfully')
-                            ->success()
-                            ->send();
-                    }),
-
-                DeleteAction::make()
-                    ->label('Permanent Delete')
-                    ->color('danger')
-                    ->requiresConfirmation(),
-            ])
-            ->bulkActions([
-                BulkAction::make('restore_selected')
-                    ->label('Restore Selected')
-                    ->color('success')
-                    ->requiresConfirmation()
-                    ->action(function (Collection $records) {
-                        foreach ($records as $record) {
-                            $record->update([
-                                'is_archived' => false,
-                                'archive_reason' => null,
-                                'archived_at' => null,
-                            ]);
+                        if (\Illuminate\Support\Facades\Schema::hasColumn($record->getTable(), 'archived_at')) {
+                            $data['archived_at'] = null;
                         }
 
+                        if (\Illuminate\Support\Facades\Schema::hasColumn($record->getTable(), 'archive_reason')) {
+                            $data['archive_reason'] = null;
+                        }
+
+                        $record->forceFill($data)->save();
+
                         Notification::make()
-                            ->title('Selected archived job openings restored successfully')
+                            ->title('Job opening restored')
                             ->success()
                             ->send();
-                    }),
+                    })
+                    ->extraAttributes([
+                        'class' => 'sf-job-row-action sf-job-row-action-restore',
+                    ])
+                    ->visible(fn () => (bool) auth()->user()?->canErp('jobs', 'edit')),
 
-                BulkAction::make('bulk_delete')
+                Action::make('permanentDelete')
+                    ->label('')
+                    ->tooltip('Permanent delete')
+                    ->icon('heroicon-o-trash')
+                    ->iconButton()
+                    ->color('gray')
+                    ->requiresConfirmation()
+                    ->modalHeading('Permanently delete this job opening?')
+                    ->modalDescription('This action cannot be undone.')
+                    ->modalSubmitActionLabel('Permanent Delete')
+                    ->action(function ($record): void {
+                        $record->delete();
+
+                        Notification::make()
+                            ->title('Job opening permanently deleted')
+                            ->success()
+                            ->send();
+                    })
+                    ->extraAttributes([
+                        'class' => 'sf-job-row-action sf-job-row-action-delete',
+                    ])
+                    ->visible(fn () => (bool) auth()->user()?->canErp('jobs', 'delete')),
+            ])
+            ->bulkActions([
+                BulkAction::make('restoreSelected')
+                    ->label('Restore Selected')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalHeading('Restore selected job openings?')
+                    ->modalSubmitActionLabel('Restore Selected')
+                    ->action(function (Collection $records): void {
+                        $records->each(function ($record): void {
+                            $data = ['is_archived' => false];
+
+                            if (\Illuminate\Support\Facades\Schema::hasColumn($record->getTable(), 'archived_at')) {
+                                $data['archived_at'] = null;
+                            }
+
+                            if (\Illuminate\Support\Facades\Schema::hasColumn($record->getTable(), 'archive_reason')) {
+                                $data['archive_reason'] = null;
+                            }
+
+                            $record->forceFill($data)->save();
+                        });
+
+                        Notification::make()
+                            ->title('Selected job openings restored')
+                            ->success()
+                            ->send();
+                    })
+                    ->visible(fn () => (bool) auth()->user()?->canErp('jobs', 'edit')),
+
+                BulkAction::make('permanentDeleteSelected')
                     ->label('Permanent Delete')
+                    ->icon('heroicon-o-trash')
                     ->color('danger')
                     ->requiresConfirmation()
-                    ->action(function (Collection $records) {
+                    ->modalHeading('Permanently delete selected job openings?')
+                    ->modalDescription('This action cannot be undone.')
+                    ->modalSubmitActionLabel('Permanent Delete')
+                    ->action(function (Collection $records): void {
                         $records->each->delete();
 
                         Notification::make()
-                            ->title('Selected archived job openings permanently deleted')
+                            ->title('Selected job openings permanently deleted')
                             ->success()
                             ->send();
-                    }),
+                    })
+                    ->visible(fn () => (bool) auth()->user()?->canErp('jobs', 'delete')),
             ])
-            ->defaultSort('archived_at', 'desc');
+            ->defaultSort('created_at', 'desc');
     }
 }

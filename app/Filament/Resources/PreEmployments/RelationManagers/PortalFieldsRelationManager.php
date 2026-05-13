@@ -153,6 +153,7 @@ class PortalFieldsRelationManager extends RelationManager
             ->defaultSort('sort_order')
             ->headerActions([
                 CreateAction::make()
+                    ->visible(fn () => (bool) auth()->user()?->canErp('pre_employments', 'manage_portal_fields'))
                     ->label('Add Field')
                     ->modalHeading('Add Candidate Requirement')
                     ->modalSubmitActionLabel('Add Field')
@@ -164,6 +165,7 @@ class PortalFieldsRelationManager extends RelationManager
                     }),
 
                 Action::make('sendRequirementsEmail')
+                    ->visible(fn () => (bool) auth()->user()?->canErp('pre_employments', 'send_requirements'))
                     ->label('Send Requirements Email')
                     ->color('success')
                     ->requiresConfirmation()
@@ -190,18 +192,27 @@ class PortalFieldsRelationManager extends RelationManager
             ])
             ->recordActions([
                 EditAction::make()
+                    ->visible(fn () => (bool) auth()->user()?->canErp('pre_employments', 'manage_portal_fields'))
                     ->modalHeading('Edit Candidate Requirement')
                     ->modalSubmitActionLabel('Save Changes')
                     ->requiresConfirmation(),
 
                 DeleteAction::make()
+                    ->visible(fn () => (bool) auth()->user()?->canErp('pre_employments', 'manage_portal_fields'))
                     ->requiresConfirmation(),
             ])
             ->bulkActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make()
+                            ->visible(fn () => (bool) auth()->user()?->canErp('pre_employments', 'manage_portal_fields'))
                         ->requiresConfirmation(),
                 ]),
             ]);
+    }
+
+
+    public static function canViewForRecord(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): bool
+    {
+        return (bool) (auth()->user()?->canErp('pre_employments', 'manage_portal_fields') ?? false);
     }
 }

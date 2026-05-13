@@ -78,11 +78,14 @@ class JobApplicationFieldsTable
                     ),
             ])
             ->recordActions([
-                EditAction::make(),
-                DeleteAction::make(),
+                EditAction::make()
+                    ->visible(fn () => (bool) auth()->user()?->canErp('application_fields', 'edit')),
+                DeleteAction::make()
+                    ->visible(fn () => (bool) auth()->user()?->canErp('application_fields', 'delete')),
             ])
             ->toolbarActions([
-                DeleteBulkAction::make(),
+                DeleteBulkAction::make()
+                    ->visible(fn () => (bool) auth()->user()?->canErp('application_fields', 'delete')),
             ]);
     }
 }

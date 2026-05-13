@@ -155,6 +155,7 @@ class JobApplicationsTable
             ])
             ->bulkActions([
                 BulkAction::make('bulk_create_candidate_request')
+                    ->visible(fn () => (bool) auth()->user()?->canErp('job_applications', 'create_request'))
                     ->label('Create Request')
                     ->color('primary')
                     ->icon('heroicon-o-document-text')
@@ -390,6 +391,7 @@ class JobApplicationsTable
                     }),
 
                 BulkAction::make('export_selected_csv')
+                    ->visible(fn () => (bool) auth()->user()?->canErp('job_applications', 'export'))
                     ->label('Export Selected CSV')
                     ->color('primary')
                     ->icon('heroicon-o-arrow-down-tray')
@@ -405,85 +407,217 @@ class JobApplicationsTable
                     }),
 
                 BulkAction::make('bulk_screening')
+                    ->visible(fn () => (bool) auth()->user()?->canErp('job_applications', 'screening'))
                     ->label('Move to Screening')
                     ->color('warning')
                     ->requiresConfirmation()
-                    ->action(function (Collection $records) {
-                        $records->each->update([
-                            'status' => 'screening',
-                        ]);
+                    ->form(self::sendEmailToggleForm())
+                    ->action(function (Collection $records, array $data) {
+                        $emailSent = 0;
+                        $emailFailed = 0;
+
+                        foreach ($records as $record) {
+                            $record->update([
+                                'status' => 'screening',
+                            ]);
+
+                            if ((bool) ($data['send_email'] ?? false)) {
+                                if (self::sendStatusEmailToApplicant($record, 'Screening')) {
+                                    $emailSent++;
+                                } else {
+                                    $emailFailed++;
+                                }
+                            }
+                        }
+
+                        $message = 'Selected applications moved to Screening';
+
+                        if ((bool) ($data['send_email'] ?? false)) {
+                            $message .= " — Emails sent: {$emailSent}";
+
+                            if ($emailFailed > 0) {
+                                $message .= " / Failed: {$emailFailed}";
+                            }
+                        }
 
                         Notification::make()
-                            ->title('Selected applications moved to Screening')
+                            ->title($message)
                             ->success()
                             ->send();
+                    
                     }),
 
                 BulkAction::make('bulk_under_review')
+                    ->visible(fn () => (bool) auth()->user()?->canErp('job_applications', 'screening'))
                     ->label('Move to Under Review')
                     ->color('info')
                     ->requiresConfirmation()
-                    ->action(function (Collection $records) {
-                        $records->each->update([
-                            'status' => 'under_review',
-                        ]);
+                    ->form(self::sendEmailToggleForm())
+                    ->action(function (Collection $records, array $data) {
+                        $emailSent = 0;
+                        $emailFailed = 0;
+
+                        foreach ($records as $record) {
+                            $record->update([
+                                'status' => 'under_review',
+                            ]);
+
+                            if ((bool) ($data['send_email'] ?? false)) {
+                                if (self::sendStatusEmailToApplicant($record, 'Under Review')) {
+                                    $emailSent++;
+                                } else {
+                                    $emailFailed++;
+                                }
+                            }
+                        }
+
+                        $message = 'Selected applications moved to Under Review';
+
+                        if ((bool) ($data['send_email'] ?? false)) {
+                            $message .= " — Emails sent: {$emailSent}";
+
+                            if ($emailFailed > 0) {
+                                $message .= " / Failed: {$emailFailed}";
+                            }
+                        }
 
                         Notification::make()
-                            ->title('Selected applications moved to Under Review')
+                            ->title($message)
                             ->success()
                             ->send();
+                    
                     }),
 
                 BulkAction::make('bulk_client_submitted')
+                    ->visible(fn () => (bool) auth()->user()?->canErp('job_applications', 'screening'))
                     ->label('Move to Client Submitted')
                     ->color('primary')
                     ->requiresConfirmation()
-                    ->action(function (Collection $records) {
-                        $records->each->update([
-                            'status' => 'client_submitted',
-                        ]);
+                    ->form(self::sendEmailToggleForm())
+                    ->action(function (Collection $records, array $data) {
+                        $emailSent = 0;
+                        $emailFailed = 0;
+
+                        foreach ($records as $record) {
+                            $record->update([
+                                'status' => 'client_submitted',
+                            ]);
+
+                            if ((bool) ($data['send_email'] ?? false)) {
+                                if (self::sendStatusEmailToApplicant($record, 'Client Submitted')) {
+                                    $emailSent++;
+                                } else {
+                                    $emailFailed++;
+                                }
+                            }
+                        }
+
+                        $message = 'Selected applications moved to Client Submitted';
+
+                        if ((bool) ($data['send_email'] ?? false)) {
+                            $message .= " — Emails sent: {$emailSent}";
+
+                            if ($emailFailed > 0) {
+                                $message .= " / Failed: {$emailFailed}";
+                            }
+                        }
 
                         Notification::make()
-                            ->title('Selected applications moved to Client Submitted')
+                            ->title($message)
                             ->success()
                             ->send();
+                    
                     }),
 
                 BulkAction::make('bulk_qualified')
+                    ->visible(fn () => (bool) auth()->user()?->canErp('job_applications', 'screening'))
                     ->label('Move to Qualified')
                     ->color('gray')
                     ->requiresConfirmation()
-                    ->action(function (Collection $records) {
-                        $records->each->update([
-                            'status' => 'qualified',
-                        ]);
+                    ->form(self::sendEmailToggleForm())
+                    ->action(function (Collection $records, array $data) {
+                        $emailSent = 0;
+                        $emailFailed = 0;
+
+                        foreach ($records as $record) {
+                            $record->update([
+                                'status' => 'qualified',
+                            ]);
+
+                            if ((bool) ($data['send_email'] ?? false)) {
+                                if (self::sendStatusEmailToApplicant($record, 'Qualified')) {
+                                    $emailSent++;
+                                } else {
+                                    $emailFailed++;
+                                }
+                            }
+                        }
+
+                        $message = 'Selected applications moved to Qualified';
+
+                        if ((bool) ($data['send_email'] ?? false)) {
+                            $message .= " — Emails sent: {$emailSent}";
+
+                            if ($emailFailed > 0) {
+                                $message .= " / Failed: {$emailFailed}";
+                            }
+                        }
 
                         Notification::make()
-                            ->title('Selected applications moved to Qualified')
+                            ->title($message)
                             ->success()
                             ->send();
+                    
                     }),
 
                 BulkAction::make('bulk_hired')
+                    ->visible(fn () => (bool) auth()->user()?->canErp('job_applications', 'hire'))
                     ->label('Move to Hired')
                     ->color('success')
                     ->requiresConfirmation()
-                    ->action(function (Collection $records) {
-                        $records->each->update([
-                            'status' => 'hired',
-                        ]);
+                    ->form(self::sendEmailToggleForm())
+                    ->action(function (Collection $records, array $data) {
+                        $emailSent = 0;
+                        $emailFailed = 0;
+
+                        foreach ($records as $record) {
+                            $record->update([
+                                'status' => 'hired',
+                            ]);
+
+                            if ((bool) ($data['send_email'] ?? false)) {
+                                if (self::sendStatusEmailToApplicant($record, 'Hired')) {
+                                    $emailSent++;
+                                } else {
+                                    $emailFailed++;
+                                }
+                            }
+                        }
+
+                        $message = 'Selected applications moved to Hired';
+
+                        if ((bool) ($data['send_email'] ?? false)) {
+                            $message .= " — Emails sent: {$emailSent}";
+
+                            if ($emailFailed > 0) {
+                                $message .= " / Failed: {$emailFailed}";
+                            }
+                        }
 
                         Notification::make()
-                            ->title('Selected applications moved to Hired')
+                            ->title($message)
                             ->success()
                             ->send();
+                    
                     }),
 
                 BulkAction::make('bulk_declined')
+                    ->visible(fn () => (bool) auth()->user()?->canErp('job_applications', 'decline'))
                     ->label('Decline and Archive')
                     ->color('warning')
                     ->requiresConfirmation()
-                    ->action(function (Collection $records) {
+                    ->form(self::sendEmailToggleForm())
+                    ->action(function (Collection $records, array $data) {
                         foreach ($records as $record) {
                             $record->update([
                                 'status' => 'declined',
@@ -491,7 +625,11 @@ class JobApplicationsTable
                                 'archive_reason' => 'declined',
                                 'archived_at' => now(),
                             ]);
-                        }
+                        
+                            if ((bool) ($data['send_email'] ?? false)) {
+                                self::sendStatusEmailToApplicant($record, 'Declined / Archived');
+                            }
+}
 
                         Notification::make()
                             ->title('Selected applications declined and archived')
@@ -500,17 +638,23 @@ class JobApplicationsTable
                     }),
 
                 BulkAction::make('bulk_archive')
+                    ->visible(fn () => (bool) auth()->user()?->canErp('job_applications', 'archive'))
                     ->label('Archive')
                     ->color('gray')
                     ->requiresConfirmation()
-                    ->action(function (Collection $records) {
+                    ->form(self::sendEmailToggleForm())
+                    ->action(function (Collection $records, array $data) {
                         foreach ($records as $record) {
                             $record->update([
                                 'is_archived' => true,
                                 'archive_reason' => $record->archive_reason ?: 'archived_manually',
                                 'archived_at' => now(),
                             ]);
-                        }
+                        
+                            if ((bool) ($data['send_email'] ?? false)) {
+                                self::sendStatusEmailToApplicant($record, 'Declined / Archived');
+                            }
+}
 
                         Notification::make()
                             ->title('Selected applications archived')
@@ -519,6 +663,7 @@ class JobApplicationsTable
                     }),
 
                 BulkAction::make('bulk_delete')
+                    ->visible(fn () => (bool) auth()->user()?->canErp('job_applications', 'delete'))
                     ->label('Permanent Delete')
                     ->color('danger')
                     ->requiresConfirmation()
@@ -648,4 +793,74 @@ class JobApplicationsTable
             'Content-Type' => 'text/csv',
         ]);
     }
+
+    /**
+     * Reusable confirmation popup field for bulk status actions.
+     */
+    private static function sendEmailToggleForm(): array
+    {
+        return [
+            Toggle::make('send_email')
+                ->label('Send email notification to selected applicants')
+                ->helperText('Turn this on only when you want applicants to receive an email about this status update.')
+                ->default(false),
+        ];
+    }
+
+    /**
+     * Send a simple safe status email to a job applicant.
+     * This uses Laravel raw mail so it works without creating a new Mailable class.
+     */
+    private static function sendStatusEmailToApplicant($record, string $statusLabel): bool
+    {
+        $email = $record->email
+            ?? $record->candidate_email
+            ?? $record->applicant_email
+            ?? null;
+
+        if (blank($email)) {
+            Log::warning('Bulk job application status email skipped because email is missing', [
+                'application_id' => $record->id ?? null,
+                'status' => $statusLabel,
+            ]);
+
+            return false;
+        }
+
+        $name = $record->full_name
+            ?? $record->candidate_name
+            ?? $record->name
+            ?? 'Applicant';
+
+        $jobTitle = $record->job?->title
+            ?? $record->position
+            ?? $record->position_title
+            ?? 'your application';
+
+        $subject = "Application Status Update - {$jobTitle}";
+
+        try {
+            Mail::send('emails.job-application-status-update', [
+                'subjectLine' => $subject,
+                'applicantName' => $name,
+                'jobTitle' => $jobTitle,
+                'statusLabel' => $statusLabel,
+                'portalUrl' => rtrim(config('app.public_app_url') ?: config('app.url'), '/'),
+            ], function ($message) use ($email, $subject) {
+                $message->to($email)->subject($subject);
+            });
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::warning('Bulk job application status email failed', [
+                'application_id' => $record->id ?? null,
+                'email' => $email,
+                'status' => $statusLabel,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
 }

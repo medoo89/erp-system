@@ -48,4 +48,24 @@ class Client extends Model
     {
         return $this->hasMany(Project::class);
     }
+
+    public function financeProfiles()
+    {
+        return $this->hasMany(CandidateFinanceProfile::class, 'client_id')
+            ->latest('id');
+    }
+
+    public function financeExpenses()
+    {
+        return $this->hasMany(FinanceExpense::class, 'client_id')
+            ->latest('expense_date')
+            ->latest('id');
+    }
+
+    public function paymentStructures()
+    {
+        return $this->hasMany(ClientPaymentStructure::class, 'client_id')
+            ->latest('effective_from')
+            ->latest('id');
+    }
 }

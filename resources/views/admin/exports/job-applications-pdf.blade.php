@@ -311,3 +311,76 @@
 </div>
 </body>
 </html>
+
+
+<style id="sf-candidate-request-decision-colors">
+    /*
+     * Colored decision buttons — visual only.
+     */
+
+    form:has(textarea[name*="negotiation"]) label:has(input[type="radio"]),
+    form:has(textarea[name*="candidate"]) label:has(input[type="radio"]),
+    form:has(textarea[name*="response"]) label:has(input[type="radio"]) {
+        overflow: hidden !important;
+    }
+
+    form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="approve"]),
+    form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="approve"]),
+    form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="approve"]) {
+        background: linear-gradient(135deg, #ecfdf5, #d1fae5) !important;
+        border-color: rgba(34,197,94,.42) !important;
+        color: #047857 !important;
+        box-shadow: 0 12px 28px rgba(34,197,94,.10) !important;
+    }
+
+    form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="decline"]),
+    form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="decline"]),
+    form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="decline"]) {
+        background: linear-gradient(135deg, #fef2f2, #fee2e2) !important;
+        border-color: rgba(239,68,68,.38) !important;
+        color: #b91c1c !important;
+        box-shadow: 0 12px 28px rgba(239,68,68,.10) !important;
+    }
+
+    form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="reconsider"]),
+    form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="reconsider"]),
+    form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="reconsider"]) {
+        background: linear-gradient(135deg, #fff7ed, #ffedd5) !important;
+        border-color: rgba(249,115,22,.38) !important;
+        color: #c2410c !important;
+        box-shadow: 0 12px 28px rgba(249,115,22,.10) !important;
+    }
+
+    form:has(textarea[name*="negotiation"]) label:has(input[type="radio"]:checked),
+    form:has(textarea[name*="candidate"]) label:has(input[type="radio"]:checked),
+    form:has(textarea[name*="response"]) label:has(input[type="radio"]:checked) {
+        transform: translateY(-1px) !important;
+        filter: saturate(1.12) !important;
+        box-shadow: 0 0 0 5px rgba(37,99,235,.10), 0 18px 38px rgba(15,23,42,.12) !important;
+    }
+
+    .dark form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="approve"]),
+    .dark form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="approve"]),
+    .dark form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="approve"]) {
+        background: rgba(6,78,59,.55) !important;
+        border-color: rgba(52,211,153,.34) !important;
+        color: #a7f3d0 !important;
+    }
+
+    .dark form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="decline"]),
+    .dark form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="decline"]),
+    .dark form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="decline"]) {
+        background: rgba(127,29,29,.48) !important;
+        border-color: rgba(248,113,113,.34) !important;
+        color: #fecaca !important;
+    }
+
+    .dark form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="reconsider"]),
+    .dark form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="reconsider"]),
+    .dark form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="reconsider"]) {
+        background: rgba(124,45,18,.48) !important;
+        border-color: rgba(251,146,60,.34) !important;
+        color: #fed7aa !important;
+    }
+</style>
+

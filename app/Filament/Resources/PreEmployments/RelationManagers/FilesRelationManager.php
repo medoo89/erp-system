@@ -18,6 +18,7 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 
@@ -43,6 +44,7 @@ class FilesRelationManager extends RelationManager
                 Select::make('category')
                     ->label('Category')
                     ->options([
+                        'cv' => 'CV',
                         'passport' => 'Passport',
                         'visa' => 'Visa',
                         'medical' => 'Medical',
@@ -125,6 +127,7 @@ class FilesRelationManager extends RelationManager
                     ->badge()
                     ->formatStateUsing(fn (?string $state) => $state ? ucfirst(str_replace('_', ' ', $state)) : '-')
                     ->color(fn (?string $state): string => match ($state) {
+                        'cv' => 'primary',
                         'passport' => 'info',
                         'visa' => 'warning',
                         'medical' => 'success',
@@ -146,9 +149,11 @@ class FilesRelationManager extends RelationManager
                     ->formatStateUsing(fn ($state) => 'V' . $state)
                     ->sortable(),
 
-                Tables\Columns\IconColumn::make('is_current')
-                    ->label('Current')
-                    ->boolean(),
+                Tables\Columns\TextColumn::make('is_current')
+                    ->label('Version Status')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => $state ? 'Current' : 'Old Version')
+                    ->color(fn ($state) => $state ? 'success' : 'gray'),
 
                 Tables\Columns\TextColumn::make('uploaded_by_type')
                     ->label('Submitted By')
@@ -210,8 +215,43 @@ class FilesRelationManager extends RelationManager
                     ->sortable(),
             ])
             ->defaultSort('created_at', 'desc')
+            ->filters([
+                Tables\Filters\SelectFilter::make('version_view')
+                    ->label('Version View')
+                    ->options([
+                        'current' => 'Current Files Only',
+                        'all' => 'All Versions',
+                        'old' => 'Old Versions Only',
+                    ])
+                    ->default('current')
+                    ->query(function (Builder $query, array $data): Builder {
+                        return match ($data['value'] ?? 'current') {
+                            'all' => $query->withoutGlobalScopes(),
+                            'old' => $query->where('is_current', false),
+                            default => $query->where('is_current', true),
+                        };
+                    }),
+
+                Tables\Filters\SelectFilter::make('category')
+                    ->label('Category')
+                    ->options([
+                        'cv' => 'CV',
+                        'passport' => 'Passport',
+                        'visa' => 'Visa',
+                        'medical' => 'Medical',
+                        'personal_photo' => 'Personal Photo',
+                        'certificate' => 'Certificate',
+                        'caf' => 'CAF',
+                        'gl' => 'General Letter',
+                        'contract' => 'Contract',
+                        'candidate_upload' => 'Candidate Upload',
+                        'internal_document' => 'Internal Document',
+                        'other' => 'Other',
+                    ]),
+            ])
             ->headerActions([
                 CreateAction::make()
+                    ->visible(fn () => (bool) auth()->user()?->canErp('pre_employments', 'upload_file'))
                     ->label('Upload File')
                     ->modalHeading('Upload File / Document')
                     ->modalSubmitActionLabel('Upload')
@@ -219,7 +259,32 @@ class FilesRelationManager extends RelationManager
                     ->mutateDataUsing(function (array $data): array {
                         $data['uploaded_by_user_id'] = auth()->id();
 
+                        $categoryText = strtolower(trim(($data['category'] ?? '') . ' ' . ($data['title'] ?? '') . ' ' . ($data['file_path'] ?? '')));
+
+                        if (str_contains($categoryText, 'cv') || str_contains($categoryText, 'resume')) {
+                            $data['category'] = 'cv';
+                        }
+
+                        if (($data['category'] ?? null) === 'cv') {
+                            $candidateName = $this->ownerRecord->candidate_name
+                                ?? $this->ownerRecord->full_name
+                                ?? $this->ownerRecord->name
+                                ?? 'Candidate';
+
+                            $data['title'] = trim($candidateName) . ' CV';
+                        }
+
+                        $data['is_current'] = (bool) ($data['is_current'] ?? true);
+
                         return $data;
+                    })
+                    ->before(function (array $data): void {
+                        if (($data['is_current'] ?? true) && filled($data['category'] ?? null)) {
+                            $this->ownerRecord->files()
+                                ->where('category', $data['category'])
+                                ->where('is_current', true)
+                                ->update(['is_current' => false]);
+                        }
                     })
                     ->after(function () {
                         Notification::make()
@@ -230,11 +295,39 @@ class FilesRelationManager extends RelationManager
             ])
             ->recordActions([
                 EditAction::make()
+                    ->visible(fn () => (bool) auth()->user()?->canErp('pre_employments', 'upload_file'))
                     ->modalHeading('Edit File')
                     ->modalSubmitActionLabel('Save Changes')
-                    ->requiresConfirmation(),
+                    ->requiresConfirmation()
+                    ->mutateDataUsing(function (array $data): array {
+                        $categoryText = strtolower(trim(($data['category'] ?? '') . ' ' . ($data['title'] ?? '') . ' ' . ($data['file_path'] ?? '')));
+
+                        if (str_contains($categoryText, 'cv') || str_contains($categoryText, 'resume')) {
+                            $data['category'] = 'cv';
+                        }
+
+                        if (($data['category'] ?? null) === 'cv') {
+                            $candidateName = $this->ownerRecord->candidate_name
+                                ?? $this->ownerRecord->full_name
+                                ?? $this->ownerRecord->name
+                                ?? 'Candidate';
+
+                            $data['title'] = trim($candidateName) . ' CV';
+                        }
+
+                        return $data;
+                    })
+                    ->after(function ($record): void {
+                        if ($record->is_current && filled($record->category)) {
+                            $this->ownerRecord->files()
+                                ->where('category', $record->category)
+                                ->where('id', '!=', $record->id)
+                                ->update(['is_current' => false]);
+                        }
+                    }),
 
                 DeleteAction::make()
+                    ->visible(fn () => (bool) auth()->user()?->canErp('pre_employments', 'delete_file'))
                     ->requiresConfirmation()
                     ->modalHeading('Delete file')
                     ->modalDescription('Are you sure you want to delete this file record?')
@@ -243,8 +336,19 @@ class FilesRelationManager extends RelationManager
             ->bulkActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make()
+                            ->visible(fn () => (bool) auth()->user()?->canErp('pre_employments', 'delete_file'))
                         ->requiresConfirmation(),
                 ]),
             ]);
+    }
+
+
+    public static function canViewForRecord(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): bool
+    {
+        return (bool) (
+            auth()->user()?->canErp('pre_employments', 'view')
+            || auth()->user()?->canErp('pre_employments', 'upload_file')
+            || auth()->user()?->canErp('pre_employments', 'delete_file')
+        );
     }
 }

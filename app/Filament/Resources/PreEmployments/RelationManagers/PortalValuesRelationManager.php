@@ -97,4 +97,10 @@ class PortalValuesRelationManager extends RelationManager
             ->recordActions([])
             ->bulkActions([]);
     }
+
+
+    public static function canViewForRecord(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): bool
+    {
+        return (bool) (auth()->user()?->canErp('pre_employments', 'view') ?? false);
+    }
 }

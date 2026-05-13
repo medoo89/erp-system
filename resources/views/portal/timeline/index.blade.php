@@ -8,13 +8,6 @@
     $updateIcon = function (?string $status, ?string $title = null) {
         $text = strtolower(trim(($status ?? '') . ' ' . ($title ?? '')));
 
-        if (str_contains($text, 'salary') || str_contains($text, 'paid') || str_contains($text, 'bank')) return 'salary';
-        if (str_contains($text, 'rotation') || str_contains($text, 'mobilization') || str_contains($text, 'demobilization')) return 'rotation';
-        if (str_contains($text, 'travel') || str_contains($text, 'ticket') || str_contains($text, 'flight')) return 'travel';
-        if (str_contains($text, 'file') || str_contains($text, 'document')) return 'file';
-        if (str_contains($text, 'medical')) return 'medical';
-        if (str_contains($text, 'visa')) return 'visa';
-        if (str_contains($text, 'contract')) return 'contract';
 
         return 'update';
     };
@@ -54,6 +47,45 @@
 @endphp
 
 @section('content')
+
+<style id="sf-timeline-pagination-arrow-fix">
+    .sf-timeline-pagination {
+        margin-top: 24px !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        width: 100% !important;
+    }
+
+    .sf-timeline-pagination nav {
+        width: 100% !important;
+    }
+
+    .sf-timeline-pagination svg {
+        width: 18px !important;
+        height: 18px !important;
+        max-width: 18px !important;
+        max-height: 18px !important;
+        display: inline-block !important;
+    }
+
+    .sf-timeline-pagination a,
+    .sf-timeline-pagination span {
+        font-size: 13px !important;
+        line-height: 1.2 !important;
+    }
+
+    .sf-timeline-pagination [rel="prev"] svg,
+    .sf-timeline-pagination [rel="next"] svg {
+        width: 18px !important;
+        height: 18px !important;
+    }
+
+    .sf-timeline-pagination .hidden {
+        display: none !important;
+    }
+</style>
+
     <style>
         .sf-timeline-hero {
             position: relative;
@@ -509,4 +541,29 @@
             No timeline items match the selected filters.
         </section>
     @endif
+
+
+<style id="sf-timeline-icon-hard-limit">
+    .sf-timeline-icon-box {
+        width: 54px !important;
+        height: 54px !important;
+        min-width: 54px !important;
+        max-width: 54px !important;
+        overflow: hidden !important;
+    }
+
+    .sf-timeline-icon-box svg,
+    .sf-timeline-svg {
+        width: 27px !important;
+        height: 27px !important;
+        min-width: 27px !important;
+        max-width: 27px !important;
+        display: block !important;
+    }
+
+    .sf-timeline-event {
+        overflow: hidden !important;
+    }
+</style>
+
 @endsection

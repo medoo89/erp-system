@@ -23,3 +23,15 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Local backups generated during ERP development
+*.bak
+*.bak_*
+*_backup
+_backups/
+.claude/
+
+# Local temporary files
+.DS_Store
+storage/app/audit-tests/
+storage/logs/local-serve.log

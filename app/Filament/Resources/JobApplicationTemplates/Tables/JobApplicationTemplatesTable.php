@@ -38,14 +38,17 @@ class JobApplicationTemplatesTable
             ])
             ->recordActions([
                 // 🔹 تعديل
-                EditAction::make(),
+                EditAction::make()
+                    ->visible(fn () => (bool) auth()->user()?->canErp('application_templates', 'edit')),
 
                 // 🔹 حذف
-                DeleteAction::make(),
+                DeleteAction::make()
+                    ->visible(fn () => (bool) auth()->user()?->canErp('application_templates', 'delete')),
             ])
             ->toolbarActions([
                 // 🔹 حذف جماعي
-                DeleteBulkAction::make(),
+                DeleteBulkAction::make()
+                    ->visible(fn () => (bool) auth()->user()?->canErp('application_templates', 'delete')),
             ]);
     }
 }

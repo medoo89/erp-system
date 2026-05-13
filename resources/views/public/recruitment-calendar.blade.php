@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,600,0,0" rel="stylesheet">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recruitment Calendar</title>
@@ -496,3 +497,23 @@
 </div>
 </body>
 </html>
+
+
+<style>
+.sf-event-md-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(37, 99, 235, .10);
+    color: #1d4ed8;
+    margin-right: 10px;
+    vertical-align: middle;
+}
+.sf-event-md-icon .material-symbols-rounded {
+    font-size: 20px;
+    line-height: 1;
+}
+</style>

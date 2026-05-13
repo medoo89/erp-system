@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Models\Employment;
+use App\Models\PreEmploymentPortalField;
+use App\Models\PreEmploymentPortalValue;
 use Illuminate\Http\Request;
 
 abstract class PortalBaseController extends Controller
@@ -45,6 +47,10 @@ abstract class PortalBaseController extends Controller
                     'preEmployment.currentFinanceProfile',
                     'preEmployment.files',
                     'preEmployment.uploads',
+                    'preEmployment.portalFields',
+                    'preEmployment.portalValues',
+                    'preEmployment.portalFields',
+                    'preEmployment.portalValues',
                     'preEmployment.jobApplication',
                 ])
                 ->find($employmentId);
@@ -57,6 +63,30 @@ abstract class PortalBaseController extends Controller
 
         $unreadNotificationsCount = $portalAccount?->unreadNotifications()->count() ?? 0;
 
+        $pendingFileRequests = collect();
+
+        if ($employment?->preEmployment) {
+            $preEmployment = $employment->preEmployment;
+
+            $submittedFieldIds = PreEmploymentPortalValue::query()
+                ->where('pre_employment_id', $preEmployment->id)
+                ->whereNotNull('value')
+                ->where('value', '!=', '')
+                ->pluck('portal_field_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            $pendingFileRequests = PreEmploymentPortalField::query()
+                ->where('pre_employment_id', $preEmployment->id)
+                ->where('field_type', 'file')
+                ->where('is_active', true)
+                ->where('visible_to_candidate', true)
+                ->whereNotIn('id', $submittedFieldIds)
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get();
+        }
+
         return [
             'portalAccount' => $portalAccount,
             'currentIdentity' => $currentIdentity,
@@ -65,6 +95,7 @@ abstract class PortalBaseController extends Controller
             'portalUnreadNotificationsCount' => $unreadNotificationsCount,
             'portalPreviewReadonly' => $portalPreviewReadonly,
             'portalPreviewBackUrl' => $portalPreviewBackUrl,
+            'pendingFileRequests' => $pendingFileRequests,
         ];
     }
 }

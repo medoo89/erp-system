@@ -7,5 +7,18 @@ use Filament\Resources\Pages\CreateRecord;
 
 class CreateJob extends CreateRecord
 {
-    protected static string $resource = JobResource::class;
+    
+    protected string $view = 'filament.resources.jobs.pages.create-job-premium';
+protected static string $resource = JobResource::class;
+
+    public function getView(): string
+    {
+        return 'filament.resources.jobs.pages.create-job-premium';
+    }
+
+    public static function canAccess(array $parameters = []): bool
+    {
+        return (bool) (auth()->user()?->canErp('jobs', 'create') ?? false);
+    }
+
 }

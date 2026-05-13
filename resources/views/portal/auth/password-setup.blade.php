@@ -114,7 +114,6 @@
             font-weight: 650;
             text-align: center;
         }
-    
         .portal-brand-logo-wrap {
             display: flex;
             justify-content: center;
@@ -133,7 +132,6 @@
 </head>
 <body>
     <main class="portal-auth-card">
-        
         <div class="portal-brand-logo-wrap">
             <img
                 src="{{ asset('images/sada-fezzan-logo.png') }}"

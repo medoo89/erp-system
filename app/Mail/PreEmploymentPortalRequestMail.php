@@ -18,7 +18,7 @@ class PreEmploymentPortalRequestMail extends Mailable
     public function __construct(PreEmployment $preEmployment, bool $isUpdateRequest = false)
     {
         $this->preEmployment = $preEmployment;
-        $this->portalUrl = url('/pre-employment/portal/' . $preEmployment->portal_token);
+        $this->portalUrl = route('pre-employment.portal.show', $preEmployment->portal_token);
         $this->isUpdateRequest = $isUpdateRequest;
     }
 

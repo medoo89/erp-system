@@ -8,12 +8,26 @@ use Filament\Resources\Pages\ListRecords;
 
 class ListJobApplicationFields extends ListRecords
 {
-    protected static string $resource = JobApplicationFieldResource::class;
+    
+    protected string $view = 'filament.resources.job-application-fields.pages.list-job-application-fields-premium';
+protected static string $resource = JobApplicationFieldResource::class;
 
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make(),
+            CreateAction::make()
+                ->visible(fn () => (bool) auth()->user()?->canErp('application_fields', 'create')),
         ];
     }
+
+    public function getView(): string
+    {
+        return 'filament.resources.job-application-fields.pages.list-job-application-fields-premium';
+    }
+
+    public static function canAccess(array $parameters = []): bool
+    {
+        return (bool) (auth()->user()?->canErp('application_fields', 'view') ?? false);
+    }
+
 }

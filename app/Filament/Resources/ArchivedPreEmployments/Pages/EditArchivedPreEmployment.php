@@ -13,7 +13,14 @@ class EditArchivedPreEmployment extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            DeleteAction::make(),
+            DeleteAction::make()
+                ->visible(fn () => (bool) auth()->user()?->canErp('archive', 'delete')),
         ];
     }
+
+    public static function canAccess(array $parameters = []): bool
+    {
+        return (bool) (auth()->user()?->canErp('archive', 'view') ?? false);
+    }
+
 }

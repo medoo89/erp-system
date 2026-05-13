@@ -2,9 +2,8 @@
 
 namespace App\Filament\Pages;
 
-use App\Filament\Widgets\ExecutiveHero;
 use App\Filament\Widgets\RecruitmentCalendarOverview;
-use App\Filament\Widgets\RecruitmentStatsOverview;
+use App\Filament\Widgets\RecruitmentOperationsStats;
 use Filament\Pages\Dashboard as BaseDashboard;
 use Illuminate\Contracts\Support\Htmlable;
 
@@ -29,17 +28,34 @@ class Dashboard extends BaseDashboard
         return null;
     }
 
-    public function getHeaderWidgets(): array
+    public function getWidgets(): array
     {
         return [
-            ExecutiveHero::class,
-            RecruitmentStatsOverview::class,
+            RecruitmentOperationsStats::class,
             RecruitmentCalendarOverview::class,
         ];
     }
 
-    public function getHeaderWidgetsColumns(): int|array
+    public function getVisibleWidgets(): array
+    {
+        return [
+            RecruitmentOperationsStats::class,
+            RecruitmentCalendarOverview::class,
+        ];
+    }
+
+    public function getColumns(): int|array
     {
         return 1;
+    }
+
+    public static function canAccess(): bool
+    {
+        $user = auth()->user();
+
+        return (bool) (
+            $user
+            && ($user->is_admin ?? false)
+        );
     }
 }

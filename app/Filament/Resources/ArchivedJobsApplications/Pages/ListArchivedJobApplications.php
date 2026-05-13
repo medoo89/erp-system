@@ -9,7 +9,9 @@ use Illuminate\Database\Eloquent\Builder;
 
 class ListArchivedJobApplications extends ListRecords
 {
-    protected static string $resource = ArchivedJobApplicationResource::class;
+    
+    protected string $view = 'filament.resources.archived-job-applications.pages.list-archived-job-applications-premium';
+protected static string $resource = ArchivedJobApplicationResource::class;
 
     protected function getTableQuery(): Builder
     {
@@ -23,4 +25,15 @@ class ListArchivedJobApplications extends ListRecords
                     ->orWhereNull('archive_reason');
             });
     }
+
+    public function getView(): string
+    {
+        return 'filament.resources.archived-job-applications.pages.list-archived-job-applications-premium';
+    }
+
+    public static function canAccess(array $parameters = []): bool
+    {
+        return (bool) (auth()->user()?->canErp('archive', 'view') ?? false);
+    }
+
 }

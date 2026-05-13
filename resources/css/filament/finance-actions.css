@@ -1,0 +1,581 @@
+/* =========================================
+   SADA FEZZAN - PREMIUM FINANCE ACTIONS UI
+   ========================================= */
+
+:root {
+    --sf-deep-navy: #274c77;
+    --sf-soft-navy: #365f8f;
+    --sf-teal: #00c2b8;
+    --sf-cyan: #41d7e2;
+    --sf-green: #15b86a;
+    --sf-lime: #93d94e;
+    --sf-gold: #f3c623;
+    --sf-orange: #ff8a1f;
+    --sf-pink: #d81b60;
+    --sf-purple: #7b2cbf;
+    --sf-red: #e63946;
+    --sf-slate: #64748b;
+    --sf-bg: #f6fbfd;
+    --sf-card: #ffffff;
+    --sf-border: #dbe7ef;
+    --sf-text: #0f172a;
+    --sf-muted: #64748b;
+}
+
+/* ========= Dynamic page tint by status ========= */
+
+.sf-page-shell {
+    position: relative;
+    border-radius: 2rem;
+    transition: background .35s ease, box-shadow .35s ease;
+}
+
+.sf-page-shell--draft {
+    background:
+        radial-gradient(circle at top right, rgba(148,163,184,.12), transparent 24%),
+        radial-gradient(circle at bottom left, rgba(203,213,225,.15), transparent 22%);
+}
+
+.sf-page-shell--approved {
+    background:
+        radial-gradient(circle at top right, rgba(59,130,246,.14), transparent 24%),
+        radial-gradient(circle at bottom left, rgba(56,189,248,.12), transparent 22%);
+}
+
+.sf-page-shell--sent-to-bank,
+.sf-page-shell--sent-to-client {
+    background:
+        radial-gradient(circle at top right, rgba(245,158,11,.14), transparent 24%),
+        radial-gradient(circle at bottom left, rgba(250,204,21,.12), transparent 22%);
+}
+
+.sf-page-shell--paid {
+    background:
+        radial-gradient(circle at top right, rgba(16,185,129,.15), transparent 24%),
+        radial-gradient(circle at bottom left, rgba(74,222,128,.12), transparent 22%);
+}
+
+.sf-page-shell--bank-rejected,
+.sf-page-shell--cancelled {
+    background:
+        radial-gradient(circle at top right, rgba(239,68,68,.14), transparent 24%),
+        radial-gradient(circle at bottom left, rgba(251,113,133,.12), transparent 22%);
+}
+
+.sf-page-shell--partial {
+    background:
+        radial-gradient(circle at top right, rgba(168,85,247,.14), transparent 24%),
+        radial-gradient(circle at bottom left, rgba(217,70,239,.12), transparent 22%);
+}
+
+/* ========= Header gradient by status ========= */
+
+.sf-status-header {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #dceaf1;
+    border-radius: 2rem;
+    padding: 2rem 2.25rem;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, .05);
+    transition: transform .25s ease, box-shadow .25s ease;
+}
+
+.sf-status-header:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 34px rgba(15, 23, 42, .08);
+}
+
+.sf-status-header::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: 1;
+    z-index: 0;
+    background: linear-gradient(90deg, #f8fbfd 0%, #ffffff 55%, #eefcfc 100%);
+}
+
+.sf-status-header::after {
+    content: "";
+    position: absolute;
+    inset: auto -10% -55% auto;
+    width: 300px;
+    height: 300px;
+    border-radius: 999px;
+    filter: blur(40px);
+    opacity: .28;
+    z-index: 0;
+    transition: opacity .3s ease;
+}
+
+.sf-status-header:hover::after {
+    opacity: .42;
+}
+
+.sf-status-header > * {
+    position: relative;
+    z-index: 1;
+}
+
+.sf-status-header--draft::before {
+    background: linear-gradient(90deg, #f8fafc 0%, #ffffff 50%, #eef2f7 100%);
+}
+.sf-status-header--draft::after {
+    background: rgba(148,163,184,.35);
+}
+
+.sf-status-header--approved::before {
+    background: linear-gradient(90deg, #eef6ff 0%, #ffffff 45%, #e0f2fe 100%);
+}
+.sf-status-header--approved::after {
+    background: rgba(59,130,246,.35);
+}
+
+.sf-status-header--sent-to-bank::before,
+.sf-status-header--sent-to-client::before {
+    background: linear-gradient(90deg, #fff7ed 0%, #ffffff 45%, #fef3c7 100%);
+}
+.sf-status-header--sent-to-bank::after,
+.sf-status-header--sent-to-client::after {
+    background: rgba(245,158,11,.34);
+}
+
+.sf-status-header--paid::before {
+    background: linear-gradient(90deg, #ecfdf5 0%, #ffffff 45%, #dcfce7 100%);
+}
+.sf-status-header--paid::after {
+    background: rgba(16,185,129,.34);
+}
+
+.sf-status-header--bank-rejected::before,
+.sf-status-header--cancelled::before {
+    background: linear-gradient(90deg, #fff1f2 0%, #ffffff 45%, #ffe4e6 100%);
+}
+.sf-status-header--bank-rejected::after,
+.sf-status-header--cancelled::after {
+    background: rgba(239,68,68,.32);
+}
+
+.sf-status-header--partial::before {
+    background: linear-gradient(90deg, #fdf4ff 0%, #ffffff 45%, #fae8ff 100%);
+}
+.sf-status-header--partial::after {
+    background: rgba(168,85,247,.34);
+}
+
+/* ========= Premium action buttons ========= */
+
+.sf-action-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .875rem;
+    align-items: center;
+}
+
+.sf-action-btn {
+    --btn-grad-a: #00b8c4;
+    --btn-grad-b: #68d391;
+    --btn-text: #ffffff;
+    --btn-shadow: rgba(0, 184, 196, .22);
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .65rem;
+    min-height: 3.25rem;
+    padding: .95rem 1.35rem;
+    border-radius: 999px;
+    border: 0;
+    color: var(--btn-text) !important;
+    text-decoration: none !important;
+    font-weight: 800;
+    font-size: .96rem;
+    line-height: 1;
+    letter-spacing: .01em;
+    white-space: nowrap;
+    background: linear-gradient(90deg, var(--btn-grad-a), var(--btn-grad-b));
+    box-shadow:
+        0 8px 18px var(--btn-shadow),
+        inset 0 1px 0 rgba(255,255,255,.18);
+    transition:
+        transform .18s ease,
+        box-shadow .25s ease,
+        filter .25s ease,
+        opacity .2s ease;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.sf-action-btn::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        110deg,
+        rgba(255,255,255,0) 15%,
+        rgba(255,255,255,.28) 35%,
+        rgba(255,255,255,0) 55%
+    );
+    transform: translateX(-160%);
+    transition: transform .7s ease;
+}
+
+.sf-action-btn:hover {
+    transform: translateY(-2px) scale(1.01);
+    filter: saturate(1.08);
+}
+
+.sf-action-btn:hover::before {
+    transform: translateX(160%);
+}
+
+.sf-action-btn:active {
+    transform: translateY(0) scale(.985);
+}
+
+.sf-action-btn svg,
+.sf-action-btn i {
+    width: 1.08rem;
+    height: 1.08rem;
+    flex-shrink: 0;
+}
+
+/* button variants */
+.sf-action-btn--edit {
+    --btn-grad-a: #00b9b0;
+    --btn-grad-b: #1cd3c6;
+    --btn-shadow: rgba(0, 185, 176, .24);
+}
+
+.sf-action-btn--approve {
+    --btn-grad-a: #2563eb;
+    --btn-grad-b: #4f8cff;
+    --btn-shadow: rgba(37, 99, 235, .24);
+}
+
+.sf-action-btn--bank {
+    --btn-grad-a: #f59e0b;
+    --btn-grad-b: #facc15;
+    --btn-text: #1f2937;
+    --btn-shadow: rgba(245, 158, 11, .22);
+}
+
+.sf-action-btn--cash {
+    --btn-grad-a: #10b981;
+    --btn-grad-b: #65d46e;
+    --btn-shadow: rgba(16, 185, 129, .24);
+}
+
+.sf-action-btn--paid {
+    --btn-grad-a: #059669;
+    --btn-grad-b: #34d399;
+    --btn-shadow: rgba(5, 150, 105, .24);
+    animation: sfPulseSoft 2.2s ease-in-out infinite;
+}
+
+.sf-action-btn--partial {
+    --btn-grad-a: #7c3aed;
+    --btn-grad-b: #c026d3;
+    --btn-shadow: rgba(124, 58, 237, .24);
+}
+
+.sf-action-btn--print {
+    --btn-grad-a: #475569;
+    --btn-grad-b: #64748b;
+    --btn-shadow: rgba(71, 85, 105, .22);
+}
+
+.sf-action-btn--back {
+    --btn-grad-a: #64748b;
+    --btn-grad-b: #94a3b8;
+    --btn-shadow: rgba(100, 116, 139, .2);
+}
+
+.sf-action-btn--danger {
+    --btn-grad-a: #e11d48;
+    --btn-grad-b: #fb7185;
+    --btn-shadow: rgba(225, 29, 72, .24);
+}
+
+.sf-action-btn--rejected {
+    --btn-grad-a: #b91c1c;
+    --btn-grad-b: #ef4444;
+    --btn-shadow: rgba(185, 28, 28, .24);
+    animation: sfPulseSoft 2.6s ease-in-out infinite;
+}
+
+/* ========= premium summary cards ========= */
+
+.sf-metric-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.sf-metric-card {
+    background: #fff;
+    border: 1px solid var(--sf-border);
+    border-radius: 1.5rem;
+    padding: 1.25rem;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, .04);
+    transition: transform .18s ease, box-shadow .22s ease, border-color .22s ease;
+}
+
+.sf-metric-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 22px rgba(15, 23, 42, .06);
+    border-color: #cbdce6;
+}
+
+.sf-metric-label {
+    font-size: .72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .14em;
+    color: #94a3b8;
+}
+
+.sf-metric-value {
+    margin-top: .7rem;
+    font-size: 2rem;
+    font-weight: 900;
+    line-height: 1.05;
+    color: #0f172a;
+}
+
+.sf-metric-sub {
+    margin-top: .45rem;
+    font-size: .88rem;
+    color: #64748b;
+}
+
+/* ========= soft animation helpers ========= */
+
+.sf-fade-up {
+    animation: sfFadeUp .45s ease both;
+}
+
+@keyframes sfFadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes sfPulseSoft {
+    0%,100% {
+        box-shadow:
+            0 8px 18px var(--btn-shadow),
+            inset 0 1px 0 rgba(255,255,255,.18);
+    }
+    50% {
+        box-shadow:
+            0 10px 26px var(--btn-shadow),
+            0 0 0 6px rgba(255,255,255,.08),
+            inset 0 1px 0 rgba(255,255,255,.18);
+    }
+}
+
+/* ========= responsive ========= */
+
+@media (max-width: 768px) {
+    .sf-action-bar {
+        gap: .65rem;
+    }
+
+    .sf-action-btn {
+        min-height: 3rem;
+        padding: .9rem 1.05rem;
+        font-size: .9rem;
+    }
+
+    .sf-status-header {
+        padding: 1.5rem 1.25rem;
+        border-radius: 1.5rem;
+    }
+
+    .sf-metric-value {
+        font-size: 1.6rem;
+    }
+}
+
+/* =========================================
+   SADA FEZZAN - PREMIUM SIDEBAR ENHANCEMENTS
+   ========================================= */
+
+.fi-sidebar {
+    border-right: 1px solid rgba(148, 163, 184, 0.18) !important;
+    box-shadow: inset -1px 0 0 rgba(255,255,255,.35) !important;
+}
+
+.fi-sidebar-nav {
+    padding-top: .6rem !important;
+    padding-bottom: .8rem !important;
+}
+
+.fi-sidebar-group {
+    margin-bottom: .55rem !important;
+}
+
+.fi-sidebar-group-label {
+    font-size: .72rem !important;
+    letter-spacing: .14em !important;
+    text-transform: uppercase !important;
+    opacity: .82 !important;
+    margin-bottom: .55rem !important;
+    padding-left: .3rem !important;
+}
+
+.fi-sidebar-item {
+    margin-bottom: .18rem !important;
+}
+
+.fi-sidebar-item-button {
+    min-height: 2.9rem !important;
+    border-radius: 16px !important;
+    padding-left: .95rem !important;
+    padding-right: .95rem !important;
+    transition:
+        background .18s ease,
+        transform .18s ease,
+        box-shadow .22s ease,
+        border-color .22s ease !important;
+    border: 1px solid transparent !important;
+    position: relative !important;
+}
+
+.fi-sidebar-item-button:hover {
+    transform: translateX(2px) !important;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, .06) !important;
+}
+
+.fi-sidebar-item-icon {
+    width: 1.08rem !important;
+    height: 1.08rem !important;
+    opacity: .95 !important;
+}
+
+.fi-sidebar-item-label {
+    font-size: .94rem !important;
+    font-weight: 800 !important;
+}
+
+.fi-sidebar-item-active > .fi-sidebar-item-button,
+.fi-sidebar-item-button[aria-current="page"] {
+    background: linear-gradient(90deg, rgba(60,159,163,.14), rgba(44,83,119,.10)) !important;
+    border-color: rgba(60,159,163,.22) !important;
+    box-shadow:
+        0 10px 24px rgba(15, 23, 42, .06),
+        inset 0 1px 0 rgba(255,255,255,.45) !important;
+}
+
+.fi-sidebar-item-active > .fi-sidebar-item-button::before,
+.fi-sidebar-item-button[aria-current="page"]::before {
+    content: "" !important;
+    position: absolute !important;
+    left: 8px !important;
+    top: 8px !important;
+    bottom: 8px !important;
+    width: 4px !important;
+    border-radius: 999px !important;
+    background: linear-gradient(180deg, #3C9FA3, #2C5377) !important;
+}
+
+.fi-sidebar-item-active > .fi-sidebar-item-button .fi-sidebar-item-icon,
+.fi-sidebar-item-button[aria-current="page"] .fi-sidebar-item-icon,
+.fi-sidebar-item-active > .fi-sidebar-item-button .fi-sidebar-item-label,
+.fi-sidebar-item-button[aria-current="page"] .fi-sidebar-item-label {
+    color: #244d66 !important;
+}
+
+.dark .fi-sidebar-item-active > .fi-sidebar-item-button,
+.dark .fi-sidebar-item-button[aria-current="page"] {
+    background: linear-gradient(90deg, rgba(20,50,58,.95), rgba(33,61,73,.92)) !important;
+    border-color: rgba(60,159,163,.26) !important;
+    box-shadow:
+        0 10px 24px rgba(2, 6, 23, .30),
+        inset 0 1px 0 rgba(255,255,255,.04) !important;
+}
+
+.dark .fi-sidebar-item-active > .fi-sidebar-item-button .fi-sidebar-item-icon,
+.dark .fi-sidebar-item-button[aria-current="page"] .fi-sidebar-item-icon,
+.dark .fi-sidebar-item-active > .fi-sidebar-item-button .fi-sidebar-item-label,
+.dark .fi-sidebar-item-button[aria-current="page"] .fi-sidebar-item-label {
+    color: #d7f3ef !important;
+}
+
+/* nested / child navigation */
+.fi-sidebar .fi-sidebar-group .fi-sidebar-item-children,
+.fi-sidebar .fi-sidebar-item-children {
+    margin-top: .3rem !important;
+    margin-left: .85rem !important;
+    padding-left: .95rem !important;
+    border-left: 1px dashed rgba(148, 163, 184, .35) !important;
+}
+
+.dark .fi-sidebar .fi-sidebar-group .fi-sidebar-item-children,
+.dark .fi-sidebar .fi-sidebar-item-children {
+    border-left: 1px dashed rgba(148, 163, 184, .20) !important;
+}
+
+.fi-sidebar .fi-sidebar-item-children .fi-sidebar-item-button {
+    min-height: 2.55rem !important;
+    border-radius: 14px !important;
+    padding-left: .85rem !important;
+    background: rgba(255,255,255,.38) !important;
+}
+
+.dark .fi-sidebar .fi-sidebar-item-children .fi-sidebar-item-button {
+    background: rgba(255,255,255,.02) !important;
+}
+
+.fi-sidebar .fi-sidebar-item-children .fi-sidebar-item-label {
+    font-size: .89rem !important;
+    font-weight: 700 !important;
+}
+
+/* dropdown arrows / collapse indicators */
+.fi-sidebar-group-button,
+.fi-sidebar-item-collapse-button,
+.fi-sidebar-item-toggle {
+    border-radius: 12px !important;
+    transition: background .18s ease, transform .18s ease !important;
+}
+
+.fi-sidebar-group-button:hover,
+.fi-sidebar-item-collapse-button:hover,
+.fi-sidebar-item-toggle:hover {
+    background: rgba(60,159,163,.08) !important;
+}
+
+.dark .fi-sidebar-group-button:hover,
+.dark .fi-sidebar-item-collapse-button:hover,
+.dark .fi-sidebar-item-toggle:hover {
+    background: rgba(60,159,163,.10) !important;
+}
+
+/* make expanded finance/treasury area feel grouped */
+.fi-sidebar-group:has(.fi-sidebar-item-children),
+.fi-sidebar-item:has(.fi-sidebar-item-children) {
+    padding: .2rem !important;
+    border-radius: 18px !important;
+}
+
+/* scrollbar */
+.fi-sidebar ::-webkit-scrollbar {
+    width: 8px;
+}
+
+.fi-sidebar ::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, .32);
+    border-radius: 999px;
+}
+
+.dark .fi-sidebar ::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, .18);
+}
+

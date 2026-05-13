@@ -9,7 +9,9 @@ use Illuminate\Database\Eloquent\Builder;
 
 class ListArchivedPreEmployments extends ListRecords
 {
-    protected static string $resource = ArchivedPreEmploymentResource::class;
+    
+    protected string $view = 'filament.resources.archived-pre-employments.pages.list-archived-pre-employments-premium';
+protected static string $resource = ArchivedPreEmploymentResource::class;
 
     protected function getTableQuery(): Builder
     {
@@ -23,4 +25,15 @@ class ListArchivedPreEmployments extends ListRecords
                     ->orWhereNotNull('converted_to_employment_at');
             });
     }
+
+    public function getView(): string
+    {
+        return 'filament.resources.archived-pre-employments.pages.list-archived-pre-employments-premium';
+    }
+
+    public static function canAccess(array $parameters = []): bool
+    {
+        return (bool) (auth()->user()?->canErp('archive', 'view') ?? false);
+    }
+
 }

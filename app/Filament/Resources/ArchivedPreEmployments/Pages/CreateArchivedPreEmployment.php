@@ -8,4 +8,10 @@ use Filament\Resources\Pages\CreateRecord;
 class CreateArchivedPreEmployment extends CreateRecord
 {
     protected static string $resource = ArchivedPreEmploymentResource::class;
+
+    public static function canAccess(array $parameters = []): bool
+    {
+        return (bool) (auth()->user()?->canErp('archive', 'view') ?? false);
+    }
+
 }

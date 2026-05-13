@@ -8,7 +8,9 @@ use App\Mail\CandidateRequestMail;
 use App\Mail\JobApplicationDeclinedMail;
 use App\Mail\JobApplicationStatusUpdatedMail;
 use App\Mail\PreEmploymentStartedMail;
+use App\Models\CandidateFinanceProfile;
 use App\Models\PreEmployment;
+use App\Models\Job;
 use Filament\Actions;
 use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\DatePicker;
@@ -23,6 +25,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
@@ -434,6 +437,7 @@ class ViewJobApplication extends ViewRecord
 
         $statusActions = [
             Actions\Action::make('set_screening')
+                ->hidden(fn () => ! (bool) auth()->user()?->canErp('job_applications', 'screening'))
                 ->label('Screening')
                 ->color('warning')
                 ->requiresConfirmation()
@@ -464,6 +468,7 @@ class ViewJobApplication extends ViewRecord
             ),
 
             Actions\Action::make('set_hired')
+                ->hidden(fn () => ! (bool) auth()->user()?->canErp('job_applications', 'hire'))
                 ->label('Hired')
                 ->color('success')
                 ->form([
@@ -495,6 +500,7 @@ class ViewJobApplication extends ViewRecord
                 }),
 
             Actions\Action::make('set_declined')
+                ->hidden(fn () => ! (bool) auth()->user()?->canErp('job_applications', 'decline'))
                 ->label('Declined')
                 ->color('warning')
                 ->form([
@@ -544,6 +550,7 @@ class ViewJobApplication extends ViewRecord
         ];
 
         $requestAction = Actions\Action::make('create_candidate_request')
+                ->hidden(fn () => ! (bool) auth()->user()?->canErp('job_applications', 'create_request'))
             ->label('Create Request')
             ->icon('heroicon-o-document-text')
             ->color('primary')
@@ -774,6 +781,7 @@ class ViewJobApplication extends ViewRecord
             });
 
         $deleteCandidateRequestAction = Actions\Action::make('deleteCandidateRequestAction')
+                ->hidden(fn () => ! (bool) auth()->user()?->canErp('job_applications', 'delete_request'))
             ->label('Delete Candidate Request')
             ->color('danger')
             ->icon('heroicon-o-trash')
@@ -836,8 +844,10 @@ class ViewJobApplication extends ViewRecord
 
         $moreActions = ActionGroup::make([
             $requestAction,
-            Actions\EditAction::make(),
+            Actions\EditAction::make()
+                ->hidden(fn () => ! (bool) auth()->user()?->canErp('job_applications', 'edit')),
             Actions\DeleteAction::make()
+                ->hidden(fn () => ! (bool) auth()->user()?->canErp('job_applications', 'delete'))
                 ->label('Delete')
                 ->color('danger')
                 ->requiresConfirmation()
@@ -862,11 +872,22 @@ class ViewJobApplication extends ViewRecord
         return array_merge($statusActions, $baseActions);
     }
 
+
+    protected function statusPermissionAction(string $status): string
+    {
+        return match ($status) {
+            'hired' => 'hire',
+            'declined' => 'decline',
+            default => 'screening',
+        };
+    }
+
     protected function makeStatusAction(string $name, string $label, string $color, string $status): Actions\Action
     {
         return Actions\Action::make($name)
             ->label($label)
             ->color($color)
+            ->hidden(fn () => ! (bool) auth()->user()?->canErp('job_applications', $this->statusPermissionAction($status)))
             ->form([
                 Toggle::make('send_email')
                     ->label('Send email notification')
@@ -983,25 +1004,171 @@ class ViewJobApplication extends ViewRecord
             ->send();
     }
 
+    protected function resolveValidJobForPreEmployment(): ?Job
+    {
+        $candidateIds = array_values(array_filter([
+            $this->record->job_id,
+            optional($this->record->job)->id,
+        ]));
+
+        if (empty($candidateIds)) {
+            return null;
+        }
+
+        $jobId = DB::table('jobs')
+            ->whereIn('id', $candidateIds)
+            ->value('id');
+
+        if (! $jobId) {
+            return null;
+        }
+
+        return Job::with('project.client')->find($jobId);
+    }
+
     protected function createOrGetPreEmployment(): PreEmployment
     {
+        $job = $this->resolveValidJobForPreEmployment();
+
+        if (! $job) {
+            throw new \RuntimeException('Linked Job record does not exist in the database. Please re-link the application to a valid job before creating Pre-Employment.');
+        }
+
         $existing = PreEmployment::query()
+            ->with(['files', 'currentFinanceProfile'])
             ->where('job_application_id', $this->record->id)
             ->first();
 
         if ($existing) {
-            return $existing;
+            $reactivationPayload = [
+                'job_id' => $job->id,
+                'candidate_name' => $existing->candidate_name ?: $this->record->full_name,
+                'candidate_email' => $existing->candidate_email ?: $this->record->email,
+                'candidate_phone' => $existing->candidate_phone ?: ($this->record->phone ?: $this->record->whatsapp_number),
+                'is_archived' => false,
+                'archive_reason' => null,
+                'archived_at' => null,
+                'converted_to_employment_at' => null,
+            ];
+
+            if (blank($existing->status) || in_array($existing->status, ['converted', 'completed', 'returned_to_job_application'], true)) {
+                $reactivationPayload['status'] = 'initiated';
+            }
+
+            $existing->update($reactivationPayload);
+            $existing->refresh();
+
+            $this->syncPreEmploymentFinanceProfile($existing);
+            $this->syncPreEmploymentFilesFromApplication($existing);
+
+            return $existing->fresh(['files', 'currentFinanceProfile']);
         }
 
-        return PreEmployment::create([
+        $preEmployment = PreEmployment::create([
             'job_application_id' => $this->record->id,
-            'job_id' => $this->record->job_id,
+            'job_id' => $job->id,
             'candidate_name' => $this->record->full_name,
             'candidate_email' => $this->record->email,
             'candidate_phone' => $this->record->phone ?: $this->record->whatsapp_number,
             'status' => 'initiated',
             'notes' => $this->record->notes,
         ]);
+
+        $this->syncPreEmploymentFinanceProfile($preEmployment);
+        $this->syncPreEmploymentFilesFromApplication($preEmployment);
+
+        return $preEmployment->fresh(['files', 'currentFinanceProfile']);
+    }
+
+    protected function syncPreEmploymentFinanceProfile(PreEmployment $preEmployment): void
+    {
+        $job = $this->resolveValidJobForPreEmployment();
+
+        if (! $job) {
+            return;
+        }
+
+        if ((int) $preEmployment->job_id !== (int) $job->id) {
+            $preEmployment->update(['job_id' => $job->id]);
+            $preEmployment->refresh();
+        }
+
+        $dailyRate = $this->record->currentAcceptedDailyRate();
+        $currency = $this->record->currentAcceptedCurrency() ?: 'EUR';
+
+        if (! $dailyRate || $dailyRate <= 0) {
+            return;
+        }
+
+        CandidateFinanceProfile::query()
+            ->where('pre_employment_id', $preEmployment->id)
+            ->update(['is_current' => false]);
+
+        $current = CandidateFinanceProfile::query()
+            ->where('pre_employment_id', $preEmployment->id)
+            ->latest('id')
+            ->first();
+
+        $payload = [
+            'job_application_id' => $this->record->id,
+            'pre_employment_id' => $preEmployment->id,
+            'job_id' => $job->id,
+            'client_id' => $job->project?->client?->id,
+            'project_id' => $job->project?->id,
+            'finance_status' => 'draft',
+            'salary_basis' => CandidateFinanceProfile::BASIS_DAILY_RATE,
+            'daily_rate' => $dailyRate,
+            'payout_currency' => $currency,
+            'client_billing_basis' => CandidateFinanceProfile::BASIS_DAILY_RATE,
+            'client_billing_currency' => $current?->client_billing_currency ?: $currency,
+            'client_billing_rate' => $current?->client_billing_rate,
+            'source_type' => 'pre_employment',
+            'effective_from' => now()->toDateString(),
+            'is_current' => true,
+            'is_hidden_from_non_finance' => true,
+            'finance_notes' => $current?->finance_notes ?: 'Initial finance data copied automatically from accepted salary negotiation in Job Application.',
+        ];
+
+        if ($current) {
+            $current->update($payload);
+            return;
+        }
+
+        CandidateFinanceProfile::create($payload);
+    }
+
+    protected function syncPreEmploymentFilesFromApplication(PreEmployment $preEmployment): void
+    {
+        $existingPaths = $preEmployment->files()
+            ->pluck('file_path')
+            ->filter()
+            ->map(fn ($path) => ltrim((string) $path, '/'))
+            ->values()
+            ->all();
+
+        foreach ($this->record->applicationFilePayloads() as $file) {
+            $normalizedPath = ltrim((string) ($file['file_path'] ?? ''), '/');
+
+            if (blank($normalizedPath) || in_array($normalizedPath, $existingPaths, true)) {
+                continue;
+            }
+
+            $preEmployment->files()->create([
+                'title' => $file['title'] ?? 'Application File',
+                'category' => $file['category'] ?? 'candidate_upload',
+                'document_date' => null,
+                'expiry_date' => null,
+                'version_no' => 1,
+                'is_current' => true,
+                'file_path' => $normalizedPath,
+                'uploaded_by_type' => $file['uploaded_by_type'] ?? 'candidate',
+                'uploaded_by_user_id' => auth()->id(),
+                'notes' => $file['notes'] ?? 'Copied automatically from Job Application.',
+                'is_active' => true,
+            ]);
+
+            $existingPaths[] = $normalizedPath;
+        }
     }
 
     protected function sendStatusEmailIfNeeded(string $newStatus, ?string $oldStatus = null, bool $sendEmail = false): void
@@ -1100,4 +1267,10 @@ class ViewJobApplication extends ViewRecord
             default => 'Declined',
         };
     }
+
+    public static function canAccess(array $parameters = []): bool
+    {
+        return (bool) (auth()->user()?->canErp('job_applications', 'view') ?? false);
+    }
+
 }

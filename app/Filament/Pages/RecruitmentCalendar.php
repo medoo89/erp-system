@@ -14,6 +14,10 @@ class RecruitmentCalendar extends Page
 {
     protected string $view = 'filament.pages.recruitment-calendar';
 
+    protected static string|\UnitEnum|null $navigationGroup = 'Recruitment';
+
+    protected static ?int $navigationSort = 20;
+
     public array $calendarEvents = [];
     public array $upcomingTaskGroups = [];
     public array $jobOptions = [];
@@ -173,4 +177,15 @@ class RecruitmentCalendar extends Page
 
         return array_values($groups);
     }
+
+    public static function canAccess(array $parameters = []): bool
+    {
+        $user = auth()->user();
+
+        return (bool) (
+            $user
+            && ($user->is_admin ?? false)
+        );
+    }
+
 }

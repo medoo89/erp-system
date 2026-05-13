@@ -19,8 +19,6 @@ class Job extends Model
         'closing_date',
         'template_id',
         'project_id',
-
-        // archive fields
         'is_archived',
         'archive_reason',
         'archived_at',
@@ -52,6 +50,26 @@ class Job extends Model
     public function project()
     {
         return $this->belongsTo(\App\Models\Project::class, 'project_id');
+    }
+
+    public function financeProfiles()
+    {
+        return $this->hasMany(\App\Models\CandidateFinanceProfile::class, 'job_id')
+            ->latest('id');
+    }
+
+    public function financeExpenses()
+    {
+        return $this->hasMany(\App\Models\FinanceExpense::class, 'job_id')
+            ->latest('expense_date')
+            ->latest('id');
+    }
+
+    public function salaryTermsHistory()
+    {
+        return $this->hasMany(\App\Models\SalaryTermsHistory::class, 'job_id')
+            ->latest('effective_from')
+            ->latest('id');
     }
 
     public function isClosed(): bool

@@ -8,7 +8,9 @@ use Filament\Resources\Pages\CreateRecord;
 
 class CreateJobApplicationTemplate extends CreateRecord
 {
-    protected static string $resource = JobApplicationTemplateResource::class;
+    
+    protected string $view = 'filament.resources.job-application-templates.pages.create-job-application-template-premium';
+protected static string $resource = JobApplicationTemplateResource::class;
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
@@ -39,4 +41,15 @@ class CreateJobApplicationTemplate extends CreateRecord
 
         $this->record->fields()->sync($allFields);
     }
+
+    public function getView(): string
+    {
+        return 'filament.resources.job-application-templates.pages.create-job-application-template-premium';
+    }
+
+    public static function canAccess(array $parameters = []): bool
+    {
+        return (bool) (auth()->user()?->canErp('application_templates', 'create') ?? false);
+    }
+
 }

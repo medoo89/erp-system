@@ -8,14 +8,6 @@
     $notificationIcon = function (?string $category, ?string $title = null) {
         $text = strtolower(trim(($category ?? '') . ' ' . ($title ?? '')));
 
-        if (str_contains($text, 'salary') || str_contains($text, 'payment') || str_contains($text, 'bank')) return 'salary';
-        if (str_contains($text, 'file') || str_contains($text, 'document')) return 'file';
-        if (str_contains($text, 'rotation')) return 'rotation';
-        if (str_contains($text, 'travel') || str_contains($text, 'ticket')) return 'travel';
-        if (str_contains($text, 'medical')) return 'medical';
-        if (str_contains($text, 'visa')) return 'visa';
-        if (str_contains($text, 'contract')) return 'contract';
-        if (str_contains($text, 'test')) return 'bell';
 
         return 'bell';
     };

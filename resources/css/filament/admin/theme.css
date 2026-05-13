@@ -1,0 +1,269 @@
+/* ==========================================================
+   SADA FEZZAN ERP — LOGO 100% BIGGER + PREMIUM HEADER SPACE
+   This file is Vite entry CSS. Do NOT import tailwind JS here.
+   ========================================================== */
+
+.fi-sidebar-header {
+    min-height: 132px !important;
+    height: 132px !important;
+    max-height: none !important;
+    padding: 14px 18px !important;
+    overflow: visible !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+.fi-sidebar-header > *,
+.fi-sidebar-header a,
+.fi-sidebar-header .fi-logo,
+.fi-sidebar-header .fi-logo-link {
+    min-height: 108px !important;
+    height: 108px !important;
+    max-height: none !important;
+    overflow: visible !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+.fi-sidebar-header img,
+.fi-sidebar-header svg,
+.fi-sidebar-header .fi-logo img,
+.fi-sidebar-header .fi-logo svg,
+.fi-sidebar .fi-logo img,
+.fi-sidebar .fi-logo svg,
+.fi-logo img,
+.fi-logo svg {
+    height: 108px !important;
+    max-height: 108px !important;
+    width: auto !important;
+    max-width: 260px !important;
+    object-fit: contain !important;
+    transform: none !important;
+}
+
+.fi-sidebar-nav {
+    padding-top: 22px !important;
+}
+
+.fi-topbar {
+    min-height: 78px !important;
+}
+
+.fi-topbar img,
+.fi-topbar svg,
+.fi-topbar .fi-logo img,
+.fi-topbar .fi-logo svg {
+    height: 78px !important;
+    max-height: 78px !important;
+    width: auto !important;
+    object-fit: contain !important;
+}
+
+
+/* ==========================================================
+   SADA FEZZAN ERP — MATCH TOPBAR HEIGHT WITH 2X LOGO
+   ========================================================== */
+
+.fi-topbar,
+.fi-topbar > nav,
+.fi-topbar .fi-topbar-ctn,
+.fi-topbar .fi-topbar-start,
+.fi-topbar .fi-topbar-end {
+    min-height: 118px !important;
+    height: 118px !important;
+    max-height: none !important;
+}
+
+.fi-main {
+    padding-top: 118px !important;
+}
+
+.fi-sidebar-header {
+    min-height: 118px !important;
+    height: 118px !important;
+    max-height: none !important;
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+}
+
+.fi-sidebar-header img,
+.fi-sidebar-header svg,
+.fi-sidebar-header .fi-logo img,
+.fi-sidebar-header .fi-logo svg,
+.fi-sidebar .fi-logo img,
+.fi-sidebar .fi-logo svg,
+.fi-logo img,
+.fi-logo svg {
+    height: 96px !important;
+    max-height: 96px !important;
+    width: auto !important;
+    max-width: 260px !important;
+    object-fit: contain !important;
+}
+
+.fi-topbar img,
+.fi-topbar svg,
+.fi-topbar .fi-logo img,
+.fi-topbar .fi-logo svg {
+    height: 86px !important;
+    max-height: 86px !important;
+    width: auto !important;
+    object-fit: contain !important;
+}
+
+.fi-sidebar-nav {
+    padding-top: 24px !important;
+}
+
+/* =========================================================
+   Sada Fezzan ERP - Global Filament Select / Choices Fix
+   Fixes broken dropdown text/icons inside modals, forms, upload dialogs
+   ========================================================= */
+
+.fi-modal .choices,
+.fi-fo-field-wrp .choices,
+.fi-ta .choices,
+.fi-form .choices {
+    position: relative !important;
+    overflow: visible !important;
+}
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+
+.fi-modal,
+.fi-modal-window,
+.fi-modal-content,
+.fi-fo-field-wrp,
+.fi-section,
+.fi-section-content,
+.fi-section-content-ctn {
+    overflow: visible !important;
+}
+
+.fi-modal-window {
+    max-width: min(920px, calc(100vw - 32px)) !important;
+}
+
+
+
+/* =========================================================
+   SF GLOBAL FIX - Filament Select / Choices Dropdown Garbage
+   Date: AUTO
+   Purpose:
+   - Remove pseudo text/icons injected inside dropdown options.
+   - Keep dropdowns readable, scrollable, above modals/cards.
+   - Safe for all ERP pages: Job Applications, Pre-Employment,
+     Employments, Upload modals, Finance, etc.
+   ========================================================= */
+
+.fi-modal .choices,
+.fi-fo-field-wrp .choices,
+.fi-ta .choices,
+.fi-form .choices {
+    position: relative !important;
+    overflow: visible !important;
+}
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+
+.choices {
+    overflow: visible !important;
+    position: relative !important;
+}
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+/* SF removed broken global dropdown/select override */
+
+
+/* SF FINAL GLOBAL SELECT / DROPDOWN FONT FIX - source copy */
+html body .fi-modal [role="listbox"],
+html body .fi-modal [role="listbox"] *,
+html body .fi-modal [role="option"],
+html body .fi-modal [role="option"] *,
+html body .fi-modal [cmdk-list],
+html body .fi-modal [cmdk-list] *,
+html body .fi-modal [cmdk-item],
+html body .fi-modal [cmdk-item] *,
+html body .fi-modal .choices__list,
+html body .fi-modal .choices__list *,
+html body .fi-modal .choices__item,
+html body .fi-modal .choices__item *,
+html body .fi-fo-field-wrp [role="listbox"],
+html body .fi-fo-field-wrp [role="listbox"] *,
+html body .fi-fo-field-wrp [role="option"],
+html body .fi-fo-field-wrp [role="option"] *,
+html body .fi-form [role="listbox"],
+html body .fi-form [role="listbox"] *,
+html body .fi-form [role="option"],
+html body .fi-form [role="option"] *,
+html body .fi-dropdown-panel [role="listbox"],
+html body .fi-dropdown-panel [role="listbox"] *,
+html body .fi-dropdown-panel [role="option"],
+html body .fi-dropdown-panel [role="option"] * {
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif !important;
+    font-feature-settings: normal !important;
+    -webkit-font-feature-settings: normal !important;
+    letter-spacing: normal !important;
+    text-transform: none !important;
+}
+

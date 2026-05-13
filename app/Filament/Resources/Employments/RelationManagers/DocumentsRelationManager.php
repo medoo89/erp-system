@@ -186,6 +186,7 @@ class DocumentsRelationManager extends RelationManager
             ])
             ->headerActions([
                 Action::make('generateGeneralLetter')
+                    ->visible(fn () => (bool) auth()->user()?->canErp('employments', 'upload_file'))
                     ->label(fn () => $this->ownerRecord->documents()->where('document_type', 'general_letter')->exists()
                         ? 'Regenerate General Letter'
                         : 'Generate General Letter')
@@ -206,6 +207,7 @@ class DocumentsRelationManager extends RelationManager
                     }),
 
                 Action::make('generateCaf')
+                    ->visible(fn () => (bool) auth()->user()?->canErp('employments', 'upload_file'))
                     ->label(fn () => $this->ownerRecord->documents()->where('document_type', 'caf')->exists()
                         ? 'Regenerate CAF'
                         : 'Generate CAF')
@@ -226,6 +228,7 @@ class DocumentsRelationManager extends RelationManager
                     }),
 
                 CreateAction::make()
+                    ->visible(fn () => (bool) auth()->user()?->canErp('employments', 'upload_file'))
                     ->label('Add Official Document')
                     ->requiresConfirmation()
                     ->mutateDataUsing(function (array $data): array {
@@ -241,15 +244,31 @@ class DocumentsRelationManager extends RelationManager
             ])
             ->recordActions([
                 EditAction::make()
+                    ->visible(fn () => (bool) auth()->user()?->canErp('employments', 'upload_file'))
                     ->requiresConfirmation(),
 
                 DeleteAction::make()
+                    ->visible(fn () => (bool) auth()->user()?->canErp('employments', 'delete_file'))
                     ->requiresConfirmation(),
             ])
             ->bulkActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make()->requiresConfirmation(),
+                    DeleteBulkAction::make()
+                            ->visible(fn () => (bool) auth()->user()?->canErp('employments', 'delete_file'))
+                            ->requiresConfirmation(),
                 ]),
             ]);
+    }
+
+
+    public static function canViewForRecord(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): bool
+    {
+        $user = auth()->user();
+
+        return (bool) (
+            $user?->canErp('employments', 'view')
+            || $user?->canErp('employments', 'upload_file')
+            || $user?->canErp('employments', 'delete_file')
+        );
     }
 }

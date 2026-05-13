@@ -8,7 +8,9 @@ use Filament\Resources\Pages\EditRecord;
 
 class EditJobApplicationTemplate extends EditRecord
 {
-    protected static string $resource = JobApplicationTemplateResource::class;
+    
+    protected string $view = 'filament.resources.job-application-templates.pages.edit-job-application-template-premium';
+protected static string $resource = JobApplicationTemplateResource::class;
 
     protected function mutateFormDataBeforeFill(array $data): array
     {
@@ -49,4 +51,15 @@ class EditJobApplicationTemplate extends EditRecord
 
         $this->record->fields()->sync($allFields);
     }
+
+    public function getView(): string
+    {
+        return 'filament.resources.job-application-templates.pages.edit-job-application-template-premium';
+    }
+
+    public static function canAccess(array $parameters = []): bool
+    {
+        return (bool) (auth()->user()?->canErp('application_templates', 'edit') ?? false);
+    }
+
 }

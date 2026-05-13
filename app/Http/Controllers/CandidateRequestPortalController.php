@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\CandidateRequestSubmissionReceivedMail;
 use App\Models\CandidateRequest;
+use App\Services\CandidateFinanceProfileSyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -388,6 +389,11 @@ class CandidateRequestPortalController extends Controller
             'negotiation_result' => $negotiationResult,
         ]);
 
+        if ($isNegotiation && ($validated['decision'] ?? null) === 'approved') {
+            app(CandidateFinanceProfileSyncService::class)
+                ->syncFromAcceptedNegotiation($candidateRequest->fresh(), null);
+        }
+
         $hasFiles = count($newUploadedFiles) > 0 || count($existingFiles) > 0;
         $hasNotes = count($mergedNoteResponses) > 0;
         $hasMessage = filled($validated['candidate_response_text'] ?? null);
@@ -429,6 +435,45 @@ class CandidateRequestPortalController extends Controller
                     'message' => $e->getMessage(),
                 ]);
             }
+        }
+
+        try {
+            $candidateName = $candidateRequest->jobApplication?->full_name
+                ?? $candidateRequest->jobApplication?->candidate_name
+                ?? $candidateRequest->jobApplication?->name
+                ?? 'Candidate';
+
+            $parts = [
+                'Candidate: ' . $candidateName,
+                'Request ID: #' . $candidateRequest->id,
+                'Status: ' . ucfirst(str_replace('_', ' ', (string) $candidateRequest->fresh()->request_status)),
+            ];
+
+            if (! empty($newUploadedFiles)) {
+                $parts[] = 'Uploaded files: ' . count($newUploadedFiles);
+            }
+
+            if (! empty($newNoteResponses)) {
+                $parts[] = 'Note responses: ' . count($newNoteResponses);
+            }
+
+            if ($isNegotiation) {
+                $parts[] = 'Negotiation: ' . ucfirst(str_replace('_', ' ', (string) ($validated['decision'] ?? 'response')));
+            }
+
+            app(\App\Services\AdminErpNotificationService::class)->notifyAdmins(
+                title: 'Candidate request response received',
+                body: implode(' · ', array_filter($parts)),
+                icon: 'heroicon-o-inbox-arrow-down',
+                color: 'info',
+                url: url('/admin/job-applications/' . $candidateRequest->job_application_id),
+                department: 'hr',
+                module: 'candidate_requests',
+                relatedType: get_class($candidateRequest),
+                relatedId: (int) $candidateRequest->id,
+            );
+        } catch (\Throwable $e) {
+            report($e);
         }
 
         return redirect()
@@ -474,3 +519,4 @@ class CandidateRequestPortalController extends Controller
         return true;
     }
 }
+

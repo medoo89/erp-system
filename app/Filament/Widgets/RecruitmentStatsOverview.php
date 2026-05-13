@@ -52,13 +52,13 @@ class RecruitmentStatsOverview extends BaseWidget
                 ->description('All job opening records')
                 ->icon('heroicon-o-briefcase')
                 ->color('primary')
-                ->url('/admin/job-openings'),
+                ->url('/admin/jobs'),
 
             Stat::make('Active Job Openings', number_format($activeJobs))
                 ->description('Currently open and active')
                 ->icon('heroicon-o-bolt')
                 ->color('success')
-                ->url('/admin/job-openings'),
+                ->url('/admin/jobs'),
 
             Stat::make('Total Applications', number_format($totalApplications))
                 ->description('All submitted applications')

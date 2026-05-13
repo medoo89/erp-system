@@ -1,0 +1,96 @@
+/*
+|--------------------------------------------------------------------------
+| Sada Fezzan ERP Emergency Admin CSS
+| Final centralized layout fix
+|--------------------------------------------------------------------------
+*/
+
+/* Root background */
+.fi-body,
+.fi-main,
+.fi-main-ctn {
+    background:
+        radial-gradient(circle at top right, rgba(76,167,168,.08), transparent 28%),
+        linear-gradient(180deg, #f7fbfc 0%, #eef5f7 100%) !important;
+}
+
+/* IMPORTANT:
+   Centralize all Filament pages.
+   Do NOT stretch content to full browser width.
+*/
+.fi-main {
+    width: 100% !important;
+}
+
+.fi-main-ctn {
+    width: 100% !important;
+    max-width: none !important;
+}
+
+.fi-page {
+    width: 100% !important;
+    max-width: none !important;
+}
+
+.fi-page > *,
+.fi-header,
+.fi-page-content {
+    width: min(100% - 48px, 1240px) !important;
+    max-width: 1240px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+/* Page content must not add extra side stretch */
+.fi-page-content {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+/* Keep custom premium pages inside the same central width */
+.sada-calendar-page,
+.ci-view-shell,
+.sf-employment-view,
+.sf-salary-slip-page,
+.sf-premium-page,
+.sada-executive-hero,
+.sada-calendar-card {
+    width: 100% !important;
+    max-width: 1240px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+/* Dashboard widgets and cards should fill the central container only */
+.fi-wi,
+.fi-wi-widget,
+.fi-section,
+.fi-ta,
+.fi-fo,
+.fi-in {
+    max-width: 100% !important;
+}
+
+/* Tables can scroll internally instead of stretching the whole page */
+.fi-ta,
+.fi-ta-content,
+.fi-ta-table {
+    overflow-x: auto !important;
+}
+
+/* Mobile */
+@media (max-width: 900px) {
+    .fi-page > *,
+    .fi-header,
+    .fi-page-content,
+    .sada-calendar-page,
+    .ci-view-shell,
+    .sf-employment-view,
+    .sf-salary-slip-page,
+    .sf-premium-page,
+    .sada-executive-hero,
+    .sada-calendar-card {
+        width: min(100% - 20px, 100%) !important;
+        max-width: 100% !important;
+    }
+}

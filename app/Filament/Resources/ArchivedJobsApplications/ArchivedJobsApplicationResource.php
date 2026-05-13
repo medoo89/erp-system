@@ -47,6 +47,38 @@ class ArchivedJobApplicationResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return true;
+        return false;
     }
+
+
+    public static function canViewAny(): bool
+    {
+        return (bool) (auth()->user()?->canErp('archive', 'view') ?? false);
+    }
+
+    public static function canCreate(): bool
+    {
+        return false;
+    }
+
+    public static function canView($record): bool
+    {
+        return (bool) (auth()->user()?->canErp('archive', 'view') ?? false);
+    }
+
+    public static function canEdit($record): bool
+    {
+        return false;
+    }
+
+    public static function canDelete($record): bool
+    {
+        return (bool) (auth()->user()?->canErp('archive', 'delete') ?? false);
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return (bool) (auth()->user()?->canErp('archive', 'delete') ?? false);
+    }
+
 }

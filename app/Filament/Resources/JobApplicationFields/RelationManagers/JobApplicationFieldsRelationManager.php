@@ -43,11 +43,20 @@ class JobApplicationFieldOptionsRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('sort_order'),
             ])
             ->headerActions([
-                CreateAction::make(),
+                CreateAction::make()
+                    ->visible(fn () => (bool) auth()->user()?->canErp('application_fields', 'create')),
             ])
             ->recordActions([
-                EditAction::make(),
-                DeleteAction::make(),
+                EditAction::make()
+                    ->visible(fn () => (bool) auth()->user()?->canErp('application_fields', 'edit')),
+                DeleteAction::make()
+                    ->visible(fn () => (bool) auth()->user()?->canErp('application_fields', 'delete')),
             ]);
+    }
+
+
+    public static function canViewForRecord(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): bool
+    {
+        return (bool) (auth()->user()?->canErp('application_fields', 'view') ?? false);
     }
 }

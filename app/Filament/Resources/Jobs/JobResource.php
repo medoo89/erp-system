@@ -54,4 +54,36 @@ class JobResource extends Resource
             'edit' => Pages\EditJob::route('/{record}/edit'),
         ];
     }
+
+
+    public static function canViewAny(): bool
+    {
+        return (bool) (auth()->user()?->canErp('jobs', 'view') ?? false);
+    }
+
+    public static function canCreate(): bool
+    {
+        return (bool) (auth()->user()?->canErp('jobs', 'create') ?? false);
+    }
+
+    public static function canView($record): bool
+    {
+        return (bool) (auth()->user()?->canErp('jobs', 'view') ?? false);
+    }
+
+    public static function canEdit($record): bool
+    {
+        return (bool) (auth()->user()?->canErp('jobs', 'edit') ?? false);
+    }
+
+    public static function canDelete($record): bool
+    {
+        return (bool) (auth()->user()?->canErp('jobs', 'delete') ?? false);
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return (bool) (auth()->user()?->canErp('jobs', 'delete') ?? false);
+    }
+
 }

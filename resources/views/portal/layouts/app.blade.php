@@ -624,7 +624,6 @@
             .portal-logo-shell{width:82px;height:82px}
             .portal-bell-dropdown{right:auto;left:0}
         }
-    
         /* User Control Panel Calendar - Material minimal + day/night */
         .portal-calendar-large{
             display:grid;
@@ -1548,9 +1547,6 @@
     }
 </style>
 
-
-
-
 <style>
     /* FINAL HEADER TUNE: remove duplicate avatar, align profile, improve notification */
     .sf-md3-profile-wrap {
@@ -1648,16 +1644,6 @@
         stroke-width: 2.15 !important;
     }
 </style>
-
-
-
-
-
-
-
-
-
-
 <style id="portal-final-buttons-fix">
     /* ===============================
        FINAL PORTAL HEADER MATERIAL FIX
@@ -2396,7 +2382,15 @@
                     <span>Travel & Tickets</span>
                 </a>
 
-                <a href="{{ route('portal.files.index') }}">
+                <a href="{{ route('portal.reimbursements.index') }}">
+                <svg class="portal-icon portal-icon--sm" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4.75 7.25h14.5A1.75 1.75 0 0 1 21 9v6a1.75 1.75 0 0 1-1.75 1.75H4.75A1.75 1.75 0 0 1 3 15V9a1.75 1.75 0 0 1 1.75-1.75Z"/>
+                    <circle cx="12" cy="12" r="2.25"/>
+                    <path d="M6.25 9.75v4.5M17.75 9.75v4.5"/>
+                </svg>
+                Reimbursements
+            </a>
+            <a href="{{ route('portal.files.index') }}">
                     <svg class="portal-icon portal-icon--sm" viewBox="0 0 24 24">
                         <path d="M14 4H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9z"></path>
                         <path d="M14 4v5h5"></path>
@@ -3245,21 +3239,6 @@
     });
 })();
 </script>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 <script id="portal-final-click-fix">
 document.addEventListener('DOMContentLoaded', function () {
     // Notification dropdown works by click on mobile/desktop
@@ -3586,8 +3565,6 @@ document.addEventListener('DOMContentLoaded', function () {
         <span>ERP Version 1.2</span>
     </div>
 </footer>
-
-
 
 {{-- SAFE PORTAL UI FIX: notification/profile dropdown stacking only --}}
 
@@ -4405,7 +4382,6 @@ document.addEventListener('DOMContentLoaded', function () {
         display: block !important;
     }
 
-    .portal-profile .portal-avatar-text,
     .portal-profile-chip .portal-avatar-text {
         font-size: 25px !important;
         font-weight: 950 !important;

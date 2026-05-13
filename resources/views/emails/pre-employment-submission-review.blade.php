@@ -1,42 +1,41 @@
-@include('emails.partials.premium-layout', [
-    'mailEyebrow' => 'Submission Review',
-    'mailTitle' => 'Your Pre-Employment Submission Is Ready for Review',
-    'mailIntro' => 'Your pre-employment submission has progressed to the review stage. Please keep your portal accessible in case additional updates are requested.',
-    'mailBadgeText' => 'Review Stage',
-    'mailButtonText' => 'Open Portal',
-    'mailButtonUrl' => $portalUrl,
-    'mailFooter' => 'Sada Fezzan Pre-Employment Team',
-])
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+@php
+    $candidateName = $preEmployment->candidate_name ?? optional($preEmployment->jobApplication)->full_name ?? 'Candidate';
+    $jobTitle = optional($preEmployment->jobApplication?->job)->title ?: optional($preEmployment->job)->title;
+
+    $mailEyebrow = 'Submission Review';
+    $mailTitle = 'Your Pre-Employment Submission Is Ready for Review';
+    $mailIntro = 'Your pre-employment submission has progressed to the review stage. Please keep your portal accessible in case additional updates are requested.';
+    $mailBadgeText = 'Review Stage';
+    $mailButtonText = 'Open Portal';
+    $mailButtonUrl = $portalUrl ?? null;
+    $mailFooter = 'Sada Fezzan Pre-Employment Team';
+@endphp
+
+@extends('emails.partials.premium-layout')
+
+@section('content')
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fbfdfe;border:1px solid #e2e8f0;border-radius:22px;">
         <tr>
-            <td>
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#fbfdfe;border:1px solid #e6edf1;border-radius:20px;">
-                    <tr>
-                        <td style="padding:20px;">
-                            <p style="margin:0 0 10px 0;font-size:15px;line-height:1.8;color:#18212b;">
-                                <strong>Name:</strong> {{ $preEmployment->candidate_name ?? optional($preEmployment->jobApplication)->full_name ?? 'Candidate' }}
-                            </p>
+            <td style="padding:22px;">
+                <div style="font-size:12px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:#64748b;margin-bottom:14px;">
+                    Review Details
+                </div>
 
-                            @if(optional($preEmployment->jobApplication?->job)->title)
-                                <p style="margin:0 0 10px 0;font-size:15px;line-height:1.8;color:#18212b;">
-                                    <strong>Position:</strong> {{ optional($preEmployment->jobApplication?->job)->title }}
-                                </p>
-                            @endif
+                <p style="margin:0 0 10px 0;font-size:16px;line-height:1.75;color:#0f172a;">
+                    <strong>Name:</strong> {{ $candidateName }}
+                </p>
 
-                            <p style="margin:0;font-size:15px;line-height:1.8;color:#18212b;">
-                                <strong>Portal Link:</strong><br>
-                                <a href="{{ $portalUrl }}" style="color:#26b6b7;word-break:break-all;">{{ $portalUrl }}</a>
-                            </p>
-                        </td>
-                    </tr>
-                </table>
+                @if($jobTitle)
+                    <p style="margin:0 0 10px 0;font-size:16px;line-height:1.75;color:#0f172a;">
+                        <strong>Position:</strong> {{ $jobTitle }}
+                    </p>
+                @endif
 
-                <div style="height:18px;"></div>
-
-                <p style="margin:0;font-size:15px;line-height:1.9;color:#334155;">
-                    Our team is currently reviewing the submitted details. Please monitor your email for any follow-up request or next-step notification.
+                <p style="margin:0;font-size:16px;line-height:1.75;color:#0f172a;word-break:break-all;">
+                    <strong>Portal Link:</strong><br>
+                    <a href="{{ $portalUrl }}" style="color:#0f766e;text-decoration:underline;">{{ $portalUrl }}</a>
                 </p>
             </td>
         </tr>
     </table>
-@endinclude
+@endsection
