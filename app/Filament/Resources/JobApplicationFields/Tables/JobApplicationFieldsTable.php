@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\JobApplicationFields\Tables;
 
+use App\Models\JobApplicationField;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -37,7 +38,8 @@ class JobApplicationFieldsTable
 
                 Tables\Columns\TextColumn::make('field_type')
                     ->label('Field Type')
-                    ->badge(),
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => JobApplicationField::fieldTypeOptions()[$state] ?? ucfirst(str_replace('_', ' ', (string) $state))),
 
                 Tables\Columns\TextColumn::make('field_group')
                     ->label('Group')

@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\FinanceExpenses\Tables;
 
+use Filament\Tables\Columns\TextColumn;
+
 use App\Models\FinanceExpense;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -17,6 +19,16 @@ class FinanceExpensesTable
         return $table
             ->defaultSort('expense_date', 'desc')
             ->columns([
+
+                TextColumn::make('projectContract.title')
+                    ->label('Contract / Counter')
+                    ->formatStateUsing(fn ($state, $record) => $record->projectContract?->title
+                        ?? $record->projectContract?->contract_no
+                        ?? ($record->project_contract_id ? ('Contract #' . $record->project_contract_id) : '-'))
+                    ->badge()
+                    ->toggleable()
+                    ->placeholder('-'),
+
                 Tables\Columns\TextColumn::make('expense_scope')
                     ->label('Scope')
                     ->badge()

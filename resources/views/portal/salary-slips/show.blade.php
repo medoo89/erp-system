@@ -441,6 +441,18 @@
 </style>
 
 
+
+
+<style id="sf-portal-travel-paid-pill-final">
+    .sf-pill.sf-pill-paid-travel {
+        background: #dbeafe !important;
+        color: #1d4ed8 !important;
+        border: 1px solid rgba(37, 99, 235, .22) !important;
+    }
+</style>
+
+
+
 <style id="sf-portal-attendance-table-scroll-six-days-final">
     .sf-attendance-table-wrap {
         max-height: 430px !important;
@@ -470,13 +482,3 @@
         z-index: 2;
     }
 </style>
-
-
-<style id="sf-portal-travel-paid-pill-final">
-    .sf-pill.sf-pill-paid-travel {
-        background: #dbeafe !important;
-        color: #1d4ed8 !important;
-        border: 1px solid rgba(37, 99, 235, .22) !important;
-    }
-</style>
-

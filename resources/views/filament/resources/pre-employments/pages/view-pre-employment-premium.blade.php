@@ -243,6 +243,29 @@
         ->filter(fn ($field) => ($field->field_type ?? null) === 'file')
         ->values();
 
+
+    /*
+     | Dynamic Candidate Details badge:
+     | Shows request progress clearly instead of only the raw workflow status.
+     */
+    $portalSubmittedValues = collect($record->portalValues ?? []);
+    $portalRequestedFileCount = $portalFileRequests->count();
+    $portalSubmittedFileCount = $portalFileRequests->filter(function ($field) use ($portalSubmittedValues) {
+        $value = $portalSubmittedValues->firstWhere('portal_field_id', $field->id);
+        return filled($value?->value);
+    })->count();
+
+    if ($portalRequestedFileCount > 0 && $portalSubmittedFileCount < $portalRequestedFileCount) {
+        $statusLabel = 'Waiting Candidate File';
+        $statusTone = 'warning';
+    } elseif ($portalRequestedFileCount > 0 && $portalSubmittedFileCount >= $portalRequestedFileCount) {
+        $statusLabel = 'Candidate Submitted File';
+        $statusTone = 'info';
+    } elseif (($record->status ?? null) === 'documents_under_review') {
+        $statusLabel = 'Documents Under Review';
+        $statusTone = 'info';
+    }
+
     $financeProfile = $record->currentFinanceProfile;
 
     $expenses = collect($record->financeExpenses ?? []);
@@ -354,50 +377,237 @@
         <span>{{ $employeeCode }}</span>
     </div>
 
-    <div class="sfpe-real-actions">
+    <div class="sfpe-real-actions sfpe-employment-like-actions">
         @if($publicLink)
-            <a href="{{ $publicLink }}" target="_blank" class="sfpe-real-btn sfpe-btn-light">
-                <span class="material-symbols-rounded">open_in_new</span>
-                Open Public Link
+            <a href="{{ $publicLink }}" target="_blank" class="sfpe-real-btn sfpe-emp-btn sfpe-emp-btn-gray">
+                <span class="sf-svg-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M14 3h7v7h-2V6.4l-9.3 9.3-1.4-1.4L17.6 5H14V3ZM5 5h6v2H5v12h12v-6h2v6q0 .825-.588 1.413T17 21H5q-.825 0-1.413-.588T3 19V7q0-.825.588-1.413T5 5Z"/></svg>
+                </span>
+                <span>Open Public Link</span>
             </a>
         @endif
 
-        <button type="button" wire:click="mountAction('sendPortalRequest')" class="sfpe-real-btn sfpe-btn-green">
-            <span class="material-symbols-rounded">send</span>
-            Resend Public Link
+        <button type="button" wire:click="mountAction('sendPortalRequest')" class="sfpe-real-btn sfpe-emp-btn sfpe-emp-btn-blue">
+            <span class="sf-svg-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M3 20V4l19 8-19 8Zm2-3 11.85-5L5 7v3.5l6 1.5-6 1.5V17Z"/></svg>
+            </span>
+            <span>Resend Public Link</span>
         </button>
 
-        <button type="button" wire:click="mountAction('requestPreEmploymentFile')" class="sfpe-real-btn sfpe-btn-orange">
-            <span class="material-symbols-rounded">request_page</span>
-            Request File
+        <button type="button" wire:click="mountAction('requestPreEmploymentFile')" class="sfpe-real-btn sfpe-emp-btn sfpe-emp-btn-yellow">
+            <span class="sf-svg-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 16 7 11l1.4-1.45 2.6 2.6V4h2v8.15l2.6-2.6L17 11l-5 5ZM5 20q-.825 0-1.413-.588T3 18v-3h2v3h14v-3h2v3q0 .825-.588 1.413T19 20H5Z"/></svg>
+            </span>
+            <span>Request File</span>
         </button>
 
-        <button type="button" wire:click="mountAction('uploadPreEmploymentFile')" class="sfpe-real-btn sfpe-btn-blue">
-            <span class="material-symbols-rounded">upload_file</span>
-            Upload File
+        <button type="button" wire:click="mountAction('uploadPreEmploymentFile')" class="sfpe-real-btn sfpe-emp-btn sfpe-emp-btn-blue">
+            <span class="sf-svg-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 22q-2.5 0-4.25-1.75T6 16V6.5q0-1.875 1.313-3.188T10.5 2q1.875 0 3.188 1.313T15 6.5V16q0 1.25-.875 2.125T12 19q-1.25 0-2.125-.875T9 16V7h2v9q0 .425.288.713T12 17q.425 0 .713-.288T13 16V6.5q0-1.05-.725-1.775T10.5 4q-1.05 0-1.775.725T8 6.5V16q0 1.65 1.175 2.825T12 20q1.65 0 2.825-1.175T16 16V7h2v9q0 2.5-1.75 4.25T12 22Z"/></svg>
+            </span>
+            <span>Upload File</span>
         </button>
 
-        <button type="button" wire:click="mountAction('addExpense')" class="sfpe-real-btn sfpe-btn-red">
-            <span class="material-symbols-rounded">payments</span>
-            Add Expense
+        <button type="button" wire:click="mountAction('addExpense')" class="sfpe-real-btn sfpe-emp-btn sfpe-emp-btn-red">
+            <span class="sf-svg-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M3 18V6h18v12H3Zm2-2h14V8H5v8Zm2-1q.825 0 1.413-.588T9 13q0-.825-.588-1.413T7 11q-.825 0-1.413.588T5 13q0 .825.588 1.413T7 15Zm10 0h1v-4h-6v1h5v3Z"/></svg>
+            </span>
+            <span>Add Expense</span>
         </button>
 
-        <button type="button" wire:click="mountAction('editFinalProfile')" class="sfpe-real-btn sfpe-btn-purple">
-            <span class="material-symbols-rounded">account_balance_wallet</span>
-            Finance Profile
+        <button type="button" wire:click="mountAction('editFinalProfile')" class="sfpe-real-btn sfpe-emp-btn sfpe-emp-btn-gray">
+            <span class="sf-svg-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M4 20q-.825 0-1.413-.588T2 18V6q0-.825.588-1.413T4 4h16v4h-2V6H4v12h16v-4h2v4q0 .825-.588 1.413T20 20H4Zm10-4q-.825 0-1.413-.588T12 14v-4q0-.825.588-1.413T14 8h8v8h-8Zm0-2h6v-4h-6v4Zm3-1q.425 0 .713-.288T18 12q0-.425-.288-.713T17 11q-.425 0-.713.288T16 12q0 .425.288.713T17 13Z"/></svg>
+            </span>
+            <span>Finance Profile</span>
         </button>
 
-        <button type="button" wire:click="mountAction('changePreEmploymentStatus')" class="sfpe-real-btn sfpe-btn-teal">
-            <span class="material-symbols-rounded">published_with_changes</span>
-            Change Status
+        <button type="button" wire:click="mountAction('changePreEmploymentStatus')" class="sfpe-real-btn sfpe-emp-btn sfpe-emp-btn-gray">
+            <span class="sf-svg-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 21q-3.45 0-6.012-2.287T3.05 13H5.1q.35 2.6 2.313 4.3T12 19q2.925 0 4.963-2.038T19 12q0-2.925-2.038-4.963T12 5q-1.725 0-3.225.8T6.25 8H10v2H3V3h2v3.35q1.275-1.6 3.113-2.475T12 3q3.75 0 6.375 2.625T21 12q0 3.75-2.625 6.375T12 21Z"/></svg>
+            </span>
+            <span>Change Status</span>
         </button>
 
-        <button type="button" wire:click="mountAction('convertToEmployment')" class="sfpe-real-btn sfpe-btn-dark">
-            <span class="material-symbols-rounded">badge</span>
-            Convert to Employment
+        <button type="button" wire:click="mountAction('convertToEmployment')" class="sfpe-real-btn sfpe-emp-btn sfpe-emp-btn-blue">
+            <span class="sf-svg-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 12q-1.65 0-2.825-1.175T8 8q0-1.65 1.175-2.825T12 4q1.65 0 2.825 1.175T16 8q0 1.65-1.175 2.825T12 12Zm-8 8v-2.8q0-.85.438-1.562T5.6 14.55q1.55-.775 3.15-1.162T12 13q1.65 0 3.25.388t3.15 1.162q.725.375 1.163 1.088T20 17.2V20H4Z"/></svg>
+            </span>
+            <span>Convert to Employment</span>
         </button>
     </div>
 </section>
+
+<style id="sfpe-preemployment-header-buttons-final-fix">
+    /*
+     | FINAL visual fix for Pre-Employment hero actions.
+     | Keeps direct mountAction(...) working.
+     | Makes buttons match Employment page style with visible icons and real colored pills.
+     */
+
+    .sfpe-real-actions,
+    .sfpe-employment-like-actions {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        gap: 10px !important;
+        margin-top: 24px !important;
+        position: relative !important;
+        z-index: 100 !important;
+        pointer-events: auto !important;
+    }
+
+    .sfpe-real-actions .sfpe-real-btn,
+    .sfpe-real-actions .sfpe-emp-btn,
+    .sfpe-employment-like-actions .sfpe-real-btn,
+    .sfpe-employment-like-actions .sfpe-emp-btn {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 8px !important;
+
+        min-height: 42px !important;
+        padding: 11px 16px !important;
+        border-radius: 999px !important;
+
+        border: 1px solid rgba(255,255,255,.14) !important;
+        box-shadow: none !important;
+        outline: none !important;
+
+        font-size: 13px !important;
+        line-height: 1 !important;
+        font-weight: 900 !important;
+        white-space: nowrap !important;
+        text-decoration: none !important;
+
+        cursor: pointer !important;
+        pointer-events: auto !important;
+        opacity: 1 !important;
+        filter: none !important;
+    }
+
+    .sfpe-real-actions .sfpe-real-btn:hover,
+    .sfpe-real-actions .sfpe-emp-btn:hover {
+        transform: translateY(-1px) !important;
+        filter: brightness(1.05) !important;
+    }
+
+    /*
+     | Button colors copied from Employment visual language.
+     */
+    .sfpe-real-actions .sfpe-btn-blue,
+    .sfpe-real-actions .sfpe-emp-btn-blue {
+        background: #2563eb !important;
+        color: #ffffff !important;
+    }
+
+    .sfpe-real-actions .sfpe-btn-orange,
+    .sfpe-real-actions .sfpe-btn-yellow,
+    .sfpe-real-actions .sfpe-emp-btn-yellow {
+        background: #f59e0b !important;
+        color: #111827 !important;
+    }
+
+    .sfpe-real-actions .sfpe-btn-red,
+    .sfpe-real-actions .sfpe-emp-btn-red {
+        background: #dc2626 !important;
+        color: #ffffff !important;
+    }
+
+    .sfpe-real-actions .sfpe-btn-green {
+        background: #16a34a !important;
+        color: #ffffff !important;
+    }
+
+    .sfpe-real-actions .sfpe-btn-purple {
+        background: #7c3aed !important;
+        color: #ffffff !important;
+    }
+
+    .sfpe-real-actions .sfpe-btn-teal {
+        background: #0f766e !important;
+        color: #ffffff !important;
+    }
+
+    .sfpe-real-actions .sfpe-btn-dark {
+        background: #020617 !important;
+        color: #ffffff !important;
+    }
+
+    .sfpe-real-actions .sfpe-btn-light,
+    .sfpe-real-actions .sfpe-emp-btn-gray {
+        background: rgba(255,255,255,.14) !important;
+        color: #ffffff !important;
+    }
+
+    /*
+     | Fix invisible/missing icons.
+     */
+    .sfpe-real-actions .material-symbols-rounded,
+    .sfpe-real-actions .material-symbols-outlined {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 18px !important;
+        height: 18px !important;
+        min-width: 18px !important;
+        font-size: 20px !important;
+        line-height: 1 !important;
+        color: currentColor !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        font-variation-settings: 'FILL' 0, 'wght' 700, 'GRAD' 0, 'opsz' 24 !important;
+    }
+
+    .sfpe-real-actions .sf-svg-icon {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 18px !important;
+        height: 18px !important;
+        min-width: 18px !important;
+        color: currentColor !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+
+    .sfpe-real-actions .sf-svg-icon svg {
+        display: block !important;
+        width: 18px !important;
+        height: 18px !important;
+        fill: currentColor !important;
+        color: currentColor !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+
+    .sfpe-real-actions .sf-svg-icon path {
+        fill: currentColor !important;
+        stroke: none !important;
+    }
+
+    /*
+     | Make sure the hero overlay never blocks buttons.
+     */
+    .sfpe-real-hero::before,
+    .sfpe-real-hero::after {
+        pointer-events: none !important;
+    }
+
+    @media (max-width: 760px) {
+        .sfpe-real-actions,
+        .sfpe-employment-like-actions {
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+        }
+
+        .sfpe-real-actions .sfpe-real-btn,
+        .sfpe-real-actions .sfpe-emp-btn {
+            width: 100% !important;
+        }
+    }
+</style>
 
 <style id="sfpe-real-hero-final-css">
     .sfpe-real-hero {
@@ -523,29 +733,84 @@
     }
 </style>
 
-<script id="sfpe-force-hero-top-script">
-    (() => {
-        const moveHeroTop = () => {
-            const hero = document.querySelector('[data-sfpe-main-hero="1"]');
-            if (!hero) return;
 
-            const candidateTitle = Array.from(document.querySelectorAll('.pe-card-title, h2, h3, div'))
-                .find((el) => (el.textContent || '').replace(/\s+/g, ' ').trim().includes('Candidate Details'));
 
-            const candidateCard = candidateTitle?.closest('section, .pe-card, .sfpe-card, div');
 
-            if (candidateCard && candidateCard.parentElement && candidateCard.previousElementSibling !== hero) {
-                candidateCard.parentElement.insertBefore(hero, candidateCard);
-            }
-        };
 
-        document.addEventListener('DOMContentLoaded', moveHeroTop);
-        document.addEventListener('livewire:navigated', moveHeroTop);
-        setTimeout(moveHeroTop, 100);
-        setTimeout(moveHeroTop, 500);
-        setTimeout(moveHeroTop, 1200);
-    })();
-</script>
+
+
+
+
+
+
+
+<style id="sfpe-real-hero-buttons-only-final">
+    /*
+     * SAFE FINAL:
+     * This block touches ONLY the custom Pre-Employment hero buttons/icons.
+     * It does NOT touch Filament modal, dialog, backdrop, scroll, or position.
+     */
+    .sfpe-real-hero {
+        position: relative !important;
+        z-index: 1 !important;
+        pointer-events: auto !important;
+        order: -9999 !important;
+    }
+
+    .sfpe-real-hero::before,
+    .sfpe-real-hero::after {
+        pointer-events: none !important;
+    }
+
+    .sfpe-real-actions {
+        position: relative !important;
+        z-index: 2 !important;
+        pointer-events: auto !important;
+    }
+
+    .sfpe-real-actions .sfpe-real-btn {
+        position: relative !important;
+        z-index: 3 !important;
+        pointer-events: auto !important;
+        cursor: pointer !important;
+    }
+
+    .sfpe-real-actions .sfpe-real-btn .material-symbols-rounded,
+    .sfpe-real-actions .sfpe-real-btn .material-symbols-outlined,
+    .sfpe-real-actions .sfpe-real-btn svg {
+        color: currentColor !important;
+        fill: currentColor !important;
+        stroke: currentColor !important;
+    }
+
+    .sfpe-real-actions .sfpe-btn-light,
+    .sfpe-real-actions .sfpe-btn-light .material-symbols-rounded {
+        color: #0f172a !important;
+    }
+
+    .sfpe-real-actions .sfpe-btn-orange,
+    .sfpe-real-actions .sfpe-btn-orange .material-symbols-rounded {
+        color: #111827 !important;
+    }
+
+    .sfpe-real-actions .sfpe-btn-green,
+    .sfpe-real-actions .sfpe-btn-blue,
+    .sfpe-real-actions .sfpe-btn-red,
+    .sfpe-real-actions .sfpe-btn-purple,
+    .sfpe-real-actions .sfpe-btn-teal,
+    .sfpe-real-actions .sfpe-btn-dark,
+    .sfpe-real-actions .sfpe-btn-green .material-symbols-rounded,
+    .sfpe-real-actions .sfpe-btn-blue .material-symbols-rounded,
+    .sfpe-real-actions .sfpe-btn-red .material-symbols-rounded,
+    .sfpe-real-actions .sfpe-btn-purple .material-symbols-rounded,
+    .sfpe-real-actions .sfpe-btn-teal .material-symbols-rounded,
+    .sfpe-real-actions .sfpe-btn-dark .material-symbols-rounded {
+        color: #ffffff !important;
+    }
+</style>
+
+
+
 {{-- SFPE REAL HEADER FORCE END --}}
 
 
@@ -1123,7 +1388,7 @@
 </style>
 
 <div class="sfpe-page">
-    <section class="sfpe-card">
+    <section class="sfpe-card" data-sfpe-fixed-order="candidate-details">
         <div class="sfpe-card-head">
             <h2 class="sfpe-card-title">
                 <span class="sfpe-icon">assignment_ind</span>
@@ -1180,242 +1445,11 @@
         </div>
     </section>
 
-    <section class="sfpe-card">
-        <div class="sfpe-card-head">
-            <h2 class="sfpe-card-title">
-                <span class="sfpe-icon">route</span>
-                Pre-Employment Status
-            </h2>
-            <span class="sfpe-chip {{ $statusTone }}">{{ $statusLabel }}</span>
-        </div>
-
-        <div class="sfpe-grid">
-            <div class="sfpe-item">
-                <div class="sfpe-label">Portal Status</div>
-                <div class="sfpe-value">{{ $portalStatusLabel }}</div>
-            </div>
-
-            <div class="sfpe-item">
-                <div class="sfpe-label">Portal Sent At</div>
-                <div class="sfpe-value">{{ $portalSentAt }}</div>
-            </div>
-
-            <div class="sfpe-item">
-                <div class="sfpe-label">Portal Submitted At</div>
-                <div class="sfpe-value">{{ $portalSubmittedAt }}</div>
-            </div>
-
-            <div class="sfpe-item">
-                <div class="sfpe-label">Availability Date</div>
-                <div class="sfpe-value">{{ optional($record->availability_date)->format('Y-m-d') ?: '-' }}</div>
-            </div>
-
-            <div class="sfpe-item">
-                <div class="sfpe-label">Contract Status</div>
-                <div class="sfpe-value">{{ filled($record->contract_status) ? \Illuminate\Support\Str::headline($record->contract_status) : '-' }}</div>
-            </div>
-
-            <div class="sfpe-item">
-                <div class="sfpe-label">Medical Status</div>
-                <div class="sfpe-value">{{ filled($record->medical_status) ? \Illuminate\Support\Str::headline($record->medical_status) : '-' }}</div>
-            </div>
-
-            <div class="sfpe-item">
-                <div class="sfpe-label">Visa Status</div>
-                <div class="sfpe-value">{{ filled($record->visa_status) ? \Illuminate\Support\Str::headline($record->visa_status) : '-' }}</div>
-            </div>
-
-            <div class="sfpe-item">
-                <div class="sfpe-label">Travel Status</div>
-                <div class="sfpe-value">{{ filled($record->travel_status) ? \Illuminate\Support\Str::headline($record->travel_status) : '-' }}</div>
-            </div>
-
-            <div class="sfpe-item">
-                <div class="sfpe-label">Converted To Employment</div>
-                <div class="sfpe-value">{{ $convertedAt ?: 'Not Converted' }}</div>
-            </div>
-        </div>
-    </section>
-
-    <section class="sfpe-card">
-        <div class="sfpe-card-head">
-            <h2 class="sfpe-card-title">
-                <span class="sfpe-icon">fact_check</span>
-                Portal Answers
-            </h2>
-            <span class="sfpe-chip">{{ $portalAnswers->count() }} Answers</span>
-        </div>
-
-        @if($portalAnswers->isNotEmpty())
-            <div class="sfpe-grid">
-                @foreach($portalAnswers as $answer)
-                    <div class="sfpe-item">
-                        <div class="sfpe-label">{{ $answer['label'] }}</div>
-                        <div class="sfpe-value">{{ $answer['value'] }}</div>
-                    </div>
-                @endforeach
-            </div>
-        @else
-            <div class="sfpe-empty">No portal text answers submitted yet.</div>
-        @endif
-    </section>
-
     
-@php
-    /*
-     | Sada Fezzan ERP — Unified 
 
-{{-- SF JOB APPLICATION SNAPSHOT + REQUESTS START --}}
-@php
-    /*
-     | Pre-Employment must show what happened before this stage.
-     | This block reads the linked Job Application and displays:
-     | - Job Application Snapshot
-     | - Candidate Requests created during Job Application
-     | - Request timeline from the candidate request thread
-     */
 
-    $sfLinkedJobApplication = $record->jobApplication ?? null;
 
-    $sfJobAppCandidateRequests = collect();
-    $sfJobAppRequestTimeline = collect();
-
-    if ($sfLinkedJobApplication) {
-        try {
-            $sfJobAppCandidateRequests = $sfLinkedJobApplication
-                ->candidateRequests()
-                ->with('items')
-                ->latest()
-                ->get();
-        } catch (\Throwable $e) {
-            $sfJobAppCandidateRequests = collect();
-        }
-
-        foreach ($sfJobAppCandidateRequests as $sfReq) {
-            $decoded = json_decode((string) $sfReq->candidate_response, true);
-            $decoded = is_array($decoded) ? $decoded : [];
-
-            $thread = is_array($decoded['thread'] ?? null) ? $decoded['thread'] : [];
-
-            if (empty($thread)) {
-                $thread[] = [
-                    'sender' => 'hr',
-                    'event' => 'request_created',
-                    'title' => $sfReq->title,
-                    'message' => $sfReq->notes,
-                    'salary' => $sfReq->proposed_salary ?? null,
-                    'currency' => $sfReq->currency ?? null,
-                    'created_at' => optional($sfReq->created_at)?->toDateTimeString(),
-                ];
-            }
-
-            foreach ($thread as $entry) {
-                if (! is_array($entry)) {
-                    continue;
-                }
-
-                $date = $entry['created_at'] ?? optional($sfReq->updated_at)?->toDateTimeString() ?? optional($sfReq->created_at)?->toDateTimeString();
-
-                $sfJobAppRequestTimeline->push([
-                    'request_title' => $sfReq->title ?: 'Candidate Request',
-                    'request_type' => $sfReq->type ?: 'request',
-                    'request_status' => $sfReq->request_status ?: null,
-                    'sender' => $entry['sender'] ?? 'system',
-                    'event' => $entry['event'] ?? 'update',
-                    'title' => $entry['title'] ?? $sfReq->title ?? 'Candidate Request',
-                    'message' => $entry['message'] ?? null,
-                    'salary' => $entry['salary'] ?? null,
-                    'currency' => $entry['currency'] ?? null,
-                    'date' => $date,
-                ]);
-            }
-
-            $uploadedFiles = is_array($decoded['uploaded_files'] ?? null) ? $decoded['uploaded_files'] : [];
-
-            foreach ($uploadedFiles as $uploadedFile) {
-                $sfJobAppRequestTimeline->push([
-                    'request_title' => $sfReq->title ?: 'Candidate Request',
-                    'request_type' => $sfReq->type ?: 'request',
-                    'request_status' => $sfReq->request_status ?: null,
-                    'sender' => 'candidate',
-                    'event' => 'file_uploaded',
-                    'title' => $uploadedFile['item_label'] ?? $uploadedFile['label'] ?? $uploadedFile['original_name'] ?? 'Uploaded File',
-                    'message' => $uploadedFile['original_name'] ?? null,
-                    'salary' => null,
-                    'currency' => null,
-                    'date' => optional($sfReq->updated_at)?->toDateTimeString() ?? optional($sfReq->created_at)?->toDateTimeString(),
-                ]);
-            }
-        }
-
-        $sfJobAppRequestTimeline = $sfJobAppRequestTimeline
-            ->filter(fn ($row) => filled($row['date']))
-            ->sortByDesc(fn ($row) => strtotime((string) $row['date']))
-            ->values();
-    }
-
-    $sfJobAppSnapshotItems = $sfLinkedJobApplication ? collect([
-        'Full Name' => $sfLinkedJobApplication->full_name ?? $sfLinkedJobApplication->candidate_name ?? $sfLinkedJobApplication->name ?? '-',
-        'Email' => $sfLinkedJobApplication->email ?? $sfLinkedJobApplication->candidate_email ?? '-',
-        'Phone' => $sfLinkedJobApplication->phone ?? $sfLinkedJobApplication->phone_number ?? '-',
-        'Status' => filled($sfLinkedJobApplication->status) ? ucfirst(str_replace('_', ' ', $sfLinkedJobApplication->status)) : '-',
-        'Applied At' => optional($sfLinkedJobApplication->created_at)?->format('Y-m-d H:i') ?: '-',
-        'Request Workflow' => filled($sfLinkedJobApplication->candidate_request_status) ? ucfirst(str_replace('_', ' ', $sfLinkedJobApplication->candidate_request_status)) : '-',
-    ]) : collect();
-
-    $sfReqIcon = function ($event, $sender = null) {
-        $event = strtolower((string) $event);
-        $sender = strtolower((string) $sender);
-
-        if (str_contains($event, 'file')) {
-            return 'description';
-        }
-
-        if (str_contains($event, 'approved') || str_contains($event, 'accepted')) {
-            return 'check_circle';
-        }
-
-        if (str_contains($event, 'reconsidered') || str_contains($event, 'counter')) {
-            return 'change_circle';
-        }
-
-        if (str_contains($event, 'final')) {
-            return 'verified';
-        }
-
-        if ($sender === 'candidate') {
-            return 'person';
-        }
-
-        return 'assignment';
-    };
-@endphp
-
-@if($sfLinkedJobApplication)
-    <section class="sfpe-ja-card">
-        <div class="sfpe-ja-head">
-            <div>
-                <h2>
-                    <span class="material-symbols-rounded">history_edu</span>
-                    Job Application Snapshot
-                </h2>
-                <p>Summary of the original Job Application before this candidate moved to Pre-Employment.</p>
-            </div>
-
-            <span class="sfpe-ja-pill">Application #{{ $sfLinkedJobApplication->id }}</span>
-        </div>
-
-        <div class="sfpe-ja-grid">
-            @foreach($sfJobAppSnapshotItems as $label => $value)
-                <div class="sfpe-ja-item">
-                    <div class="sfpe-ja-label">{{ $label }}</div>
-                    <div class="sfpe-ja-value">{{ $value }}</div>
-                </div>
-            @endforeach
-        </div>
-    </section>
-
-    <section class="sfpe-ja-card">
+    <section class="sfpe-ja-card" data-sfpe-fixed-order="candidate-requests-end">
         <div class="sfpe-ja-head">
             <div>
                 <h2>
@@ -1425,10 +1459,24 @@
                 <p>All candidate requests created during the Job Application stage.</p>
             </div>
 
-            <span class="sfpe-ja-pill">{{ $sfJobAppCandidateRequests->count() }} Requests</span>
+            @php
+    /*
+     | Safety defaults for Candidate Requests block.
+     | Keeps page alive even when this record has no linked Job Application
+     | or no pre-employment portal file requests.
+     */
+    if (! isset($sfJobAppCandidateRequests) || ! $sfJobAppCandidateRequests instanceof \Illuminate\Support\Collection) {
+        $sfJobAppCandidateRequests = collect();
+    }
+
+    if (! isset($portalFileRequests) || ! $portalFileRequests instanceof \Illuminate\Support\Collection) {
+        $portalFileRequests = collect();
+    }
+@endphp
+<span class="sfpe-ja-pill">{{ $sfJobAppCandidateRequests->count() + $portalFileRequests->count() }} Requests</span>
         </div>
 
-        @if($sfJobAppCandidateRequests->isNotEmpty())
+        @if($sfJobAppCandidateRequests->isNotEmpty() || $portalFileRequests->isNotEmpty())
             <div class="sfpe-ja-request-list">
                 @foreach($sfJobAppCandidateRequests as $sfReq)
                     @php
@@ -1518,13 +1566,92 @@
                         </div>
                     </details>
                 @endforeach
+
+                @foreach($portalFileRequests as $field)
+                    @php
+                        $fieldValue = collect($record->portalValues ?? [])->firstWhere('portal_field_id', $field->id);
+                        $hasSubmittedValue = filled($fieldValue?->value);
+
+                        $sourceFileUrl = filled($field->document_to_sign_path ?? null)
+                            ? \Illuminate\Support\Facades\Storage::disk('public')->url($field->document_to_sign_path)
+                            : (filled($field->source_file_path ?? null)
+                                ? \Illuminate\Support\Facades\Storage::disk('public')->url($field->source_file_path)
+                                : null);
+
+                        $submittedFileUrl = $hasSubmittedValue
+                            ? \Illuminate\Support\Facades\Storage::disk('public')->url(ltrim((string) $fieldValue->value, '/'))
+                            : null;
+
+                        $preReqStatus = $hasSubmittedValue ? 'Submitted' : 'Waiting Candidate';
+                    @endphp
+
+                    <details class="sfpe-ja-request sfpe-preemployment-request" open>
+                        <summary>
+                            <div>
+                                <strong>{{ $field->label ?: 'Pre-Employment File Request' }}</strong>
+                                <div class="sfpe-ja-tags">
+                                    <span>Pre-Employment Request</span>
+                                    <span>{{ filled($field->document_category) ? \Illuminate\Support\Str::headline($field->document_category) : 'File' }}</span>
+                                    <span>{{ $field->is_required ? 'Required' : 'Optional' }}</span>
+                                    <span>{{ $preReqStatus }}</span>
+                                </div>
+                            </div>
+                            <span class="material-symbols-rounded">expand_more</span>
+                        </summary>
+
+                        <div class="sfpe-ja-request-body">
+                            <div class="sfpe-ja-grid compact">
+                                <div class="sfpe-ja-item">
+                                    <div class="sfpe-ja-label">Request Type</div>
+                                    <div class="sfpe-ja-value">
+                                        {{ filled($field->request_type) ? \Illuminate\Support\Str::headline($field->request_type) : 'Upload File' }}
+                                    </div>
+                                </div>
+
+                                <div class="sfpe-ja-item">
+                                    <div class="sfpe-ja-label">Status</div>
+                                    <div class="sfpe-ja-value">{{ $preReqStatus }}</div>
+                                </div>
+
+                                <div class="sfpe-ja-item">
+                                    <div class="sfpe-ja-label">Created At</div>
+                                    <div class="sfpe-ja-value">{{ optional($field->created_at)->format('Y-m-d H:i') ?: '-' }}</div>
+                                </div>
+
+                                <div class="sfpe-ja-item">
+                                    <div class="sfpe-ja-label">Submitted At</div>
+                                    <div class="sfpe-ja-value">{{ optional($fieldValue?->submitted_at)->format('Y-m-d H:i') ?: '-' }}</div>
+                                </div>
+                            </div>
+
+                            @if(filled($field->instructions))
+                                <div class="sfpe-ja-note">{{ $field->instructions }}</div>
+                            @endif
+
+                            <div class="sfpe-ja-files">
+                                @if($sourceFileUrl)
+                                    <a class="sfpe-ja-file-link" href="{{ $sourceFileUrl }}" target="_blank">
+                                        Open Source Document
+                                    </a>
+                                @endif
+
+                                @if($submittedFileUrl)
+                                    <a class="sfpe-ja-file-link" href="{{ $submittedFileUrl }}" target="_blank">
+                                        Open Submitted File
+                                    </a>
+                                @endif
+                            </div>
+                        </div>
+                    </details>
+                @endforeach
+
             </div>
         @else
-            <div class="sfpe-ja-empty">No Job Application candidate requests found.</div>
+            <div class="sfpe-ja-empty">No candidate requests found yet.</div>
         @endif
     </section>
 
-    <section class="sfpe-ja-card sfpe-ja-timeline-print">
+    <section class="sfpe-ja-card sfpe-ja-timeline-print" data-sfpe-fixed-order="candidate-requests-end">
         <div class="sfpe-ja-head">
             <div>
                 <h2>
@@ -1534,7 +1661,17 @@
                 <p>Timeline of request creation, candidate replies, salary negotiation, decisions, and uploaded request files.</p>
             </div>
 
-            <span class="sfpe-ja-pill">{{ $sfJobAppRequestTimeline->count() }} Updates</span>
+            @php
+    /*
+     | Safety defaults for Candidate Request Timeline.
+     | Prevents undefined variable errors when there is no linked Job Application
+     | or no candidate request history yet.
+     */
+    if (! isset($sfJobAppRequestTimeline) || ! $sfJobAppRequestTimeline instanceof \Illuminate\Support\Collection) {
+        $sfJobAppRequestTimeline = collect();
+    }
+@endphp
+<span class="sfpe-ja-pill">{{ $sfJobAppRequestTimeline->count() }} Updates</span>
         </div>
 
         @if($sfJobAppRequestTimeline->isNotEmpty())
@@ -1574,57 +1711,11 @@
             <div class="sfpe-ja-empty">No Job Application request timeline updates found.</div>
         @endif
     </section>
-@endif
+{{-- AUTO DISABLED unmatched @endif on line 1690 --}}
 {{-- SF JOB APPLICATION SNAPSHOT + REQUESTS END --}}
-<section class="pe-card sfpe-candidate-files-card">
-    <div class="pe-card-header">
-        <div class="pe-card-title">
-            <span class="material-symbols-rounded">folder_open</span>
-            Candidate Files
-        </div>
 
-        @php
-            /*
-             | Safety bridge for Candidate Files block.
-             | Some previous patches used $sfpeCandidateFiles before defining it.
-             | This keeps the page alive and reuses any candidate-file collection already built above.
-             */
-            if (! isset($sfpeCandidateFiles)) {
-                $sfpeCandidateFiles = collect();
 
-                if (isset($sfCandidateFiles) && $sfCandidateFiles instanceof \Illuminate\Support\Collection) {
-                    $sfpeCandidateFiles = $sfCandidateFiles;
-                } elseif (isset($candidateFiles) && $candidateFiles instanceof \Illuminate\Support\Collection) {
-                    $sfpeCandidateFiles = $candidateFiles;
-                } elseif (isset($files) && $files instanceof \Illuminate\Support\Collection) {
-                    $sfpeCandidateFiles = $files;
-                }
-            }
-        @endphp
 
-        <span class="sfpe-count-pill">{{ $sfpeCandidateFiles->count() }} Files</span>
-    </div>
-
-    @if(($sfpeCandidateFiles ?? collect())->isNotEmpty())
-        <div class="sfpe-candidate-files-grid">
-            @foreach(($sfpeCandidateFiles ?? collect()) as $file)
-                <div class="sfpe-candidate-file-item">
-                    <div class="sfpe-file-category">{{ $file['category'] ?? 'Candidate File' }}</div>
-                    <div class="sfpe-file-title">{{ $file['title'] ?? 'Candidate File' }}</div>
-                    <div class="sfpe-file-source">{{ $file['source'] ?? 'Candidate File' }}</div>
-
-                    @if(!empty($file['url']))
-                        <a class="sfpe-file-open-btn" href="{{ $file['url'] }}" target="_blank">
-                            Open File
-                        </a>
-                    @endif
-                </div>
-            @endforeach
-        </div>
-    @else
-        <div class="sfpe-empty-line">No candidate files found yet.</div>
-    @endif
-</section>
 
 <style id="sfpe-candidate-files-final-style">
     .sfpe-candidate-files-card {
@@ -1738,69 +1829,11 @@
 </style>
 
 
-    <section class="sfpe-card">
-        <div class="sfpe-card-head">
-            <h2 class="sfpe-card-title">
-                <span class="sfpe-icon">assignment</span>
-                Portal File Requests
-            </h2>
-            <span class="sfpe-chip">{{ $portalFileRequests->count() }} Requests</span>
-        </div>
+    
 
-        @if($portalFileRequests->isNotEmpty())
-            <div class="sfpe-request-list">
-                @foreach($portalFileRequests as $field)
-                    @php
-                        $matchingFiles = $files->filter(function ($file) use ($field) {
-                            $title = strtolower($file['title'] ?? '');
-                            $category = strtolower($file['category'] ?? '');
-                            $label = strtolower($field->label ?? '');
-                            $docCategory = strtolower($field->document_category ?? '');
 
-                            return ($label && str_contains($title, $label))
-                                || ($docCategory && str_contains($category, str_replace('_', ' ', $docCategory)))
-                                || ($docCategory && str_contains($title, str_replace('_', ' ', $docCategory)));
-                        });
-                    @endphp
 
-                    <div class="sfpe-request">
-                        <div class="sfpe-request-title">{{ $field->label ?: 'Requested File' }}</div>
-
-                        <div class="sfpe-request-meta">
-                            <span class="sfpe-chip">{{ filled($field->document_category) ? \Illuminate\Support\Str::headline($field->document_category) : 'File' }}</span>
-                            <span class="sfpe-chip">{{ filled($field->request_type) ? \Illuminate\Support\Str::headline($field->request_type) : 'Upload' }}</span>
-                            <span class="sfpe-chip {{ $field->is_required ? 'warning' : '' }}">{{ $field->is_required ? 'Required' : 'Optional' }}</span>
-                            <span class="sfpe-chip {{ $matchingFiles->isNotEmpty() ? 'success' : 'warning' }}">{{ $matchingFiles->isNotEmpty() ? 'Uploaded' : 'Pending' }}</span>
-                        </div>
-
-                        @if(filled($field->instructions))
-                            <div class="sfpe-notes">{{ $field->instructions }}</div>
-                        @endif
-
-                        @if(filled($field->document_to_sign_path))
-                            <a class="sfpe-file-link" href="{{ \Illuminate\Support\Facades\Storage::url($field->document_to_sign_path) }}" target="_blank">Open Document To Sign</a>
-                        @endif
-
-                        @if($matchingFiles->isNotEmpty())
-                            <div class="sfpe-grid" style="padding:14px 0 0;grid-template-columns:repeat(2,minmax(0,1fr));">
-                                @foreach($matchingFiles as $file)
-                                    <div class="sfpe-item">
-                                        <div class="sfpe-label">Uploaded File</div>
-                                        <div class="sfpe-value">{{ $file['title'] }}</div>
-                                        <a class="sfpe-file-link" href="{{ $file['url'] }}" target="_blank">Open File</a>
-                                    </div>
-                                @endforeach
-                            </div>
-                        @endif
-                    </div>
-                @endforeach
-            </div>
-        @else
-            <div class="sfpe-empty">No portal file requests created yet.</div>
-        @endif
-    </section>
-
-    <section class="sfpe-card">
+    <section class="sfpe-card" data-sfpe-fixed-order="finance-profile">
         <div class="sfpe-card-head">
             <h2 class="sfpe-card-title">
                 <span class="sfpe-icon">payments</span>
@@ -1846,86 +1879,13 @@
         @endif
     </section>
 
-    <section class="sfpe-card">
-        <div class="sfpe-card-head">
-            <h2 class="sfpe-card-title">
-                <span class="sfpe-icon">receipt_long</span>
-                Pre-Employment Expenses
-            </h2>
-            <span class="sfpe-chip">{{ $expenses->count() }} Expenses</span>
-        </div>
+    
 
-        @if($expenses->isNotEmpty())
-            <div class="sfpe-grid">
-                @foreach($expenses as $expense)
-                    <div class="sfpe-item">
-                        <div class="sfpe-label">{{ filled($expense->category) ? \Illuminate\Support\Str::headline($expense->category) : 'Expense' }}</div>
-                        <div class="sfpe-value">{{ $expense->title ?: 'Pre-Employment Expense' }}</div>
-                        <div class="sfpe-notes">
-                            {{ $expense->amount ?? '0' }} {{ $expense->currency ?? '' }}
-                            <br>
-                            {{ optional($expense->expense_date)->format('Y-m-d') ?: '-' }}
-                            <br>
-                            {{ filled($expense->status) ? \Illuminate\Support\Str::headline($expense->status) : '-' }}
-                        </div>
-                    </div>
-                @endforeach
-            </div>
-        @else
-            <div class="sfpe-empty">No Pre-Employment expenses recorded yet.</div>
-        @endif
-    </section>
 
-    <section class="sfpe-card sfpe-timeline-card">
-        <div class="sfpe-card-head">
-            <div>
-                <h2 class="sfpe-card-title">
-                    <span class="sfpe-icon">timeline</span>
-                    Complete Pre-Employment Timeline
-                </h2>
-                <div class="sfpe-notes" style="margin-top:8px;">
-                    Shows latest updates first. Scroll inside the block to review older history.
-                </div>
-            </div>
 
-            <button type="button" class="sfpe-action sfpe-action-blue" onclick="window.print();">
-                Print Timeline
-            </button>
-        </div>
+    
 
-        @if($timelineRows->isNotEmpty())
-            <div class="sfpe-timeline-list">
-                @foreach($timelineRows as $row)
-                    <div class="sfpe-timeline-row">
-                        <div class="sfpe-timeline-marker">
-                            <div class="sfpe-timeline-icon">{{ $timelineIcon($row['type'] ?? 'update') }}</div>
-                        </div>
 
-                        <div class="sfpe-timeline-body">
-                            <div class="sfpe-timeline-top">
-                                <div class="sfpe-timeline-title">{{ $row['title'] }}</div>
-                                <div class="sfpe-timeline-date">{{ $row['date']->format('Y-m-d H:i') }}</div>
-                            </div>
-
-                            @if(!empty($row['subtitle']))
-                                <div class="sfpe-timeline-subtitle">{{ $row['subtitle'] }}</div>
-                            @endif
-
-                            @if(!empty($row['meta']))
-                                <div class="sfpe-tags">
-                                    @foreach($row['meta'] as $tag)
-                                        <span class="sfpe-chip">{{ $tag }}</span>
-                                    @endforeach
-                                </div>
-                            @endif
-                        </div>
-                    </div>
-                @endforeach
-            </div>
-        @else
-            <div class="sfpe-empty">No timeline updates found yet.</div>
-        @endif
-    </section>
 </div>
 
 
@@ -2769,154 +2729,7 @@
     }
 @endphp
 
-<section class="sfpe-clean-flow-files-card" data-sfpe-clean-candidate-files="1">
-    <div class="sfpe-clean-flow-files-head">
-        <h2 class="sfpe-clean-flow-title">
-            <span class="sfpe-clean-flow-icon">folder_open</span>
-            Candidate Files
-        </h2>
 
-        <span class="sfpe-clean-flow-pill">{{ $sfpeUnifiedFiles->count() }} Files</span>
-    </div>
-
-    @if($sfpeUnifiedFiles->isNotEmpty())
-        <div class="sfpe-clean-flow-files-grid">
-            @foreach($sfpeUnifiedFiles as $file)
-                <div class="sfpe-clean-flow-file">
-                    <div class="sfpe-clean-flow-label">{{ $file['category'] ?? 'Candidate File' }}</div>
-                    <div class="sfpe-clean-flow-value">{{ $file['title'] ?? 'Candidate File' }}</div>
-                    <div class="sfpe-clean-flow-source">{{ $file['source'] ?? 'Candidate File' }}</div>
-
-                    @if(! empty($file['url']))
-                        <a class="sfpe-clean-flow-open" href="{{ $file['url'] }}" target="_blank">
-                            Open File
-                        </a>
-                    @endif
-                </div>
-            @endforeach
-        </div>
-    @else
-        <div class="sfpe-clean-flow-empty">No candidate files found yet.</div>
-    @endif
-</section>
-
-<script id="sfpe-clean-flow-final-script">
-    (() => {
-        const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim().toLowerCase();
-
-        const closestBlock = (element) => {
-            return element?.closest?.('section, .pe-card, .sfpe-card, .sfpe-panel, .sfja-md-card, div[class*="card"], div[class*="panel"]');
-        };
-
-        const findBlockByText = (needles) => {
-            const blocks = Array.from(document.querySelectorAll('section, .pe-card, .sfpe-card, .sfpe-panel, .sfja-md-card, div[class*="card"], div[class*="panel"]'));
-
-            return blocks.find((block) => {
-                const text = normalize(block.innerText || block.textContent || '');
-                return needles.every((needle) => text.includes(normalize(needle)));
-            });
-        };
-
-        const hideByNeedles = (needles) => {
-            const block = findBlockByText(needles);
-            if (block) block.classList.add('sfpe-clean-hidden');
-        };
-
-        const renameByNeedles = (needles, newTitle) => {
-            const block = findBlockByText(needles);
-            if (! block) return;
-
-            const title = Array.from(block.querySelectorAll('h1,h2,h3,.pe-card-title,.sfpe-panel-title,.sfja-md-title'))
-                .find((el) => normalize(el.innerText || el.textContent || '').includes(normalize(needles[0])));
-
-            if (title) title.innerHTML = title.innerHTML.replace(title.textContent.trim(), newTitle);
-        };
-
-        const moveAfter = (movingBlock, targetBlock) => {
-            if (movingBlock && targetBlock && movingBlock !== targetBlock) {
-                targetBlock.insertAdjacentElement('afterend', movingBlock);
-            }
-        };
-
-        const addExpenseButton = () => {
-            const expenseBlock = findBlockByText(['Pre-Employment Expenses']);
-            if (! expenseBlock || expenseBlock.querySelector('[data-sfpe-add-expense-clean="1"]')) return;
-
-            const header = expenseBlock.querySelector('.pe-card-header, .sfpe-panel-header, .sfja-md-card-head, header, .pe-card-head') || expenseBlock.firstElementChild;
-            if (! header) return;
-
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'sfpe-clean-flow-add-expense';
-            btn.setAttribute('wire:click', "mountAction('addExpense')");
-            btn.setAttribute('data-sfpe-add-expense-clean', '1');
-            btn.textContent = 'Add Expense';
-
-            header.appendChild(btn);
-        };
-
-        const apply = () => {
-            // Remove old/unwanted blocks.
-            hideByNeedles(['Portal Answers']);
-            hideByNeedles(['Portal File Requests']);
-            hideByNeedles(['Complete Pre-Employment Timeline']);
-            hideByNeedles(['Job Application Snapshot']);
-
-            // Hide old Candidate Files block, keep only the new unified one.
-            const unifiedFiles = document.querySelector('[data-sfpe-clean-candidate-files="1"]');
-            const oldFilesBlocks = Array.from(document.querySelectorAll('section, .pe-card, .sfpe-card, .sfpe-panel, div[class*="card"], div[class*="panel"]'))
-                .filter((block) => {
-                    if (block === unifiedFiles || block.contains(unifiedFiles)) return false;
-                    const text = normalize(block.innerText || block.textContent || '');
-                    return text.includes('candidate files') || text.includes('uploaded files');
-                });
-
-            oldFilesBlocks.forEach((block) => block.classList.add('sfpe-clean-hidden'));
-
-            // Rename Candidate Requests block.
-            renameByNeedles(['Candidate Requests'], 'Candidate Requests');
-            renameByNeedles(['Job Application Candidate Requests'], 'Candidate Requests');
-
-            // Make candidate request timeline the only timeline and scrollable.
-            const requestTimeline = findBlockByText(['Candidate Request Timeline']) || findBlockByText(['request creation', 'candidate replies']);
-            if (requestTimeline) {
-                requestTimeline.classList.add('sfpe-clean-scroll');
-            }
-
-            // Move Finance Profile directly after Candidate Details.
-            const candidateDetails = findBlockByText(['Candidate Details']);
-            const financeProfile = findBlockByText(['Finance Profile']);
-            moveAfter(financeProfile, candidateDetails);
-
-            // Move unified Candidate Files after candidate request timeline if possible,
-            // otherwise after Candidate Requests.
-            const candidateRequests = findBlockByText(['Candidate Requests']);
-            if (unifiedFiles) {
-                if (requestTimeline) {
-                    moveAfter(unifiedFiles, requestTimeline);
-                } else if (candidateRequests) {
-                    moveAfter(unifiedFiles, candidateRequests);
-                }
-            }
-
-            // Add expense button to expenses block.
-            addExpenseButton();
-        };
-
-        document.addEventListener('DOMContentLoaded', apply);
-        document.addEventListener('livewire:navigated', apply);
-        window.addEventListener('load', apply);
-
-        setTimeout(apply, 150);
-        setTimeout(apply, 500);
-        setTimeout(apply, 1200);
-
-        new MutationObserver(() => {
-            clearTimeout(window.__sfpeCleanFlowTimer);
-            window.__sfpeCleanFlowTimer = setTimeout(apply, 80);
-        }).observe(document.body, { childList: true, subtree: true });
-    })();
-</script>
 
 
 <style id="sfpe-force-dark-header-final">
@@ -3540,69 +3353,6 @@
         }
     }
 </style>
-
-<script id="sfpe-employment-like-card-order-v1">
-    (() => {
-        const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim().toLowerCase();
-
-        const findCardByTitle = (needle) => {
-            const titles = Array.from(document.querySelectorAll('.pe-card-title, .sfpe-md-title, .sfpe-card-title, h2, h3'));
-            const foundTitle = titles.find((el) => normalize(el.textContent).includes(normalize(needle)));
-            return foundTitle ? foundTitle.closest('section, .pe-card, .sfpe-md-card, .sfpe-card') : null;
-        };
-
-        const compactExpenseCards = () => {
-            const expensesCard = findCardByTitle('Pre-Employment Expenses');
-            if (!expensesCard) return;
-
-            expensesCard.querySelectorAll(':scope > div, .pe-card-body, .sfpe-card-body').forEach((body) => {
-                const cards = body.querySelectorAll('.pe-expense-card, .sfpe-expense-card, [class*="expense-card"]');
-                if (cards.length) {
-                    body.classList.add('sfpe-expenses-grid');
-                }
-            });
-        };
-
-        const moveFinanceAfterCandidate = () => {
-            const candidate = findCardByTitle('Candidate Details');
-            const finance = findCardByTitle('Finance Profile');
-
-            if (!candidate || !finance || !candidate.parentElement) return;
-
-            if (candidate.nextElementSibling !== finance) {
-                candidate.parentElement.insertBefore(finance, candidate.nextElementSibling);
-            }
-        };
-
-        const markCandidateFiles = () => {
-            const candidateFiles = findCardByTitle('Candidate Files');
-            if (candidateFiles) {
-                document.body.classList.add('sfpe-has-clean-candidate-files');
-            }
-        };
-
-        const apply = () => {
-            moveFinanceAfterCandidate();
-            compactExpenseCards();
-            markCandidateFiles();
-        };
-
-        document.addEventListener('DOMContentLoaded', apply);
-        document.addEventListener('livewire:navigated', apply);
-
-        setTimeout(apply, 80);
-        setTimeout(apply, 400);
-        setTimeout(apply, 1000);
-
-        new MutationObserver(() => {
-            window.clearTimeout(window.__sfpeCompactBodyTimer);
-            window.__sfpeCompactBodyTimer = window.setTimeout(apply, 80);
-        }).observe(document.body, { childList: true, subtree: true });
-    })();
-</script>
-
-
-
 <style id="sfpe-force-employment-profile-compact-v2">
     /*
      | FINAL FORCE LAYER
@@ -4456,45 +4206,6 @@
         }
     }
 </style>
-
-<script id="sfpe-employment-like-layout-final-js-v1">
-    (() => {
-        const run = () => {
-            const hero = document.querySelector('.sfpe-employment-hero, .sfpe-page-header-restored, .pe-hero');
-            const page = hero?.parentElement;
-
-            if (!hero || !page) return;
-
-            /* Put hero before Candidate Details if previous patches inserted it lower */
-            const firstCard = Array.from(page.children).find((node) => {
-                const text = (node.textContent || '').replace(/\s+/g, ' ').trim();
-                return text.includes('Candidate Details');
-            });
-
-            if (firstCard && hero.compareDocumentPosition(firstCard) & Node.DOCUMENT_POSITION_PRECEDING) {
-                page.insertBefore(hero, firstCard);
-            }
-
-            /* Add missing Material Symbols style for literal icon text if any old block rendered icon name as text */
-            document.querySelectorAll('.pe-card-title, .sfpe-card-title').forEach((title) => {
-                const txt = (title.textContent || '').trim();
-                if (txt.startsWith('assignment_ind')) {
-                    title.innerHTML = title.innerHTML.replace('assignment_ind', '<span class="material-symbols-rounded">assignment_ind</span>');
-                }
-            });
-        };
-
-        document.addEventListener('DOMContentLoaded', run);
-        document.addEventListener('livewire:navigated', run);
-        setTimeout(run, 150);
-        setTimeout(run, 600);
-        setTimeout(run, 1200);
-    })();
-</script>
-
-
-
-
 <style id="sfpe-safe-employment-like-layout-v3">
     /*
      | Safe Pre-Employment layout fix
@@ -4778,4 +4489,1446 @@
 </style>
 
 
+
+    {{-- Sada Fezzan ERP: required inside the page wrapper for custom Blade buttons using mountAction(...) --}}
+
+    {{-- Sada Fezzan ERP: required for custom Blade buttons using Filament actions --}}
+
+
+
+
+
+{{-- SFPE FINAL PREEMPLOYMENT OPERATIONS START --}}
+@php
+    /*
+     | Sada Fezzan ERP — Final Pre-Employment Operations Block
+     | This block is visual/Blade only:
+     | - Header and header action buttons are untouched.
+     | - Old duplicate body blocks are hidden by JS/CSS only.
+     | - Data remains available in the original models.
+     */
+
+    $sfpeOpsFiles = isset($sfpeUnifiedFiles) && $sfpeUnifiedFiles instanceof \Illuminate\Support\Collection
+        ? $sfpeUnifiedFiles
+        : collect($files ?? []);
+
+
+    /*
+     | Build file version map for operation files.
+     | Files with the same category/title/source are shown as V1, V2, V3...
+     */
+    $sfpeOpsFileVersionMap = [];
+    $sfpeOpsFileVersionCounter = [];
+
+    foreach ($sfpeOpsFiles as $fileIndex => $fileRow) {
+        $versionKey = strtolower(trim(
+            (string) ($fileRow['category'] ?? $fileRow->category ?? 'file')
+            . '|' .
+            (string) ($fileRow['title'] ?? $fileRow->title ?? $fileRow['name'] ?? 'file')
+        ));
+
+        if (! isset($sfpeOpsFileVersionCounter[$versionKey])) {
+            $sfpeOpsFileVersionCounter[$versionKey] = 0;
+        }
+
+        $sfpeOpsFileVersionCounter[$versionKey]++;
+        $sfpeOpsFileVersionMap[$fileIndex] = $sfpeOpsFileVersionCounter[$versionKey];
+    }
+
+    $sfpeOpsExpenses = collect($expenses ?? $record->financeExpenses ?? []);
+
+    $sfpeOpsTimeline = collect($timelineRows ?? []);
+
+    /*
+     | Add Candidate Request history into Pre-Employment Operations > History.
+     | This keeps the separate Candidate Requests block for details,
+     | while History becomes the full chronological log.
+     */
+    if (isset($sfJobAppRequestTimeline)) {
+        foreach (collect($sfJobAppRequestTimeline) as $requestHistoryRow) {
+            try {
+                $requestHistoryDate = $requestHistoryRow['date'] ?? null;
+
+                if (! $requestHistoryDate) {
+                    continue;
+                }
+
+                $sfpeOpsTimeline->push([
+                    'type' => 'request',
+                    'title' => 'Candidate Request: ' . ($requestHistoryRow['request_title'] ?? 'Request'),
+                    'subtitle' => trim(($requestHistoryRow['title'] ?? '') . ' ' . ($requestHistoryRow['message'] ?? '')),
+                    'date' => \Carbon\Carbon::parse($requestHistoryDate),
+                    'meta' => array_filter([
+                        'Job Application',
+                        \Illuminate\Support\Str::headline($requestHistoryRow['event'] ?? 'Update'),
+                        \Illuminate\Support\Str::headline($requestHistoryRow['sender'] ?? 'System'),
+                    ]),
+                ]);
+            } catch (\Throwable $e) {
+                //
+            }
+        }
+    }
+
+    foreach (collect($portalFileRequests ?? []) as $field) {
+        $fieldValue = collect($record->portalValues ?? [])->firstWhere('portal_field_id', $field->id);
+
+        if (filled($field->created_at)) {
+            $sfpeOpsTimeline->push([
+                'type' => 'request',
+                'title' => 'Pre-Employment Request: ' . ($field->label ?: 'File Request'),
+                'subtitle' => $field->instructions ?: 'File requested from candidate.',
+                'date' => $field->created_at,
+                'meta' => array_filter([
+                    'Pre-Employment',
+                    filled($fieldValue?->value) ? 'Submitted' : 'Waiting Candidate',
+                    $field->is_required ? 'Required' : 'Optional',
+                ]),
+            ]);
+        }
+
+        if (filled($fieldValue?->submitted_at)) {
+            $sfpeOpsTimeline->push([
+                'type' => 'file',
+                'title' => 'Candidate Submitted: ' . ($field->label ?: 'Requested File'),
+                'subtitle' => 'Candidate uploaded the requested pre-employment file.',
+                'date' => $fieldValue->submitted_at,
+                'meta' => array_filter([
+                    'Pre-Employment',
+                    'Submitted',
+                    filled($field->document_category) ? \Illuminate\Support\Str::headline($field->document_category) : 'File',
+                ]),
+            ]);
+        }
+    }
+
+    $sfpeOpsTimeline = $sfpeOpsTimeline
+        ->filter(fn ($row) => ! empty($row['date']))
+        ->sortByDesc(fn ($row) => $row['date'] instanceof \Carbon\CarbonInterface ? $row['date']->timestamp : strtotime((string) $row['date']))
+        ->values();
+
+
+    $sfpeOpsDefaultTab = $sfpeOpsFiles->count()
+        ? 'files'
+        : ($sfpeOpsExpenses->count() ? 'expenses' : 'history');
+
+    $sfpeOpsExpenseUrl = function ($expense) {
+        try {
+            if (class_exists(\App\Filament\Resources\FinanceExpenses\FinanceExpenseResource::class)) {
+                return \App\Filament\Resources\FinanceExpenses\FinanceExpenseResource::getUrl('view', ['record' => $expense]);
+            }
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return null;
+    };
+
+    $sfpeOpsStatusClass = function ($status) {
+        $status = strtolower((string) $status);
+
+        return match (true) {
+            str_contains($status, 'approved'),
+            str_contains($status, 'completed'),
+            str_contains($status, 'uploaded'),
+            str_contains($status, 'ready'),
+            str_contains($status, 'paid') => 'sfpe-ops-pill-green',
+
+            str_contains($status, 'required'),
+            str_contains($status, 'pending'),
+            str_contains($status, 'awaiting'),
+            str_contains($status, 'draft') => 'sfpe-ops-pill-yellow',
+
+            str_contains($status, 'rejected'),
+            str_contains($status, 'declined'),
+            str_contains($status, 'cancelled'),
+            str_contains($status, 'expired') => 'sfpe-ops-pill-red',
+
+            default => 'sfpe-ops-pill-blue',
+        };
+    };
+@endphp
+
+<section class="sfpe-ops-card" data-sfpe-final-operations="1" data-sfpe-fixed-order="preemployment-operations">
+    <h2 class="sfpe-ops-title">Pre-Employment Operations</h2>
+
+    <input type="radio" name="sfpe-ops-tabs" id="sfpe-ops-tab-files" @checked($sfpeOpsDefaultTab === 'files')>
+    <input type="radio" name="sfpe-ops-tabs" id="sfpe-ops-tab-expenses" @checked($sfpeOpsDefaultTab === 'expenses')>
+    <input type="radio" name="sfpe-ops-tabs" id="sfpe-ops-tab-history" @checked($sfpeOpsDefaultTab === 'history')>
+
+    <div class="sfpe-ops-tabs">
+        <label for="sfpe-ops-tab-files">Files</label>
+        <label for="sfpe-ops-tab-expenses">Expenses</label>
+        <label for="sfpe-ops-tab-history">History</label>
+    </div>
+
+    <div class="sfpe-ops-content">
+        <div class="sfpe-ops-panel sfpe-ops-panel-files">
+            @if($sfpeOpsFiles->count())
+                <div class="sfpe-ops-table-wrap">
+                    <table class="sfpe-ops-table">
+                        <thead>
+                            <tr>
+                                <th>File</th>
+                                <th>Category</th>
+                                <th>Source</th>
+                                <th>Status</th>
+                                <th>Open</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($sfpeOpsFiles as $file)
+                                @php
+                                    $fileTitle = $file['title'] ?? $file->title ?? 'Candidate File';
+                                    $fileCategory = $file['category'] ?? $file->category ?? 'File';
+                                    $fileSource = $file['source'] ?? $file->uploaded_by_type ?? 'Pre-Employment';
+                                    $fileUrl = $file['url'] ?? null;
+
+                                    if (! $fileUrl) {
+                                        $rawPath = $file['file_path'] ?? $file->file_path ?? $file['path'] ?? null;
+
+                                        if ($rawPath) {
+                                            try {
+                                                $fileUrl = \Illuminate\Support\Facades\Storage::disk('public')->url($rawPath);
+                                            } catch (\Throwable $e) {
+                                                $fileUrl = null;
+                                            }
+                                        }
+                                    }
+
+                                    $fileStatus = $file['status'] ?? $file->document_status ?? ($file['is_current'] ?? $file->is_current ?? true ? 'Current' : 'Old Version');
+                                @endphp
+
+                                <tr>
+                                    <td>{{ $fileTitle }}</td>
+                                    <td>{{ \Illuminate\Support\Str::headline((string) $fileCategory) }}</td>
+                                    <td>{{ \Illuminate\Support\Str::headline((string) $fileSource) }}</td>
+                                    <td>
+                                        <span class="sfpe-ops-status {{ $sfpeOpsStatusClass($fileStatus) }}">
+                                            {{ \Illuminate\Support\Str::headline((string) $fileStatus) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @if($fileUrl)
+                                            <a href="{{ $fileUrl }}" target="_blank" class="sfpe-ops-open">Open</a>
+                                        @else
+                                            —
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <div class="sfpe-ops-empty">No candidate files found yet.</div>
+            @endif
+        </div>
+
+        <div class="sfpe-ops-panel sfpe-ops-panel-expenses">
+            @if($sfpeOpsExpenses->count())
+                <div class="sfpe-ops-table-wrap">
+                    <table class="sfpe-ops-table">
+                        <thead>
+                            <tr>
+                                <th>Expense</th>
+                                <th>Category</th>
+                                <th>Amount</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Open</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($sfpeOpsExpenses as $expense)
+                                @php
+                                    $expenseTitle = $expense->title ?? $expense->description ?? ('Expense #' . $expense->id);
+                                    $expenseCategory = $expense->category ?? $expense->expense_category ?? 'other';
+                                    $expenseAmount = $expense->amount ?? $expense->total_amount ?? 0;
+                                    $expenseCurrency = $expense->currency ?? 'EUR';
+                                    $expenseDate = $expense->expense_date ?? $expense->created_at;
+                                    $expenseStatus = $expense->status ?? 'draft';
+                                    $expenseUrl = $sfpeOpsExpenseUrl($expense);
+                                @endphp
+
+                                <tr>
+                                    <td>{{ $expenseTitle }}</td>
+                                    <td>{{ \Illuminate\Support\Str::headline((string) $expenseCategory) }}</td>
+                                    <td>{{ number_format((float) $expenseAmount, 2) }} {{ $expenseCurrency }}</td>
+                                    <td>{{ optional($expenseDate)->format('d M Y') ?: '—' }}</td>
+                                    <td>
+                                        <span class="sfpe-ops-status {{ $sfpeOpsStatusClass($expenseStatus) }}">
+                                            {{ \Illuminate\Support\Str::headline((string) $expenseStatus) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @if($expenseUrl)
+                                            <a href="{{ $expenseUrl }}" class="sfpe-ops-open">Open</a>
+                                        @else
+                                            —
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <div class="sfpe-ops-empty">No Pre-Employment expenses recorded yet.</div>
+            @endif
+        </div>
+
+        <div class="sfpe-ops-panel sfpe-ops-panel-history">
+            @if($sfpeOpsTimeline->count())
+                <div class="sfpe-ops-history">
+                    @foreach($sfpeOpsTimeline as $row)
+                        @php
+                            $historyType = $row['type'] ?? 'update';
+                            $historyDate = $row['date'] ?? null;
+                            $historyMeta = collect($row['meta'] ?? []);
+                        @endphp
+
+                        <div class="sfpe-ops-history-row">
+                            <div class="sfpe-ops-history-main">
+                                <strong>{{ $row['title'] ?? 'Update' }}</strong>
+
+                                @if(!empty($row['subtitle']))
+                                    <span>{{ $row['subtitle'] }}</span>
+                                @endif
+
+                                <div class="sfpe-ops-history-tags">
+                                    <span class="sfpe-ops-status {{ $sfpeOpsStatusClass($historyType) }}">
+                                        {{ \Illuminate\Support\Str::headline((string) $historyType) }}
+                                    </span>
+
+                                    @foreach($historyMeta as $tag)
+                                        <span class="sfpe-ops-status {{ $sfpeOpsStatusClass($tag) }}">
+                                            {{ $tag }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            <div class="sfpe-ops-history-date">
+                                {{ $historyDate ? $historyDate->format('d M Y H:i') : '—' }}
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <div class="sfpe-ops-empty">No timeline updates found yet.</div>
+            @endif
+        </div>
+    </div>
+</section>
+
+<style id="sfpe-final-preemployment-operations-style">
+    /*
+     | Final visual layout:
+     | Candidate Details -> Finance Profile -> Pre-Employment Operations.
+     | Header and header action buttons are untouched.
+     */
+
+    :root {
+        --sfpe-ops-width: 1180px;
+        --sfpe-ops-title: #234b74;
+        --sfpe-ops-blue: #2563eb;
+        --sfpe-ops-cyan: #22d3ee;
+    }
+
+    .sfpe-ops-card {
+        width: min(100%, var(--sfpe-ops-width));
+        margin: 24px auto 80px;
+        padding: 24px;
+        border-radius: 30px;
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .10), transparent 35%),
+            rgba(255,255,255,.96);
+        border: 1px solid rgba(15,23,42,.08);
+        box-shadow: 0 16px 42px rgba(15,23,42,.07);
+        overflow: hidden;
+    }
+
+    .sfpe-ops-card::before {
+        content: "";
+        display: block;
+        height: 4px;
+        margin: -24px -24px 22px;
+        background: linear-gradient(90deg, var(--sfpe-ops-cyan), var(--sfpe-ops-blue));
+    }
+
+    .sfpe-ops-title {
+        margin: 0 0 18px;
+        color: var(--sfpe-ops-title);
+        font-size: 25px;
+        font-weight: 950;
+        letter-spacing: -.055em;
+        line-height: 1.1;
+    }
+
+    .sfpe-ops-card > input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .sfpe-ops-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 18px;
+    }
+
+    .sfpe-ops-tabs label {
+        min-height: 42px;
+        padding: 0 18px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #e0f2fe;
+        color: #234b74;
+        border: 1px solid rgba(37,99,235,.16);
+        font-size: 13px;
+        font-weight: 950;
+        cursor: pointer;
+        transition: .18s ease;
+    }
+
+    #sfpe-ops-tab-files:checked ~ .sfpe-ops-tabs label[for="sfpe-ops-tab-files"],
+    #sfpe-ops-tab-expenses:checked ~ .sfpe-ops-tabs label[for="sfpe-ops-tab-expenses"],
+    #sfpe-ops-tab-history:checked ~ .sfpe-ops-tabs label[for="sfpe-ops-tab-history"] {
+        background: #2563eb;
+        color: #ffffff;
+        box-shadow: 0 12px 28px rgba(37,99,235,.22);
+    }
+
+    .sfpe-ops-panel {
+        display: none;
+    }
+
+    #sfpe-ops-tab-files:checked ~ .sfpe-ops-content .sfpe-ops-panel-files,
+    #sfpe-ops-tab-expenses:checked ~ .sfpe-ops-content .sfpe-ops-panel-expenses,
+    #sfpe-ops-tab-history:checked ~ .sfpe-ops-content .sfpe-ops-panel-history {
+        display: block;
+    }
+
+    .sfpe-ops-table-wrap {
+        max-height: 560px;
+        overflow: auto;
+        border-radius: 24px;
+        border: 1px solid rgba(15,23,42,.08);
+        background: rgba(255,255,255,.72);
+    }
+
+    .sfpe-ops-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 760px;
+    }
+
+    .sfpe-ops-table th {
+        padding: 15px 18px;
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 950;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        text-align: left;
+        background: rgba(248,250,252,.88);
+        border-bottom: 1px solid rgba(15,23,42,.08);
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }
+
+    .sfpe-ops-table td {
+        padding: 16px 18px;
+        color: #0f172a;
+        font-size: 13px;
+        font-weight: 850;
+        border-bottom: 1px solid rgba(15,23,42,.06);
+        vertical-align: middle;
+    }
+
+    .sfpe-ops-table tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .sfpe-ops-status,
+    .sfpe-ops-open {
+        min-height: 30px;
+        padding: 0 12px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: fit-content;
+        font-size: 11px;
+        line-height: 1;
+        font-weight: 950;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .sfpe-ops-open {
+        background: #e0f2fe;
+        color: #1d4ed8;
+        border: 1px solid rgba(37,99,235,.16);
+    }
+
+    .sfpe-ops-pill-blue {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .sfpe-ops-pill-green {
+        background: #dcfce7;
+        color: #047857;
+    }
+
+    .sfpe-ops-pill-yellow {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .sfpe-ops-pill-red {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .sfpe-ops-history {
+        max-height: 580px;
+        overflow-y: auto;
+        display: grid;
+        gap: 12px;
+        padding-right: 6px;
+    }
+
+    .sfpe-ops-history-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: start;
+        padding: 16px 18px;
+        border-radius: 22px;
+        background: #ffffff;
+        border: 1px solid rgba(15,23,42,.08);
+        box-shadow: 0 10px 28px rgba(15,23,42,.04);
+    }
+
+    .sfpe-ops-history-main strong {
+        display: block;
+        color: #0f172a;
+        font-size: 14px;
+        font-weight: 950;
+        line-height: 1.35;
+    }
+
+    .sfpe-ops-history-main span {
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.45;
+    }
+
+    .sfpe-ops-history-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-top: 10px;
+    }
+
+    .sfpe-ops-history-date {
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 900;
+        white-space: nowrap;
+    }
+
+    .sfpe-ops-empty {
+        padding: 24px;
+        border-radius: 22px;
+        background: #f8fafc;
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 850;
+        border: 1px dashed rgba(15,23,42,.12);
+    }
+
+    /*
+     | Hide old / duplicate body sections only after JS marks the body.
+     */
+    body.sfpe-ops-ready .sfpe-ops-hidden {
+        display: none !important;
+    }
+
+    /*
+     | Keep main blocks ordered.
+     */
+    body.sfpe-ops-ready .sfpe-main-candidate-details {
+        order: 10 !important;
+    }
+
+    body.sfpe-ops-ready .sfpe-main-finance-profile {
+        order: 20 !important;
+    }
+
+    body.sfpe-ops-ready .sfpe-ops-card {
+        order: 30 !important;
+    }
+
+    .dark .sfpe-ops-card {
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .12), transparent 35%),
+            rgba(15,23,42,.78);
+        border-color: rgba(148,163,184,.18);
+    }
+
+    .dark .sfpe-ops-table-wrap,
+    .dark .sfpe-ops-history-row {
+        background: rgba(15,23,42,.58);
+        border-color: rgba(148,163,184,.16);
+    }
+
+    .dark .sfpe-ops-table th {
+        background: rgba(15,23,42,.82);
+        color: #94a3b8;
+    }
+
+    .dark .sfpe-ops-table td,
+    .dark .sfpe-ops-history-main strong {
+        color: #ffffff;
+    }
+
+    .dark .sfpe-ops-history-main span,
+    .dark .sfpe-ops-history-date {
+        color: #94a3b8;
+    }
+
+    @media (max-width: 760px) {
+        .sfpe-ops-card {
+            width: calc(100vw - 24px);
+            padding: 18px;
+            border-radius: 24px;
+        }
+
+        .sfpe-ops-card::before {
+            margin: -18px -18px 18px;
+        }
+
+        .sfpe-ops-history-row {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+
+
+{{-- SFPE FINAL PREEMPLOYMENT OPERATIONS END --}}
+
+
+
+
+
+
+
+
+
+{{-- SFPE HARD FINAL PAGE ORDER START --}}
+{{-- SFPE HARD FINAL PAGE ORDER END --}}
+
+
+
+
+
+
+
+
+
+{{-- SFPE FINAL DOM ORDER START --}}
+{{-- SFPE FINAL DOM ORDER END --}}
+
+
+
+
+
+
+
+
+
+{{-- SFPE STATIC PAGE ORDER ONLY - NO JS MOVEMENT --}}
+
+<style id="sfpe-clean-no-shuffle-final">
+    /*
+     | Sada Fezzan ERP — Pre-Employment clean final layout.
+     | No JavaScript movement. No MutationObserver. No delayed reorder.
+     | Final visible order:
+     | Candidate Details -> Finance Profile -> Pre-Employment Status
+     | -> Pre-Employment Operations -> Candidate Requests / Request Timeline.
+     */
+
+    .sfpe-page {
+        width: min(100%, 1280px) !important;
+        margin: 0 auto 72px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 22px !important;
+    }
+
+    [data-sfpe-main-hero="1"] {
+        width: min(100%, 1280px) !important;
+        margin: 24px auto 28px !important;
+    }
+
+    [data-sfpe-fixed-order="candidate-details"] {
+        order: 10 !important;
+    }
+
+    [data-sfpe-fixed-order="finance-profile"] {
+        order: 20 !important;
+    }
+
+    [data-sfpe-fixed-order="preemployment-status"] {
+        order: 30 !important;
+    }
+
+    [data-sfpe-fixed-order="preemployment-operations"],
+    [data-sfpe-final-operations="1"] {
+        order: 40 !important;
+    }
+
+    [data-sfpe-fixed-order="candidate-requests-end"],
+    .sfpe-ja-card:has(.sfpe-ja-head h2),
+    .sfpe-ja-timeline-print {
+        order: 90 !important;
+    }
+
+    /*
+     | Hide old duplicated blocks only.
+     | Their data is already merged into Pre-Employment Operations or Candidate Requests.
+     */
+    .sfpe-candidate-files-card,
+    .sfpe-clean-flow-files-card,
+    section:has(.sfpe-card-title):has(.sfpe-icon):has(+ *):has(.sfpe-request-list),
+    section:has(.sfpe-card-title):has(.sfpe-icon):has(.sfpe-request-list),
+    section:has(.sfpe-card-title):has(.sfpe-icon):has(.sfpe-timeline-list),
+    section:has(.sfpe-card-title):has(.sfpe-icon):has(.sfpe-grid):has(.sfpe-notes),
+    section:has(.sfpe-card-title):has(.sfpe-icon):has(.sfpe-grid):has(.sfpe-item) + section:has(.sfpe-card-title):has(.sfpe-icon):has(.sfpe-grid):has(.sfpe-value) {
+        display: none !important;
+    }
+
+    /*
+     | Explicitly hide these old blocks by title where browser supports :has.
+     */
+    section:has(h2):has(.sfpe-icon):has(.sfpe-card-title):has(.sfpe-request-list),
+    section:has(h2):has(.sfpe-card-title):has(.sfpe-timeline-list),
+    section:has(h2):has(.sfpe-card-title):has(.sfpe-grid):has(.sfpe-notes),
+    section:has(h2):has(.sfpe-card-title):has(.sfpe-grid):has(.sfpe-item):has(.sfpe-empty) {
+        display: none !important;
+    }
+
+    /*
+     | Keep the main required blocks visible even if old generic rules matched them.
+     */
+    [data-sfpe-fixed-order="candidate-details"],
+    [data-sfpe-fixed-order="finance-profile"],
+    [data-sfpe-fixed-order="preemployment-status"],
+    [data-sfpe-final-operations="1"],
+    .sfpe-ja-card,
+    .sfpe-ja-timeline-print {
+        display: block !important;
+    }
+
+    /*
+     | Operations: same feeling as Employment Operations.
+     */
+    [data-sfpe-final-operations="1"] {
+        width: min(100%, 1180px) !important;
+        margin: 0 auto !important;
+        border-radius: 30px !important;
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .10), transparent 35%),
+            rgba(255,255,255,.96) !important;
+        border: 1px solid rgba(15,23,42,.08) !important;
+        box-shadow: 0 16px 42px rgba(15,23,42,.07) !important;
+        overflow: hidden !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-ops-title {
+        margin: 0 !important;
+        padding: 22px 24px 10px !important;
+        color: #234b74 !important;
+        font-size: 25px !important;
+        font-weight: 950 !important;
+        letter-spacing: -.04em !important;
+    }
+
+    [data-sfpe-final-operations="1"] > input[type="radio"] {
+        display: none !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-ops-tabs {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        padding: 0 24px 18px !important;
+        border-bottom: 1px solid rgba(15,23,42,.08) !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-ops-tabs label {
+        min-height: 38px !important;
+        padding: 0 15px !important;
+        border-radius: 999px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        cursor: pointer !important;
+        background: #f8fafc !important;
+        color: #334155 !important;
+        border: 1px solid rgba(15,23,42,.10) !important;
+        font-size: 12px !important;
+        font-weight: 950 !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-ops-tabs label::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #cbd5e1;
+        box-shadow: 0 0 0 4px rgba(203,213,225,.22);
+    }
+
+    #sfpe-ops-tab-files:checked ~ .sfpe-ops-tabs label[for="sfpe-ops-tab-files"],
+    #sfpe-ops-tab-expenses:checked ~ .sfpe-ops-tabs label[for="sfpe-ops-tab-expenses"],
+    #sfpe-ops-tab-history:checked ~ .sfpe-ops-tabs label[for="sfpe-ops-tab-history"] {
+        background: #e0f2fe !important;
+        color: #1d4ed8 !important;
+        border-color: rgba(37,99,235,.20) !important;
+    }
+
+    #sfpe-ops-tab-files:checked ~ .sfpe-ops-tabs label[for="sfpe-ops-tab-files"]::before,
+    #sfpe-ops-tab-expenses:checked ~ .sfpe-ops-tabs label[for="sfpe-ops-tab-expenses"]::before,
+    #sfpe-ops-tab-history:checked ~ .sfpe-ops-tabs label[for="sfpe-ops-tab-history"]::before {
+        background: #2563eb;
+        box-shadow: 0 0 0 4px rgba(37,99,235,.16);
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-ops-content {
+        padding: 20px 24px 24px !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-ops-panel {
+        display: none !important;
+    }
+
+    #sfpe-ops-tab-files:checked ~ .sfpe-ops-content .sfpe-ops-panel-files,
+    #sfpe-ops-tab-expenses:checked ~ .sfpe-ops-content .sfpe-ops-panel-expenses,
+    #sfpe-ops-tab-history:checked ~ .sfpe-ops-content .sfpe-ops-panel-history {
+        display: block !important;
+    }
+
+    [data-sfpe-final-operations="1"] table {
+        width: 100% !important;
+        border-collapse: separate !important;
+        border-spacing: 0 10px !important;
+    }
+
+    [data-sfpe-final-operations="1"] th {
+        padding: 0 14px 8px !important;
+        color: #64748b !important;
+        font-size: 11px !important;
+        font-weight: 950 !important;
+        text-transform: uppercase !important;
+        letter-spacing: .10em !important;
+        text-align: left !important;
+    }
+
+    [data-sfpe-final-operations="1"] td {
+        padding: 14px !important;
+        background: #f8fafc !important;
+        border-top: 1px solid rgba(15,23,42,.08) !important;
+        border-bottom: 1px solid rgba(15,23,42,.08) !important;
+        color: #0f172a !important;
+        font-size: 13px !important;
+        font-weight: 800 !important;
+        vertical-align: middle !important;
+    }
+
+    [data-sfpe-final-operations="1"] td:first-child {
+        border-left: 1px solid rgba(15,23,42,.08) !important;
+        border-radius: 18px 0 0 18px !important;
+        font-weight: 950 !important;
+    }
+
+    [data-sfpe-final-operations="1"] td:last-child {
+        border-right: 1px solid rgba(15,23,42,.08) !important;
+        border-radius: 0 18px 18px 0 !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-ops-pill,
+    [data-sfpe-final-operations="1"] .sf-status-pill,
+    [data-sfpe-final-operations="1"] .sfpe-chip,
+    [data-sfpe-final-operations="1"] a {
+        border-radius: 999px !important;
+        min-height: 30px !important;
+        padding: 6px 11px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: fit-content !important;
+        text-decoration: none !important;
+        font-size: 11px !important;
+        font-weight: 950 !important;
+    }
+
+    [data-sfpe-final-operations="1"] a {
+        background: #e0f2fe !important;
+        color: #1d4ed8 !important;
+        border: 1px solid rgba(37,99,235,.18) !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-status-green,
+    [data-sfpe-final-operations="1"] .sfpe-ops-pill-green {
+        background: #dcfce7 !important;
+        color: #047857 !important;
+        border: 1px solid rgba(16,185,129,.20) !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-status-yellow,
+    [data-sfpe-final-operations="1"] .sfpe-ops-pill-yellow {
+        background: #fef3c7 !important;
+        color: #92400e !important;
+        border: 1px solid rgba(245,158,11,.22) !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-status-red,
+    [data-sfpe-final-operations="1"] .sfpe-ops-pill-red {
+        background: #fee2e2 !important;
+        color: #991b1b !important;
+        border: 1px solid rgba(239,68,68,.22) !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-status-blue,
+    [data-sfpe-final-operations="1"] .sfpe-ops-pill-blue {
+        background: #dbeafe !important;
+        color: #1d4ed8 !important;
+        border: 1px solid rgba(37,99,235,.18) !important;
+    }
+
+    /*
+     | Candidate Requests at end.
+     */
+    .sfpe-ja-card,
+    .sfpe-ja-timeline-print {
+        width: min(100%, 1180px) !important;
+        margin: 0 auto !important;
+        border-radius: 30px !important;
+        background: rgba(255,255,255,.96) !important;
+        border: 1px solid rgba(15,23,42,.08) !important;
+        box-shadow: 0 16px 42px rgba(15,23,42,.07) !important;
+        overflow: hidden !important;
+    }
+
+    .sfpe-ja-timeline,
+    .sfpe-ja-request-list {
+        max-height: 560px !important;
+        overflow-y: auto !important;
+    }
+
+    /*
+     | Dark mode compatibility.
+     */
+    .dark [data-sfpe-final-operations="1"],
+    .dark .sfpe-ja-card,
+    .dark .sfpe-ja-timeline-print {
+        background:
+            radial-gradient(circle at top right, rgba(34,211,238,.12), transparent 35%),
+            rgba(15,23,42,.82) !important;
+        border-color: rgba(148,163,184,.18) !important;
+    }
+
+    .dark [data-sfpe-final-operations="1"] td {
+        background: rgba(15,23,42,.58) !important;
+        color: #ffffff !important;
+        border-color: rgba(148,163,184,.16) !important;
+    }
+
+    .dark [data-sfpe-final-operations="1"] th {
+        color: #94a3b8 !important;
+    }
+
+    @media (max-width: 780px) {
+        [data-sfpe-final-operations="1"],
+        .sfpe-ja-card,
+        .sfpe-ja-timeline-print {
+            width: calc(100vw - 24px) !important;
+            border-radius: 24px !important;
+        }
+
+        [data-sfpe-final-operations="1"] .sfpe-ops-content {
+            padding: 16px !important;
+            overflow-x: auto !important;
+        }
+
+        [data-sfpe-final-operations="1"] table {
+            min-width: 760px !important;
+        }
+    }
+</style>
+
+
+
+<style id="sfpe-request-cleanup-final">
+    /*
+     | Hide unwanted duplicate blocks.
+     | Candidate Requests stays.
+     | Candidate Request Timeline is now represented in Operations > History.
+     */
+
+    /* Portal Answers block */
+    .sfpe-page > section:has(.sfpe-card-title):has(.sfpe-icon):has(.sfpe-grid):has(.sfpe-value):has(.sfpe-empty),
+    .sfpe-page > section:has(.sfpe-card-title):has(.sfpe-icon):has(.sfpe-grid):has(.sfpe-item):has(.sfpe-value):has(.sfpe-chip) {
+        scroll-margin-top: 120px;
+    }
+
+    .sfpe-page > section:has(.sfpe-card-title):has(.sfpe-icon):has(.sfpe-grid):has(.sfpe-value):has(h2):has(.sfpe-chip) {
+        /* keep candidate/status/finance visible through explicit rules below */
+    }
+
+    .sfpe-page > section:has(h2):has(.sfpe-card-title):has(.sfpe-icon):has(.sfpe-grid):has(.sfpe-empty),
+    .sfpe-page > section:has(h2):has(.sfpe-card-title):has(.sfpe-icon):has(.sfpe-grid):has(.sfpe-value):not([data-sfpe-fixed-order="candidate-details"]):not([data-sfpe-fixed-order="finance-profile"]):not([data-sfpe-fixed-order="preemployment-status"]) {
+        display: none !important;
+    }
+
+    /* Job Application Snapshot */
+    .sfpe-ja-card:has(.material-symbols-rounded):has(h2):has(.sfpe-ja-grid):not(:has(.sfpe-ja-request-list)):not(:has(.sfpe-ja-request)) {
+        display: none !important;
+    }
+
+    /* Candidate Request Timeline separate block */
+    .sfpe-ja-timeline-print {
+        display: none !important;
+    }
+
+    /* Keep required blocks visible */
+    [data-sfpe-fixed-order="candidate-details"],
+    [data-sfpe-fixed-order="finance-profile"],
+    [data-sfpe-fixed-order="preemployment-status"],
+    [data-sfpe-final-operations="1"],
+    .sfpe-ja-card:has(.sfpe-ja-request),
+    .sfpe-ja-card:has(.sfpe-ja-request-list) {
+        display: block !important;
+    }
+
+    /* Pre-Employment Requests inside Candidate Requests block */
+    .sfpe-preemployment-request {
+        border: 1px solid rgba(37,99,235,.12) !important;
+        background:
+            radial-gradient(circle at top right, rgba(34,211,238,.08), transparent 35%),
+            #ffffff !important;
+    }
+
+    .sfpe-preemployment-request summary {
+        cursor: pointer !important;
+    }
+
+    .sfpe-ja-file-link {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-height: 34px !important;
+        padding: 0 13px !important;
+        border-radius: 999px !important;
+        background: #e0f2fe !important;
+        color: #1d4ed8 !important;
+        border: 1px solid rgba(37,99,235,.16) !important;
+        font-size: 12px !important;
+        font-weight: 950 !important;
+        text-decoration: none !important;
+        margin-right: 8px !important;
+        margin-top: 10px !important;
+    }
+
+    .sfpe-ja-note {
+        margin-top: 14px !important;
+        padding: 14px 16px !important;
+        border-radius: 18px !important;
+        background: #f8fafc !important;
+        border: 1px solid rgba(15,23,42,.08) !important;
+        color: #475569 !important;
+        font-size: 13px !important;
+        font-weight: 750 !important;
+        line-height: 1.6 !important;
+    }
+
+    .dark .sfpe-preemployment-request {
+        background:
+            radial-gradient(circle at top right, rgba(34,211,238,.10), transparent 35%),
+            rgba(15,23,42,.72) !important;
+        border-color: rgba(148,163,184,.18) !important;
+    }
+
+    .dark .sfpe-ja-note {
+        background: rgba(15,23,42,.58) !important;
+        border-color: rgba(148,163,184,.16) !important;
+        color: #cbd5e1 !important;
+    }
+</style>
+
+
+
+<style id="sfpe-ops-match-employment-final">
+    /*
+     | Pre-Employment Operations visual match with Employment Operations.
+     | Header/action buttons are untouched.
+     */
+
+    [data-sfpe-final-operations="1"] {
+        width: min(100%, 1280px) !important;
+        margin: 26px auto !important;
+        padding: 34px !important;
+        border-radius: 32px !important;
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .12), transparent 34%),
+            rgba(255,255,255,.94) !important;
+        border: 1px solid rgba(15,23,42,.08) !important;
+        box-shadow: 0 22px 60px rgba(15,23,42,.10) !important;
+        overflow: hidden !important;
+    }
+
+    /* remove any top colored/accent line */
+    [data-sfpe-final-operations="1"]::before,
+    [data-sfpe-final-operations="1"]::after,
+    [data-sfpe-final-operations="1"] .sfpe-top-line,
+    [data-sfpe-final-operations="1"] .sfpe-accent-line {
+        display: none !important;
+        content: none !important;
+    }
+
+    [data-sfpe-final-operations="1"] h2,
+    [data-sfpe-final-operations="1"] .sfpe-ops-title,
+    [data-sfpe-final-operations="1"] .sf-tabs-title {
+        margin: 0 0 22px !important;
+        font-size: 26px !important;
+        line-height: 1.1 !important;
+        font-weight: 950 !important;
+        letter-spacing: -.045em !important;
+        color: #234b74 !important;
+    }
+
+    /* show dots below title exactly like Employment Operations */
+    [data-sfpe-final-operations="1"] > input[type="radio"] {
+        appearance: auto !important;
+        -webkit-appearance: radio !important;
+        display: inline-block !important;
+        width: 14px !important;
+        height: 14px !important;
+        margin: 0 5px 14px 0 !important;
+        opacity: 1 !important;
+        position: static !important;
+        pointer-events: none !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-ops-tabs,
+    [data-sfpe-final-operations="1"] .sf-tabs {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 12px !important;
+        margin: 0 0 22px !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-ops-tabs label,
+    [data-sfpe-final-operations="1"] .sf-tabs label {
+        min-height: 48px !important;
+        padding: 0 24px !important;
+        border-radius: 999px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: #eef6ff !important;
+        color: #234b74 !important;
+        border: 1px solid rgba(37,99,235,.14) !important;
+        font-size: 15px !important;
+        font-weight: 950 !important;
+        cursor: pointer !important;
+        box-shadow: none !important;
+    }
+
+    [data-sfpe-final-operations="1"] #sfpe-ops-tab-files:checked ~ .sfpe-ops-tabs label[for="sfpe-ops-tab-files"],
+    [data-sfpe-final-operations="1"] #sfpe-ops-tab-expenses:checked ~ .sfpe-ops-tabs label[for="sfpe-ops-tab-expenses"],
+    [data-sfpe-final-operations="1"] #sfpe-ops-tab-history:checked ~ .sfpe-ops-tabs label[for="sfpe-ops-tab-history"] {
+        background: #2563eb !important;
+        color: #ffffff !important;
+        border-color: #2563eb !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-ops-table-wrap,
+    [data-sfpe-final-operations="1"] .sf-table-wrap {
+        border-radius: 24px !important;
+        border: 1px solid rgba(15,23,42,.08) !important;
+        overflow: auto !important;
+        max-height: 560px !important;
+        background: #ffffff !important;
+    }
+
+    [data-sfpe-final-operations="1"] table,
+    [data-sfpe-final-operations="1"] .sfpe-ops-table,
+    [data-sfpe-final-operations="1"] .sf-ops-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        min-width: 980px !important;
+        background: transparent !important;
+    }
+
+    [data-sfpe-final-operations="1"] thead th {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 2 !important;
+        background: #f8fafc !important;
+        color: #64748b !important;
+        font-size: 12px !important;
+        font-weight: 950 !important;
+        letter-spacing: .16em !important;
+        text-transform: uppercase !important;
+        padding: 18px 20px !important;
+        text-align: left !important;
+        border-bottom: 1px solid rgba(15,23,42,.08) !important;
+    }
+
+    [data-sfpe-final-operations="1"] tbody td {
+        padding: 22px 20px !important;
+        border-bottom: 1px solid rgba(15,23,42,.06) !important;
+        font-size: 15px !important;
+        font-weight: 850 !important;
+        color: #0f172a !important;
+        vertical-align: middle !important;
+        white-space: nowrap !important;
+    }
+
+    [data-sfpe-final-operations="1"] tbody tr:last-child td {
+        border-bottom: 0 !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sf-status-pill,
+    [data-sfpe-final-operations="1"] .sfpe-status-pill,
+    [data-sfpe-final-operations="1"] .sfpe-ops-pill {
+        min-height: 30px !important;
+        padding: 0 13px !important;
+        border-radius: 999px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: #e0f2fe !important;
+        color: #075985 !important;
+        border: 1px solid rgba(14,165,233,.16) !important;
+        font-size: 12px !important;
+        font-weight: 950 !important;
+        white-space: nowrap !important;
+    }
+
+    [data-sfpe-final-operations="1"] a.sf-pill,
+    [data-sfpe-final-operations="1"] a.sfpe-ops-open,
+    [data-sfpe-final-operations="1"] a[class*="open"] {
+        min-height: 34px !important;
+        padding: 0 14px !important;
+        border-radius: 999px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: #e0f2fe !important;
+        color: #0f172a !important;
+        border: 1px solid rgba(14,165,233,.16) !important;
+        font-size: 12px !important;
+        font-weight: 950 !important;
+        text-decoration: none !important;
+        white-space: nowrap !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-ops-history,
+    [data-sfpe-final-operations="1"] .sfpe-history-timeline {
+        max-height: 560px !important;
+        overflow-y: auto !important;
+        padding: 18px 20px 18px 34px !important;
+        border-radius: 24px !important;
+        border: 1px solid rgba(15,23,42,.08) !important;
+        background: #ffffff !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-ops-empty,
+    [data-sfpe-final-operations="1"] .sf-empty-panel {
+        border-radius: 22px !important;
+        padding: 22px !important;
+        background: #f8fafc !important;
+        border: 1px dashed rgba(15,23,42,.12) !important;
+        color: #64748b !important;
+        font-size: 14px !important;
+        font-weight: 850 !important;
+    }
+
+    .dark [data-sfpe-final-operations="1"] {
+        background:
+            radial-gradient(circle at top right, rgba(34,211,238,.10), transparent 34%),
+            rgba(15,23,42,.78) !important;
+        border-color: rgba(148,163,184,.18) !important;
+        box-shadow: 0 22px 60px rgba(0,0,0,.22) !important;
+    }
+
+    .dark [data-sfpe-final-operations="1"] h2,
+    .dark [data-sfpe-final-operations="1"] .sfpe-ops-title,
+    .dark [data-sfpe-final-operations="1"] .sf-tabs-title {
+        color: #e0f2fe !important;
+    }
+
+    .dark [data-sfpe-final-operations="1"] .sfpe-ops-table-wrap,
+    .dark [data-sfpe-final-operations="1"] .sf-table-wrap,
+    .dark [data-sfpe-final-operations="1"] .sfpe-ops-history,
+    .dark [data-sfpe-final-operations="1"] .sfpe-history-timeline {
+        background: rgba(15,23,42,.58) !important;
+        border-color: rgba(148,163,184,.16) !important;
+    }
+
+    .dark [data-sfpe-final-operations="1"] thead th {
+        background: rgba(15,23,42,.92) !important;
+        color: #94a3b8 !important;
+    }
+
+    .dark [data-sfpe-final-operations="1"] tbody td {
+        color: #ffffff !important;
+        border-bottom-color: rgba(148,163,184,.12) !important;
+    }
+
+    @media (max-width: 900px) {
+        [data-sfpe-final-operations="1"] {
+            width: calc(100vw - 24px) !important;
+            padding: 22px !important;
+            border-radius: 26px !important;
+        }
+
+        [data-sfpe-final-operations="1"] table,
+        [data-sfpe-final-operations="1"] .sfpe-ops-table,
+        [data-sfpe-final-operations="1"] .sf-ops-table {
+            min-width: 860px !important;
+        }
+    }
+</style>
+
+
+
+{{-- SFPE FINAL TARGETED ORDER — NO BLOCK SHUFFLE --}}
+<style id="sfpe-final-targeted-order-no-shuffle">
+    /*
+     | Keep required blocks only.
+     | No JavaScript movement.
+     | No MutationObserver.
+     |
+     | Required order:
+     | 1. Header
+     | 2. Candidate Details
+     | 3. Finance Profile
+     | 4. Pre-Employment Status
+     | 5. Pre-Employment Operations
+     | 6. Candidate Requests
+     | 7. Candidate Request Timeline
+     */
+
+    .fi-page-content > div,
+    .fi-page-content > div > div,
+    .sfpe-page {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 22px !important;
+    }
+
+    [data-sfpe-main-hero="1"],
+    .sfpe-real-hero {
+        order: 0 !important;
+    }
+
+    [data-sfpe-fixed-order="candidate-details"] {
+        order: 10 !important;
+    }
+
+    [data-sfpe-fixed-order="finance-profile"] {
+        order: 20 !important;
+    }
+
+    [data-sfpe-fixed-order="preemployment-status"],
+    [data-sfpe-fixed-order="pre-employment-status"] {
+        order: 30 !important;
+    }
+
+    [data-sfpe-final-operations="1"],
+    [data-sfpe-fixed-order="preemployment-operations"] {
+        order: 40 !important;
+    }
+
+    .sfpe-ja-card[data-sfpe-fixed-order="candidate-requests-end"]:not(.sfpe-ja-timeline-print) {
+        order: 50 !important;
+    }
+
+    .sfpe-ja-timeline-print[data-sfpe-fixed-order="candidate-requests-end"] {
+        order: 60 !important;
+    }
+
+    /* Emergency hide only duplicated blocks if any escaped backend cleanup. */
+    .sfpe-candidate-files-card,
+    .sfpe-clean-flow-files-card {
+        display: none !important;
+    }
+
+    /* Operations block closer to Employment Operations. */
+    [data-sfpe-final-operations="1"] {
+        width: min(100%, 1180px) !important;
+        margin: 22px auto !important;
+        border-radius: 30px !important;
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .10), transparent 35%),
+            rgba(255,255,255,.94) !important;
+        border: 1px solid rgba(15,23,42,.08) !important;
+        box-shadow: 0 18px 46px rgba(15,23,42,.08) !important;
+        overflow: hidden !important;
+    }
+
+    [data-sfpe-final-operations="1"]::before,
+    [data-sfpe-final-operations="1"]::after {
+        display: none !important;
+        content: none !important;
+    }
+
+    [data-sfpe-final-operations="1"] input[type="radio"] {
+        display: inline-block !important;
+        appearance: auto !important;
+        width: auto !important;
+        height: auto !important;
+        margin: 0 4px 10px 0 !important;
+        opacity: 1 !important;
+        position: static !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sf-table-wrap,
+    [data-sfpe-final-operations="1"] .sfpe-ops-table-wrap,
+    [data-sfpe-final-operations="1"] .sfpe-ops-history,
+    .sfpe-ja-request-list,
+    .sfpe-ja-timeline {
+        max-height: 560px !important;
+        overflow-y: auto !important;
+    }
+</style>
+
+
 </x-filament-panels::page>
+
+{{-- SFPE OPERATIONS POLISH FINAL START --}}
+{{-- SFPE OPERATIONS POLISH FINAL END --}}
+
+{{-- SFPE UNIFIED EMPLOYMENT-LIKE OPERATIONS STYLE START --}}
+{{-- SFPE UNIFIED EMPLOYMENT-LIKE OPERATIONS STYLE END --}}
+
+{{-- SFPE FINAL OPS DOTS + REQUEST HISTORY + VERSION START --}}
+{{-- SFPE FINAL OPS DOTS + REQUEST HISTORY + VERSION END --}}
+
+{{-- SFPE FINAL SEPARATE REQUESTS BLOCK START --}}
+{{-- SFPE FINAL SEPARATE REQUESTS BLOCK END --}}
+

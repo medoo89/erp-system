@@ -33,7 +33,7 @@
             <div class="sf-actions">
                 <a href="{{ \App\Filament\Pages\ProjectProfilePage::getUrl(['project' => $project->id]) }}" class="sf-btn sf-btn-primary">Back to Project</a>
                 @if($client)
-                    <a href="{{ \App\Filament\Pages\ClientProfilePage::getUrl(['client' => $client->id]) }}" class="sf-btn sf-btn-secondary">Back to Client</a>
+                    <a href="{{ \App\Filament\Resources\Clients\ClientResource::getUrl('view', ['record' => $client]) }}" class="sf-btn sf-btn-secondary">Back to Client</a>
                 @endif
             </div>
         </div>

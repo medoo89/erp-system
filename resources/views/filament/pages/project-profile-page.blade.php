@@ -190,7 +190,7 @@
                     <div class="sf-actions">
                         <a href="{{ \App\Filament\Resources\Projects\ProjectResource::getUrl('edit', ['record' => $project]) }}" class="sf-btn sf-btn-primary">Edit Project</a>
                         @if($client)
-                            <a href="{{ \App\Filament\Pages\ClientProfilePage::getUrl(['client' => $client->id]) }}" class="sf-btn sf-btn-secondary">Back to Client</a>
+                            <a href="{{ \App\Filament\Resources\Clients\ClientResource::getUrl('view', ['record' => $client]) }}" class="sf-btn sf-btn-secondary">Back to Client</a>
                         @endif
                         <a href="{{ \App\Filament\Resources\Clients\ClientResource::getUrl('index') }}" class="sf-btn sf-btn-secondary">Back to Clients</a>
                     </div>

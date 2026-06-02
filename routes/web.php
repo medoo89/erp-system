@@ -1,13 +1,22 @@
 <?php
+use App\Http\Controllers\JobApplicationDocumentController;
+use App\Http\Controllers\EmploymentPrintController;
+
+
+
 
 // Sada Fezzan ERP: old archive jobs URL fallback.
 // Keeps /admin/archived-jobs from showing 404 and redirects to the real Archived Job Openings page.
+
 Route::redirect('/admin/archived-jobs', '/admin/archived-job-openings', 301);
 
 
 use App\Http\Controllers\JobApplicationController;
 
 use Illuminate\Support\Facades\Route;
+
+// Sada Fezzan ERP - Manual Client View Route
+
 use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\PreEmploymentPortalController;
 use App\Http\Controllers\CandidateRequestPortalController;
@@ -19,11 +28,6 @@ use App\Http\Controllers\Admin\EmploymentPortalPreviewController;
 use App\Http\Controllers\Portal\PortalFileController;
 use App\Http\Controllers\Portal\PortalReimbursementController;
 
-// SADA_CLIENT_REVIEW_ROUTE_START
-\Illuminate\Support\Facades\Route::middleware(['web', 'auth'])
-    ->get('/admin/clients/{client}/view', [\App\Http\Controllers\Admin\ClientReviewController::class, 'show'])
-    ->name('admin.clients.review');
-// SADA_CLIENT_REVIEW_ROUTE_END
 
 
 use Illuminate\Http\Request;
@@ -101,8 +105,8 @@ Route::get('/salary-slips/{salarySlip}/print', [\App\Http\Controllers\Portal\Por
     });
 });
 
-Route::get('/admin/job-applications/{jobApplication}/open-cv', [JobApplicationDocumentController::class, 'openCv'])
-    ->name('job-applications.open-cv');
+// DISABLED missing JobApplicationDocumentController: Route::get('/admin/job-applications/{jobApplication}/open-cv', [JobApplicationDocumentController::class, 'openCv'])
+// DISABLED chained route part:     ->name('job-applications.open-cv');
 
 Route::get('/employment/{employment}/print-profile', [EmploymentPrintController::class, 'profile'])
     ->name('employment.print.profile');
@@ -776,4 +780,16 @@ Route::get('/admin/finance-expenses/{financeExpense}/print', function (\App\Mode
 Route::post('/portal/files/requested/{field}/upload', [\App\Http\Controllers\Portal\PortalFileController::class, 'uploadRequestedFile'])
     ->middleware(\App\Http\Middleware\PortalAuthenticate::class)
     ->name('portal.files.upload-requested');
+
+
+Route::middleware(['auth'])->get(
+    '/client-invoices/{clientInvoice}/print/{documentType}',
+    [\App\Http\Controllers\ClientInvoiceDocumentPrintController::class, 'show']
+)->whereIn('documentType', ['foreign', 'local'])->name('client-invoices.print-document');
+
+
+Route::middleware(['auth'])->get(
+    '/client-invoices/{clientInvoice}/timesheet',
+    [\App\Http\Controllers\ClientInvoiceTimesheetPrintController::class, 'show']
+)->name('client-invoices.print-timesheet');
 

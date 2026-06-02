@@ -1,4 +1,582 @@
 <x-filament-panels::page>
+
+<style>
+    /* ===== Invoice header aligned with Clients page style ===== */
+    .sf-invoice-page-header {
+        width: min(920px, calc(100vw - 64px)) !important;
+        margin: 30px auto 22px !important;
+        border-radius: 30px !important;
+        padding: 38px !important;
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .10), transparent 34%),
+            linear-gradient(135deg, #0b223d 0%, #12365a 48%, #245f66 100%) !important;
+        border: 0 !important;
+        border-bottom: 4px solid rgba(34, 211, 238, .55) !important;
+        box-shadow: 0 24px 70px rgba(15, 39, 67, .16) !important;
+        color: #ffffff !important;
+        overflow: hidden !important;
+        position: relative !important;
+        z-index: 2 !important;
+    }
+
+    .sf-invoice-page-header-row {
+        display: grid !important;
+        grid-template-columns: 1fr auto !important;
+        align-items: start !important;
+        gap: 24px !important;
+    }
+
+    .sf-invoice-page-kicker {
+        background: transparent !important;
+        border: 0 !important;
+        padding: 0 !important;
+        min-height: auto !important;
+        color: rgba(255, 255, 255, .72) !important;
+        font-size: 13px !important;
+        font-weight: 850 !important;
+        letter-spacing: 0 !important;
+        text-transform: none !important;
+    }
+
+    .sf-invoice-page-title {
+        margin-top: 14px !important;
+        color: #ffffff !important;
+        font-size: 38px !important;
+        font-weight: 950 !important;
+        letter-spacing: -.055em !important;
+        line-height: 1.05 !important;
+        max-width: 520px !important;
+        text-shadow: none !important;
+    }
+
+    .sf-invoice-page-subtitle {
+        margin-top: 16px !important;
+        color: rgba(255, 255, 255, .78) !important;
+        font-size: 15px !important;
+        font-weight: 500 !important;
+        line-height: 1.55 !important;
+        max-width: 720px !important;
+    }
+
+    .sf-invoice-page-actions {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: flex-end !important;
+        align-items: center !important;
+        gap: 10px !important;
+        max-width: 470px !important;
+        padding-top: 18px !important;
+    }
+
+    .sf-invoice-page-btn {
+        min-height: 40px !important;
+        padding: 0 16px !important;
+        border-radius: 999px !important;
+        font-size: 12px !important;
+        font-weight: 900 !important;
+        border: none !important;
+        text-decoration: none !important;
+        box-shadow: 0 12px 24px rgba(15, 23, 42, .18) !important;
+    }
+
+    .sf-invoice-page-btn-gray {
+        color: #ffffff !important;
+        background: rgba(255, 255, 255, .14) !important;
+    }
+
+    .sf-invoice-page-btn-yellow {
+        color: #111827 !important;
+        background: #facc15 !important;
+    }
+
+    .sf-invoice-page-btn-blue {
+        color: #ffffff !important;
+        background: linear-gradient(135deg, #0ea5e9, #2563eb) !important;
+    }
+
+    .sf-invoice-page-btn-purple {
+        color: #ffffff !important;
+        background: linear-gradient(135deg, #8b5cf6, #6366f1) !important;
+    }
+
+    .sf-invoice-page-btn-green {
+        color: #ffffff !important;
+        background: linear-gradient(135deg, #10b981, #14b8a6) !important;
+    }
+
+    .sf-invoice-header-stats {
+        margin-top: 28px !important;
+        display: grid !important;
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        gap: 12px !important;
+    }
+
+    .sf-invoice-header-stat {
+        border-radius: 18px !important;
+        padding: 14px !important;
+        background: rgba(255, 255, 255, .11) !important;
+        border: 1px solid rgba(255, 255, 255, .15) !important;
+        box-shadow: none !important;
+    }
+
+    .sf-invoice-header-stat-label {
+        color: rgba(255, 255, 255, .65) !important;
+        font-size: 10px !important;
+        font-weight: 900 !important;
+        letter-spacing: .16em !important;
+        text-transform: uppercase !important;
+    }
+
+    .sf-invoice-header-stat-value {
+        margin-top: 8px !important;
+        color: #ffffff !important;
+        font-size: 18px !important;
+        font-weight: 950 !important;
+        line-height: 1.2 !important;
+    }
+
+    /* Align the main invoice body blocks with the same header width */
+    .sf-receipts,
+    .sf-invoice-workflow-block,
+    .sf-card,
+    .sf-stat-grid,
+    .sf-invoice-grid,
+    .sf-invoice-section,
+    .sf-invoice-body,
+    .sf-invoice-premium-body {
+        max-width: 920px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+
+    @media (max-width: 980px) {
+        .sf-invoice-page-header {
+            width: min(100% - 24px, 920px) !important;
+            padding: 24px !important;
+        }
+
+        .sf-invoice-page-header-row {
+            grid-template-columns: 1fr !important;
+        }
+
+        .sf-invoice-page-actions {
+            justify-content: flex-start !important;
+            padding-top: 0 !important;
+        }
+
+        .sf-invoice-header-stats {
+            grid-template-columns: 1fr !important;
+        }
+
+        .sf-invoice-page-title {
+            font-size: 28px !important;
+        }
+    }
+
+        .sf-invoice-page-btn-red {
+            background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+            color: #ffffff !important;
+            border: 1px solid rgba(255,255,255,.18) !important;
+        }
+
+        .sf-invoice-page-btn-orange {
+            background: linear-gradient(135deg, #facc15, #f59e0b) !important;
+            color: #111827 !important;
+            border: 1px solid rgba(255,255,255,.18) !important;
+        }
+
+        .sf-invoice-page-btn-gray {
+            background: linear-gradient(135deg, #475569, #334155) !important;
+            color: #ffffff !important;
+            border: 1px solid rgba(255,255,255,.18) !important;
+        }
+
+</style>
+
+
+<style>
+    /* ===== Forced Premium Invoice Header - unified with ERP blue pages ===== */
+    .sf-invoice-page-header {
+        width: min(1180px, calc(100vw - 32px)) !important;
+        margin: 22px auto 18px !important;
+        border-radius: 32px !important;
+        padding: 24px !important;
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .22), transparent 34%),
+            linear-gradient(135deg, #0f274a 0%, #234b74 48%, #2563eb 100%) !important;
+        box-shadow: 0 24px 70px rgba(15, 39, 67, .24) !important;
+        color: #ffffff !important;
+        overflow: hidden !important;
+        position: relative !important;
+        z-index: 2 !important;
+        opacity: 1 !important;
+        filter: none !important;
+    }
+
+    .sf-invoice-page-header * {
+        opacity: 1 !important;
+        filter: none !important;
+    }
+
+    .sf-invoice-page-header-row {
+        display: flex !important;
+        align-items: flex-start !important;
+        justify-content: space-between !important;
+        gap: 20px !important;
+    }
+
+    .sf-invoice-page-kicker {
+        display: inline-flex !important;
+        align-items: center !important;
+        min-height: 28px !important;
+        padding: 0 13px !important;
+        border-radius: 999px !important;
+        background: rgba(224, 242, 254, .16) !important;
+        border: 1px solid rgba(255, 255, 255, .18) !important;
+        color: #e0f2fe !important;
+        font-size: 10px !important;
+        font-weight: 950 !important;
+        letter-spacing: .16em !important;
+        text-transform: uppercase !important;
+    }
+
+    .sf-invoice-page-title {
+        margin-top: 12px !important;
+        color: #ffffff !important;
+        font-size: 34px !important;
+        font-weight: 950 !important;
+        letter-spacing: -.045em !important;
+        line-height: 1.05 !important;
+        text-shadow: 0 2px 12px rgba(0, 0, 0, .18) !important;
+    }
+
+    .sf-invoice-page-subtitle {
+        margin-top: 8px !important;
+        color: rgba(255, 255, 255, .82) !important;
+        font-size: 12px !important;
+        font-weight: 850 !important;
+        line-height: 1.55 !important;
+    }
+
+    .sf-invoice-page-actions {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: flex-end !important;
+        align-items: center !important;
+        gap: 9px !important;
+        max-width: 650px !important;
+        position: relative !important;
+        z-index: 3 !important;
+    }
+
+    .sf-invoice-page-btn {
+        min-height: 42px !important;
+        padding: 0 16px !important;
+        border-radius: 999px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 7px !important;
+        font-size: 11px !important;
+        font-weight: 950 !important;
+        text-decoration: none !important;
+        border: 1px solid rgba(255, 255, 255, .18) !important;
+        box-shadow: 0 12px 26px rgba(15, 23, 42, .18) !important;
+        white-space: nowrap !important;
+    }
+
+    .sf-invoice-page-btn-gray {
+        color: #ffffff !important;
+        background: rgba(255, 255, 255, .14) !important;
+    }
+
+    .sf-invoice-page-btn-yellow {
+        color: #111827 !important;
+        background: linear-gradient(135deg, #facc15, #f59e0b) !important;
+    }
+
+    .sf-invoice-page-btn-blue {
+        color: #ffffff !important;
+        background: linear-gradient(135deg, #0ea5e9, #2563eb) !important;
+    }
+
+    .sf-invoice-page-btn-purple {
+        color: #ffffff !important;
+        background: linear-gradient(135deg, #8b5cf6, #6366f1) !important;
+    }
+
+    .sf-invoice-page-btn-green {
+        color: #ffffff !important;
+        background: linear-gradient(135deg, #10b981, #14b8a6) !important;
+    }
+
+    .sf-invoice-header-stats {
+        margin-top: 20px !important;
+        display: grid !important;
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        gap: 12px !important;
+    }
+
+    .sf-invoice-header-stat {
+        border-radius: 22px !important;
+        padding: 14px !important;
+        background: rgba(255, 255, 255, .14) !important;
+        border: 1px solid rgba(255, 255, 255, .18) !important;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12) !important;
+    }
+
+    .sf-invoice-header-stat-label {
+        color: rgba(255, 255, 255, .68) !important;
+        font-size: 9px !important;
+        font-weight: 950 !important;
+        letter-spacing: .14em !important;
+        text-transform: uppercase !important;
+    }
+
+    .sf-invoice-header-stat-value {
+        margin-top: 7px !important;
+        color: #ffffff !important;
+        font-size: 17px !important;
+        font-weight: 950 !important;
+        line-height: 1.15 !important;
+    }
+
+    @media (max-width: 980px) {
+        .sf-invoice-page-header-row {
+            flex-direction: column !important;
+        }
+
+        .sf-invoice-page-actions {
+            justify-content: flex-start !important;
+        }
+
+        .sf-invoice-header-stats {
+            grid-template-columns: 1fr !important;
+        }
+
+        .sf-invoice-page-title {
+            font-size: 26px !important;
+        }
+    }
+</style>
+
+
+@php
+    $invoice = $this->record;
+    $clientName = $invoice->client?->name ?? '-';
+    $projectName = $invoice->project?->name ?? '-';
+    $statusLabel = \App\Models\ClientInvoice::statusOptions()[$invoice->status] ?? $invoice->status;
+
+    $backUrl = \App\Filament\Resources\ClientInvoices\ClientInvoiceResource::getUrl('index');
+    $editUrl = \App\Filament\Resources\ClientInvoices\ClientInvoiceResource::getUrl('edit', ['record' => $invoice]);
+    $printUrl = route('client-invoices.print', ['clientInvoice' => $invoice]);
+
+    $printForeignUrl = \Illuminate\Support\Facades\Route::has('client-invoices.print-document')
+        ? route('client-invoices.print-document', ['clientInvoice' => $invoice, 'documentType' => 'foreign'])
+        : '#';
+
+    $printLocalUrl = \Illuminate\Support\Facades\Route::has('client-invoices.print-document')
+        ? route('client-invoices.print-document', ['clientInvoice' => $invoice, 'documentType' => 'local'])
+        : '#';
+
+    $timesheetPrintUrl = \Illuminate\Support\Facades\Route::has('client-invoices.print-timesheet')
+        ? route('client-invoices.print-timesheet', ['clientInvoice' => $invoice])
+        : '#';
+@endphp
+
+
+
+
+
+
+
+@php
+    $invoice = $invoice ?? $this->record;
+    $clientName = $clientName ?? ($invoice->client?->name ?? '-');
+    $projectName = $projectName ?? ($invoice->project?->name ?? '-');
+    $statusLabel = $statusLabel ?? (\App\Models\ClientInvoice::statusOptions()[$invoice->status] ?? $invoice->status);
+
+    $backUrl = $backUrl ?? \App\Filament\Resources\ClientInvoices\ClientInvoiceResource::getUrl('index');
+    $editUrl = $editUrl ?? \App\Filament\Resources\ClientInvoices\ClientInvoiceResource::getUrl('edit', ['record' => $invoice]);
+    $printUrl = $printUrl ?? route('client-invoices.print', ['clientInvoice' => $invoice]);
+
+    $printForeignUrl = $printForeignUrl ?? (
+        \Illuminate\Support\Facades\Route::has('client-invoices.print-document')
+            ? route('client-invoices.print-document', ['clientInvoice' => $invoice, 'documentType' => 'foreign'])
+            : '#'
+    );
+
+    $printLocalUrl = $printLocalUrl ?? (
+        \Illuminate\Support\Facades\Route::has('client-invoices.print-document')
+            ? route('client-invoices.print-document', ['clientInvoice' => $invoice, 'documentType' => 'local'])
+            : '#'
+    );
+@endphp
+
+<div class="sf-invoice-page-header">
+    <div class="sf-invoice-page-header-row">
+        <div>
+            <div class="sf-invoice-page-kicker">Client Invoice</div>
+            <div class="sf-invoice-page-title">
+                {{ $invoice->invoice_number ?: ('Invoice #' . $invoice->id) }}
+            </div>
+            <div class="sf-invoice-page-subtitle">
+                Client: {{ $clientName }} · Project: {{ $projectName }} · Status: {{ $statusLabel }}
+            </div>
+        </div>
+
+        <div class="sf-invoice-page-actions">
+            <a href="{{ $backUrl }}" class="sf-invoice-page-btn sf-invoice-page-btn-gray">Back</a>
+
+                    @php
+                        $viewStatus = (string) ($invoice->status ?? '');
+                        $viewForeignRemaining = method_exists($invoice, 'foreignRemainingAmount') ? round((float) $invoice->foreignRemainingAmount(), 2) : 0;
+                        $viewLocalRemaining = method_exists($invoice, 'localRemainingAmount') ? round((float) $invoice->localRemainingAmount(), 2) : 0;
+                        $viewHasRemaining = $viewForeignRemaining > 0.01 || $viewLocalRemaining > 0.01;
+                    @endphp
+
+                    @if(! in_array($viewStatus, [\App\Models\ClientInvoice::STATUS_DRAFT, \App\Models\ClientInvoice::STATUS_CANCELLED], true))
+                        <button type="button"
+                            wire:click="backToDraftInvoice"
+                            class="sf-invoice-page-btn sf-invoice-page-btn-gray">
+                            Back to Draft
+                        </button>
+                    @endif
+
+                    @if($viewStatus === \App\Models\ClientInvoice::STATUS_DRAFT)
+                        <button type="button"
+                            wire:click="approveInvoiceQuick"
+                            class="sf-invoice-page-btn sf-invoice-page-btn-blue">
+                            Approve
+                        </button>
+
+                        <button type="button"
+                            wire:click="cancelInvoiceQuick"
+                            class="sf-invoice-page-btn sf-invoice-page-btn-red">
+                            Cancel
+                        </button>
+                    @endif
+
+                    @if($viewStatus === \App\Models\ClientInvoice::STATUS_APPROVED)
+                        <button type="button"
+                            wire:click="sendInvoiceToClientQuick"
+                            class="sf-invoice-page-btn sf-invoice-page-btn-orange">
+                            Send to Client
+                        </button>
+
+                        @if($viewHasRemaining)
+                            <button type="button"
+                                wire:click="mountAction('receivePartialPayment')"
+                                class="sf-invoice-page-btn sf-invoice-page-btn-orange">
+                                Receive Partial Payment
+                            </button>
+
+                            <button type="button"
+                                wire:click="mountAction('receiveFullPayment')"
+                                class="sf-invoice-page-btn sf-invoice-page-btn-green">
+                                Receive Full Payment
+                            </button>
+                        @endif
+
+                        <button type="button"
+                            wire:click="cancelInvoiceQuick"
+                            class="sf-invoice-page-btn sf-invoice-page-btn-red">
+                            Cancel
+                        </button>
+                    @endif
+
+                    @if(in_array($viewStatus, [\App\Models\ClientInvoice::STATUS_SENT_TO_CLIENT, \App\Models\ClientInvoice::STATUS_PARTIALLY_PAID], true) && $viewHasRemaining)
+                        <button type="button"
+                            wire:click="mountAction('receivePartialPayment')"
+                            class="sf-invoice-page-btn sf-invoice-page-btn-orange">
+                            Receive Partial Payment
+                        </button>
+
+                        <button type="button"
+                            wire:click="mountAction('receiveFullPayment')"
+                            class="sf-invoice-page-btn sf-invoice-page-btn-green">
+                            Receive Full Payment
+                        </button>
+                    @endif
+
+<a href="{{ $editUrl }}" class="sf-invoice-page-btn sf-invoice-page-btn-yellow">Edit Invoice</a>
+            <a href="{{ $printUrl }}" target="_blank" class="sf-invoice-page-btn sf-invoice-page-btn-blue">Print Invoice</a>
+            <a href="{{ $printForeignUrl }}" target="_blank" class="sf-invoice-page-btn sf-invoice-page-btn-purple">Print Foreign Invoice</a>
+            <a href="{{ $printLocalUrl }}" target="_blank" class="sf-invoice-page-btn sf-invoice-page-btn-green">Print Local Invoice</a>
+        </div>
+    </div>
+
+    <div class="sf-invoice-header-stats">
+        <div class="sf-invoice-header-stat">
+            <div class="sf-invoice-header-stat-label">Total Amount</div>
+            <div class="sf-invoice-header-stat-value">
+                {{ number_format((float) ($invoice->total_amount ?? 0), 2) }}
+                {{ $invoice->display_currency ?: $invoice->foreign_currency ?: '' }}
+            </div>
+        </div>
+
+        <div class="sf-invoice-header-stat">
+            <div class="sf-invoice-header-stat-label">Foreign Portion</div>
+            <div class="sf-invoice-header-stat-value">
+                {{ number_format((float) ($invoice->foreign_amount_due ?? 0), 2) }}
+                {{ $invoice->foreign_currency ?: '-' }}
+            </div>
+        </div>
+
+        <div class="sf-invoice-header-stat">
+            <div class="sf-invoice-header-stat-label">Local Portion</div>
+            <div class="sf-invoice-header-stat-value">
+                {{ number_format((float) ($invoice->local_amount_due ?? 0), 2) }}
+                {{ $invoice->local_currency ?: '-' }}
+            </div>
+        </div>
+
+        <div class="sf-invoice-header-stat">
+            <div class="sf-invoice-header-stat-label">Service Period</div>
+            <div class="sf-invoice-header-stat-value">
+                {{ optional($invoice->period_start)->format('Y-m-d') ?: '-' }}
+                →
+                {{ optional($invoice->period_end)->format('Y-m-d') ?: '-' }}
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@php
+    /*
+    |--------------------------------------------------------------------------
+    | Safe defaults for settlement/account/payment badges
+    |--------------------------------------------------------------------------
+    | These protect the premium invoice view from undefined variables when
+    | payment rows do not have a full settlement/account context yet.
+    */
+    $settlementBg = $settlementBg ?? 'rgba(148, 163, 184, .14)';
+    $settlementColor = $settlementColor ?? '#334155';
+    $settlementBorder = $settlementBorder ?? 'rgba(148, 163, 184, .28)';
+    $settlementText = $settlementText ?? 'Not Settled';
+
+    $accountTypeBg = $accountTypeBg ?? 'rgba(59, 130, 246, .12)';
+    $accountTypeColor = $accountTypeColor ?? '#1d4ed8';
+    $accountTypeBorder = $accountTypeBorder ?? 'rgba(59, 130, 246, .28)';
+    $accountTypeText = $accountTypeText ?? '-';
+
+    $paymentBg = $paymentBg ?? 'rgba(148, 163, 184, .14)';
+    $paymentColor = $paymentColor ?? '#334155';
+    $paymentBorder = $paymentBorder ?? 'rgba(148, 163, 184, .28)';
+    $paymentText = $paymentText ?? '-';
+
+    $receiptBg = $receiptBg ?? 'rgba(148, 163, 184, .14)';
+    $receiptColor = $receiptColor ?? '#334155';
+    $receiptBorder = $receiptBorder ?? 'rgba(148, 163, 184, .28)';
+    $receiptText = $receiptText ?? '-';
+@endphp
+
+
+
+
+
+
     @php
         $invoice = $this->record;
         $client = $invoice->client?->name ?: 'Unknown Client';
@@ -940,7 +1518,157 @@
             }
         }
 
-    </style>
+    
+<style>
+    .sf-invoice-page-header {
+        width: min(1180px, calc(100vw - 32px));
+        margin: 18px auto 16px;
+        border-radius: 32px;
+        padding: 22px;
+        background:
+            radial-gradient(circle at top right, rgba(34,211,238,.18), transparent 36%),
+            linear-gradient(135deg, #0f274a, #234b74 48%, #2563eb);
+        box-shadow: 0 22px 60px rgba(15, 39, 67, .20);
+        color: #ffffff;
+        overflow: hidden;
+    }
+
+    .sf-invoice-page-header-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 18px;
+    }
+
+    .sf-invoice-page-kicker {
+        display: inline-flex;
+        align-items: center;
+        min-height: 26px;
+        padding: 0 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, .14);
+        border: 1px solid rgba(255, 255, 255, .18);
+        color: #e0f2fe;
+        font-size: 10px;
+        font-weight: 950;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+    }
+
+    .sf-invoice-page-title {
+        margin-top: 10px;
+        font-size: 30px;
+        font-weight: 950;
+        letter-spacing: -.04em;
+        line-height: 1.08;
+    }
+
+    .sf-invoice-page-subtitle {
+        margin-top: 7px;
+        color: rgba(255, 255, 255, .78);
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.55;
+    }
+
+    .sf-invoice-page-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 9px;
+        max-width: 620px;
+    }
+
+    .sf-invoice-page-btn {
+        min-height: 40px;
+        padding: 0 15px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        font-size: 11px;
+        font-weight: 950;
+        text-decoration: none !important;
+        border: 1px solid rgba(255, 255, 255, .18);
+        box-shadow: 0 10px 24px rgba(15, 23, 42, .16);
+        white-space: nowrap;
+    }
+
+    .sf-invoice-page-btn-gray {
+        color: #ffffff !important;
+        background: rgba(255, 255, 255, .12);
+    }
+
+    .sf-invoice-page-btn-yellow {
+        color: #111827 !important;
+        background: linear-gradient(135deg, #facc15, #f59e0b);
+    }
+
+    .sf-invoice-page-btn-blue {
+        color: #ffffff !important;
+        background: linear-gradient(135deg, #0ea5e9, #2563eb);
+    }
+
+    .sf-invoice-page-btn-green {
+        color: #ffffff !important;
+        background: linear-gradient(135deg, #10b981, #14b8a6);
+    }
+
+    .sf-invoice-page-btn-purple {
+        color: #ffffff !important;
+        background: linear-gradient(135deg, #8b5cf6, #6366f1);
+    }
+
+    .sf-invoice-header-stats {
+        margin-top: 18px;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .sf-invoice-header-stat {
+        border-radius: 20px;
+        padding: 13px;
+        background: rgba(255, 255, 255, .12);
+        border: 1px solid rgba(255, 255, 255, .16);
+    }
+
+    .sf-invoice-header-stat-label {
+        color: rgba(255, 255, 255, .70);
+        font-size: 9px;
+        font-weight: 950;
+        letter-spacing: .13em;
+        text-transform: uppercase;
+    }
+
+    .sf-invoice-header-stat-value {
+        margin-top: 6px;
+        color: #ffffff;
+        font-size: 16px;
+        font-weight: 950;
+    }
+
+    @media (max-width: 980px) {
+        .sf-invoice-page-header-row {
+            flex-direction: column;
+        }
+
+        .sf-invoice-page-actions {
+            justify-content: flex-start;
+        }
+
+        .sf-invoice-header-stats {
+            grid-template-columns: 1fr;
+        }
+    }
+
+<style>
+</style>
+
+</style>
+
+</style>
 
     <div class="ci-view-shell">
         <section class="ci-panel">
@@ -1017,7 +1745,25 @@
             </div>
         </section>
 
-        <section class="ci-kpi-grid">
+    @php
+        $workflowStatus = (string) ($record->status ?? $invoice->status ?? '');
+        $pendingReceiptsCountForActions = method_exists($record ?? null, 'payments')
+            ? (int) $record->payments()
+                ->where('settlement_status', \App\Models\ClientInvoicePayment::SETTLEMENT_PENDING)
+                ->count()
+            : 0;
+
+        $foreignRemainingForActions = method_exists($record ?? null, 'foreignRemainingAmount')
+            ? round((float) $record->foreignRemainingAmount(), 2)
+            : 0;
+
+        $localRemainingForActions = method_exists($record ?? null, 'localRemainingAmount')
+            ? round((float) $record->localRemainingAmount(), 2)
+            : 0;
+
+        $invoiceHasRemainingForActions = $foreignRemainingForActions > 0.01 || $localRemainingForActions > 0.01;
+    @endphp
+<section class="ci-kpi-grid">
             <div class="ci-card">
                 <div class="ci-label">Total Amount</div>
                 <div class="ci-value">{{ number_format($grandTotal, 2) }}</div>
@@ -1223,4 +1969,156 @@
             </div>
         </section>
     </div>
+
+<style>
+    /* Restored invoice workflow actions - visible pills, no dropdown */
+    .sf-invoice-workflow-actions {
+        width: min(1040px, calc(100vw - 64px));
+        max-width: min(1040px, calc(100vw - 64px));
+        margin: -12px auto 22px;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .sf-invoice-state-pill {
+        min-height: 42px;
+        padding: 0 18px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        border: 0;
+        text-decoration: none !important;
+        font-size: 12px;
+        font-weight: 950;
+        cursor: pointer;
+        box-shadow: 0 12px 24px rgba(15, 23, 42, .14);
+        white-space: nowrap;
+    }
+
+    .sf-invoice-state-pill-blue {
+        color: #ffffff !important;
+        background: linear-gradient(135deg, #0ea5e9, #2563eb);
+    }
+
+    .sf-invoice-state-pill-yellow {
+        color: #111827 !important;
+        background: linear-gradient(135deg, #facc15, #f59e0b);
+    }
+
+    .sf-invoice-state-pill-green {
+        color: #ffffff !important;
+        background: linear-gradient(135deg, #10b981, #14b8a6);
+    }
+
+    .sf-invoice-state-pill-purple {
+        color: #ffffff !important;
+        background: linear-gradient(135deg, #8b5cf6, #6366f1);
+    }
+
+    .sf-invoice-state-pill-red {
+        color: #ffffff !important;
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+    }
+
+    .sf-invoice-state-pill-gray {
+        color: #ffffff !important;
+        background: linear-gradient(135deg, #475569, #334155);
+    }
+
+    @media (max-width: 980px) {
+        .sf-invoice-workflow-actions {
+            width: calc(100vw - 24px);
+            max-width: calc(100vw - 24px);
+            justify-content: flex-start;
+        }
+    }
+</style>
+
 </x-filament-panels::page>
+
+<style>
+    /* FINAL OVERRIDE - Invoice page header/body alignment */
+    .sf-invoice-page-header,
+    .sf-receipts,
+    .sf-invoice-workflow-block,
+    .sf-invoice-page-main,
+    .sf-invoice-premium-body,
+    .sf-invoice-body,
+    .sf-stat-grid,
+    .sf-invoice-grid,
+    .sf-card,
+    .sf-section {
+        width: min(1040px, calc(100vw - 64px)) !important;
+        max-width: min(1040px, calc(100vw - 64px)) !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+
+    .sf-invoice-page-header {
+        margin-top: 28px !important;
+        margin-bottom: 26px !important;
+        border-radius: 30px !important;
+        padding: 38px !important;
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .10), transparent 34%),
+            linear-gradient(135deg, #0b223d 0%, #12365a 48%, #245f66 100%) !important;
+        border-bottom: 4px solid rgba(34, 211, 238, .55) !important;
+        box-shadow: 0 24px 70px rgba(15, 39, 67, .16) !important;
+    }
+
+    .sf-invoice-page-title {
+        color: #ffffff !important;
+        font-size: 38px !important;
+        font-weight: 950 !important;
+        letter-spacing: -.055em !important;
+    }
+
+    .sf-invoice-page-subtitle {
+        color: rgba(255, 255, 255, .78) !important;
+        font-size: 14px !important;
+    }
+
+    .sf-invoice-header-stats {
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    }
+
+    .sf-invoice-header-stat {
+        background: rgba(255, 255, 255, .11) !important;
+        border: 1px solid rgba(255, 255, 255, .16) !important;
+        border-radius: 18px !important;
+    }
+
+    .sf-invoice-header-stat-label,
+    .sf-invoice-header-stat-value {
+        color: #ffffff !important;
+    }
+
+    @media (max-width: 980px) {
+        .sf-invoice-page-header,
+        .sf-receipts,
+        .sf-invoice-workflow-block,
+        .sf-invoice-page-main,
+        .sf-invoice-premium-body,
+        .sf-invoice-body,
+        .sf-stat-grid,
+        .sf-invoice-grid,
+        .sf-card,
+        .sf-section {
+            width: calc(100vw - 24px) !important;
+            max-width: calc(100vw - 24px) !important;
+        }
+
+        .sf-invoice-page-header {
+            padding: 24px !important;
+        }
+
+        .sf-invoice-header-stats {
+            grid-template-columns: 1fr !important;
+        }
+    }
+</style>

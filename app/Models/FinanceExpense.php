@@ -97,6 +97,7 @@ class FinanceExpense extends Model
         'attachment_path',
         'status',
         'notes',
+        'project_contract_id',
     ];
 
     protected $casts = [
@@ -613,4 +614,10 @@ class FinanceExpense extends Model
             $this->forceFill($updates)->saveQuietly();
         }
     }
+
+    public function projectContract(): BelongsTo
+    {
+        return $this->belongsTo(ProjectContract::class);
+    }
+
 }

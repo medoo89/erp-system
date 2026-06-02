@@ -76,6 +76,65 @@ class ViewClientInvoice extends ViewRecord
                 ->openUrlInNewTab()
                 ->extraAttributes($this->buttonAttrs('print')),
 
+
+            Action::make('printForeignInvoice')
+                ->hidden(fn () => ! (bool) auth()->user()?->canErp('client_invoices', 'print'))
+                ->label('Print Foreign Invoice')
+                ->color('info')
+                ->icon('heroicon-o-printer')
+                ->url(fn () => route('client-invoices.print-document', [
+                    'clientInvoice' => $this->record,
+                    'documentType' => 'foreign',
+                ]))
+                ->openUrlInNewTab()
+                ->extraAttributes($this->buttonAttrs('print')),
+
+            Action::make('printLocalInvoice')
+                ->hidden(fn () => ! (bool) auth()->user()?->canErp('client_invoices', 'print'))
+                ->label('Print Local Invoice')
+                ->color('success')
+                ->icon('heroicon-o-printer')
+                ->url(fn () => route('client-invoices.print-document', [
+                    'clientInvoice' => $this->record,
+                    'documentType' => 'local',
+                ]))
+                ->openUrlInNewTab()
+                ->extraAttributes($this->buttonAttrs('paid')),
+
+
+            Action::make('generateTimesheetFromSalarySlips')
+                ->hidden(fn () => ! (bool) auth()->user()?->canErp('client_invoices', 'edit'))
+                ->label('Generate Timesheet')
+                ->color('success')
+                ->icon('heroicon-o-calendar-days')
+                ->requiresConfirmation()
+                ->modalHeading('Generate invoice timesheet from salary slips?')
+                ->modalDescription('This will replace current invoice work days with days generated from salary slips linked to invoice lines.')
+                ->modalSubmitActionLabel('Generate Timesheet')
+                ->extraAttributes($this->buttonAttrs('paid'))
+                ->action(function (): void {
+                    $result = $this->record->generateTimesheetFromSalarySlips(true);
+
+                    Notification::make()
+                        ->title($result['message'] ?? 'Timesheet generated.')
+                        ->success()
+                        ->send();
+
+                    $this->redirect(static::getResource()::getUrl('view', [
+                        'record' => $this->record,
+                        'refresh' => now()->timestamp,
+                    ]));
+                }),
+
+            Action::make('printTimesheet')
+                ->hidden(fn () => ! (bool) auth()->user()?->canErp('client_invoices', 'print'))
+                ->label('Print Timesheet')
+                ->color('gray')
+                ->icon('heroicon-o-document-chart-bar')
+                ->url(fn () => route('client-invoices.print-timesheet', ['clientInvoice' => $this->record]))
+                ->openUrlInNewTab()
+                ->extraAttributes($this->buttonAttrs('print')),
+
             EditAction::make()
                 ->hidden(fn () => ! (bool) auth()->user()?->canErp('client_invoices', 'edit'))
                 ->extraAttributes($this->buttonAttrs('edit')),
@@ -238,7 +297,7 @@ class ViewClientInvoice extends ViewRecord
                 });
         }
 
-        if (in_array($status, [ClientInvoice::STATUS_SENT_TO_CLIENT, ClientInvoice::STATUS_PARTIALLY_PAID], true) && ! $isFullyPaid) {
+        if (in_array($status, [ClientInvoice::STATUS_APPROVED, ClientInvoice::STATUS_SENT_TO_CLIENT, ClientInvoice::STATUS_PARTIALLY_PAID], true) && ! $isFullyPaid) {
             $actions[] = Action::make('receivePartialPayment')
                 ->hidden(fn () => ! (bool) (auth()->user()?->canErp('client_invoices', 'record_payment') || auth()->user()?->canErp('treasury', 'receive')))
                 ->label('Receive Partial Payment')
@@ -617,6 +676,35 @@ class ViewClientInvoice extends ViewRecord
                 });
         }
 
+
+        if (! in_array($status, [ClientInvoice::STATUS_DRAFT, ClientInvoice::STATUS_CANCELLED], true)) {
+            $actions[] = Action::make('backToDraft')
+                ->hidden(fn () => ! (bool) (auth()->user()?->canErp('client_invoices', 'edit') || auth()->user()?->canErp('client_invoices', 'approve')))
+                ->label('Back to Draft')
+                ->color('gray')
+                ->icon('heroicon-o-arrow-uturn-left')
+                ->requiresConfirmation()
+                ->modalHeading('Return invoice to Draft?')
+                ->modalDescription('This will only return the invoice workflow status to Draft. Existing receipt/payment records will stay visible for audit.')
+                ->modalSubmitActionLabel('Back to Draft')
+                ->extraAttributes($this->buttonAttrs('print'))
+                ->action(function (): void {
+                    $this->record->update([
+                        'status' => ClientInvoice::STATUS_DRAFT,
+                    ]);
+
+                    Notification::make()
+                        ->title('Invoice returned to Draft.')
+                        ->success()
+                        ->send();
+
+                    $this->redirect(static::getResource()::getUrl('view', [
+                        'record' => $this->record,
+                        'refresh' => now()->timestamp,
+                    ]));
+                });
+        }
+
         return $actions;
     }
 
@@ -754,6 +842,108 @@ class ViewClientInvoice extends ViewRecord
     {
         return number_format($amount, 2) . ' ' . strtoupper($currency);
     }
+
+
+
+
+
+
+    public function backToDraftInvoice(): void
+    {
+        DB::transaction(function (): void {
+            $invoice = $this->record->fresh();
+
+            /*
+            |--------------------------------------------------------------------------
+            | Back to Draft reset
+            |--------------------------------------------------------------------------
+            | Returning an invoice to Draft means finance wants to re-process it.
+            | Existing receipts/payments must be removed from this invoice so the
+            | invoice becomes unpaid again and the payment workflow buttons appear
+            | after approval. Treasury rows created by those receipts are also removed
+            | when their IDs are stored on the payment rows.
+            */
+            $payments = $invoice->payments()->get();
+
+            $treasuryOperationIds = [];
+            $treasuryTransactionIds = [];
+
+            foreach ($payments as $payment) {
+                if (\Illuminate\Support\Facades\Schema::hasColumn('client_invoice_payments', 'treasury_operation_id') && filled($payment->treasury_operation_id ?? null)) {
+                    $treasuryOperationIds[] = (int) $payment->treasury_operation_id;
+                }
+
+                if (\Illuminate\Support\Facades\Schema::hasColumn('client_invoice_payments', 'treasury_transaction_id') && filled($payment->treasury_transaction_id ?? null)) {
+                    $treasuryTransactionIds[] = (int) $payment->treasury_transaction_id;
+                }
+
+                if (\Illuminate\Support\Facades\Schema::hasColumn('client_invoice_payments', 'settlement_treasury_operation_id') && filled($payment->settlement_treasury_operation_id ?? null)) {
+                    $treasuryOperationIds[] = (int) $payment->settlement_treasury_operation_id;
+                }
+
+                if (\Illuminate\Support\Facades\Schema::hasColumn('client_invoice_payments', 'settlement_treasury_transaction_id') && filled($payment->settlement_treasury_transaction_id ?? null)) {
+                    $treasuryTransactionIds[] = (int) $payment->settlement_treasury_transaction_id;
+                }
+            }
+
+            $invoice->payments()->delete();
+
+            $treasuryOperationIds = array_values(array_unique(array_filter($treasuryOperationIds)));
+            $treasuryTransactionIds = array_values(array_unique(array_filter($treasuryTransactionIds)));
+
+            if (! empty($treasuryTransactionIds) && \Illuminate\Support\Facades\Schema::hasTable('treasury_transactions')) {
+                \App\Models\TreasuryTransaction::query()
+                    ->whereIn('id', $treasuryTransactionIds)
+                    ->delete();
+            }
+
+            if (! empty($treasuryOperationIds) && \Illuminate\Support\Facades\Schema::hasTable('treasury_operations')) {
+                \App\Models\TreasuryOperation::query()
+                    ->whereIn('id', $treasuryOperationIds)
+                    ->delete();
+            }
+
+            $update = [
+                'status' => ClientInvoice::STATUS_DRAFT,
+            ];
+
+            if (\Illuminate\Support\Facades\Schema::hasColumn('client_invoices', 'treasury_operation_id')) {
+                $update['treasury_operation_id'] = null;
+            }
+
+            $invoice->update($update);
+
+            $this->record = $invoice->fresh();
+        });
+
+        Notification::make()
+            ->title('Invoice returned to Draft.')
+            ->body('Receipt/payment records were cleared so the invoice can be processed again.')
+            ->success()
+            ->send();
+
+        $this->redirect(static::getResource()::getUrl('view', [
+            'record' => $this->record,
+            'refresh' => now()->timestamp,
+        ]));
+    }
+
+
+    public function approveInvoiceQuick(): void
+    {
+        $this->updateStatus(ClientInvoice::STATUS_APPROVED, 'Invoice approved successfully.');
+    }
+
+    public function cancelInvoiceQuick(): void
+    {
+        $this->updateStatus(ClientInvoice::STATUS_CANCELLED, 'Invoice cancelled.');
+    }
+
+    public function sendInvoiceToClientQuick(): void
+    {
+        $this->updateStatus(ClientInvoice::STATUS_SENT_TO_CLIENT, 'Invoice marked as sent to client.');
+    }
+
 
     protected function buttonAttrs(string $type): array
     {

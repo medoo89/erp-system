@@ -9,8 +9,9 @@ class ClientReviewController extends Controller
 {
     public function show(Client $client)
     {
-        return view('admin.clients.review', [
+        return view('filament.resources.clients.pages.view-client-premium-manual', [
             'client' => $client,
+            'record' => $client,
         ]);
     }
 }

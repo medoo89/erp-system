@@ -1,0 +1,695 @@
+<x-filament-panels::page>
+
+@php
+    $overviewRows = $overviewRows ?? collect();
+    $candidateRows = $candidateRows ?? collect();
+    $answerRows = $answerRows ?? collect();
+    $documentRows = $documentRows ?? collect();
+    $timelineRows = $timelineRows ?? collect();
+
+    $declineNotes = $declineNotes ?? ($record->decline_notes ?? $record->decline_reason ?? null);
+    $hasDeclineNotes = filled($declineNotes ?? null);
+
+    $phoneCountryCode = $phoneCountryCode ?? ($record->phone_country_code ?? $record->country_code ?? '');
+    $phoneNumber = $phoneNumber ?? ($record->phone_number ?? $record->phone ?? '');
+    $whatsappNumber = $whatsappNumber ?? ($record->whatsapp_number ?? $record->whatsapp ?? '');
+
+    $formatPhoneSafe = function ($countryCode, $number) {
+        $countryCode = trim((string) $countryCode);
+        $number = trim((string) $number);
+
+        if ($number === '') {
+            return '-';
+        }
+
+        if (str_starts_with($number, '+')) {
+            return $number;
+        }
+
+        if ($countryCode !== '') {
+            $countryCode = ltrim($countryCode, '+');
+            return '+' . $countryCode . ltrim($number, '0');
+        }
+
+        return $number;
+    };
+@endphp
+
+    
+
+<script>
+    window.sfjaPrintTimeline = function () {
+        document.body.classList.add('sfja-printing-timeline');
+
+        window.setTimeout(function () {
+            window.print();
+
+            window.setTimeout(function () {
+                document.body.classList.remove('sfja-printing-timeline');
+            }, 500);
+        }, 100);
+    };
+</script>
+
+
+
+
+
+
+
+
+    $overviewRows = collect($overviewRows ?? []);
+    $candidateRows = collect($candidateRows ?? []);
+    $answerRows = collect($answerRows ?? []);
+    $documentRows = collect($documentRows ?? []);
+    $timelineRows = collect($timelineRows ?? []);
+
+<div class="sfja-body-clean">
+    <section class="sfja-clean-card">
+        <div class="sfja-clean-head">
+            <h2 class="sfja-clean-title">
+                <span class="sfja-clean-icon">assignment_ind</span>
+                Applicant Overview
+            </h2>
+        </div>
+
+        
+{{-- SF JOB APPLICATION VIEW DATA FIX START --}}
+@php
+    $record = $record ?? $this->record ?? null;
+
+    $job = $record?->job ?? $record?->jobOpening ?? null;
+    $project = $record?->project ?? $job?->project ?? null;
+    $client = $record?->client ?? $project?->client ?? $job?->client ?? null;
+
+    $answersRaw = $record?->answers ?? $record?->application_answers ?? $record?->form_answers ?? [];
+    if (is_string($answersRaw)) {
+        $decodedAnswers = json_decode($answersRaw, true);
+        $answersRaw = is_array($decodedAnswers) ? $decodedAnswers : [];
+    }
+    if (! is_array($answersRaw)) {
+        $answersRaw = [];
+    }
+
+    $normalizeValue = function ($value) {
+        if (is_array($value)) {
+            return collect($value)
+                ->flatten()
+                ->filter(fn ($item) => filled($item))
+                ->implode(', ');
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'Yes' : 'No';
+        }
+
+        $value = trim((string) ($value ?? ''));
+
+        if ($value === '') {
+            return '-';
+        }
+
+        $lower = strtolower($value);
+
+        return match ($lower) {
+            'n_o', 'no_', 'n-o', 'no' => 'No',
+            'y_es', 'yes_', 'y-es', 'yes' => 'Yes',
+            default => str_replace('_', ' ', $value),
+        };
+    };
+
+    $answerFind = function (array $keys) use ($answersRaw, $normalizeValue) {
+        foreach ($keys as $key) {
+            foreach ($answersRaw as $answerKey => $answerValue) {
+                $cleanKey = strtolower(str_replace([' ', '-', '_'], '', (string) $answerKey));
+                $cleanWanted = strtolower(str_replace([' ', '-', '_'], '', (string) $key));
+
+                if ($cleanKey === $cleanWanted || str_contains($cleanKey, $cleanWanted) || str_contains($cleanWanted, $cleanKey)) {
+                    return $normalizeValue($answerValue);
+                }
+            }
+        }
+
+        return null;
+    };
+
+    $countryCode = $record?->phone_country_code
+        ?? $record?->country_code
+        ?? $answerFind(['phone country code', 'country code'])
+        ?? '';
+
+    $cleanPhone = function ($value) use ($countryCode) {
+        $value = trim((string) ($value ?? ''));
+
+        if ($value === '' || $value === '-') {
+            return '-';
+        }
+
+        if (str_starts_with($value, '+')) {
+            return $value;
+        }
+
+        $code = trim((string) $countryCode);
+
+        if ($code !== '' && $code !== '-' && ! str_starts_with($value, '+')) {
+            $code = str_starts_with($code, '+') ? $code : '+' . ltrim($code, '+');
+            return $code . ltrim($value, '0');
+        }
+
+        return $value;
+    };
+
+    $fullName = $record?->full_name
+        ?? $record?->candidate_name
+        ?? $record?->name
+        ?? $answerFind(['full name', 'name', 'applicant name'])
+        ?? '-';
+
+    $email = $record?->email
+        ?? $record?->email_address
+        ?? $answerFind(['email address', 'email'])
+        ?? '-';
+
+    $phone = $cleanPhone(
+        $record?->phone_number
+        ?? $record?->phone
+        ?? $answerFind(['phone number', 'phone'])
+        ?? '-'
+    );
+
+    $whatsapp = $cleanPhone(
+        $record?->whatsapp_number
+        ?? $record?->whatsapp
+        ?? $answerFind(['whatsapp number', 'whatsapp'])
+        ?? '-'
+    );
+
+    $positionName = $record?->position
+        ?? $record?->position_name
+        ?? $job?->title
+        ?? $job?->position
+        ?? $answerFind(['position', 'job title', 'applied position'])
+        ?? '-';
+
+    $projectName = $project?->name
+        ?? $record?->project_name
+        ?? $answerFind(['project'])
+        ?? '-';
+
+    $clientName = $client?->name
+        ?? $record?->client_name
+        ?? $answerFind(['client'])
+        ?? '-';
+
+    $appliedAt = $record?->applied_at
+        ? $record->applied_at->format('M d, Y H:i')
+        : ($record?->created_at ? $record->created_at->format('M d, Y H:i') : '-');
+
+    $statusName = filled($record?->status)
+        ? str($record->status)->replace('_', ' ')->title()->toString()
+        : '-';
+
+    $overviewRows = [
+        ['Full Name', $fullName, 'person'],
+        ['Email', $email, 'alternate_email'],
+        ['Phone Number', $phone, 'call'],
+        ['WhatsApp Number', $whatsapp, 'forum'],
+        ['Position', $positionName, 'work'],
+        ['Project', $projectName, 'business'],
+        ['Client', $clientName, 'business_center'],
+        ['Applied At', $appliedAt, 'calendar_month'],
+    ];
+
+    $candidateRows = [
+        ['Nationality', $record?->nationality ?? $answerFind(['nationality']) ?? '-', 'flag'],
+        ['Current Location', $record?->current_location ?? $answerFind(['current location', 'location']) ?? '-', 'location_on'],
+        ['Years of Experience', $record?->years_of_experience ?? $answerFind(['years of experience', 'experience']) ?? '-', 'workspace_premium'],
+        ['Current Job Title', $record?->current_job_title ?? $answerFind(['current job title']) ?? '-', 'badge'],
+        ['Notice Period / Availability', $record?->notice_period ?? $record?->availability ?? $answerFind(['notice period', 'availability']) ?? '-', 'schedule'],
+        ['Expected Salary', $record?->expected_salary ?? $answerFind(['expected salary']) ?? '-', 'payments'],
+        ['Current Salary', $record?->current_salary ?? $answerFind(['current salary']) ?? '-', 'account_balance_wallet'],
+        ['Source', $record?->source ?? $answerFind(['source']) ?? '-', 'folder'],
+    ];
+
+    $declineNotes = $record?->decline_notes
+        ?? $record?->decline_reason
+        ?? $record?->notes
+        ?? null;
+
+    $applicationAnswers = collect($answersRaw)
+        ->map(function ($value, $key) use ($normalizeValue) {
+            return [
+                'label' => str_replace('_', ' ', (string) $key),
+                'value' => $normalizeValue($value),
+            ];
+        })
+        ->reject(function ($row) {
+            return strtolower(trim($row['label'])) === 'notes' && in_array(trim($row['value']), ['', '-'], true);
+        })
+        ->values()
+        ->all();
+    $answerRows = collect($applicationAnswers);
+$timelineRows = [];
+
+    if ($record?->created_at) {
+        $timelineRows[] = [
+            'title' => 'Application created',
+            'meta' => $record->created_at->format('M d, Y H:i'),
+            'body' => 'Candidate application was submitted.',
+        ];
+    }
+
+    if ($record?->updated_at) {
+        $timelineRows[] = [
+            'title' => 'Last updated',
+            'meta' => $record->updated_at->format('M d, Y H:i'),
+            'body' => 'Application record was updated.',
+        ];
+    }
+@endphp
+{{-- SF JOB APPLICATION VIEW DATA FIX END --}}
+
+<div class="sfja-clean-body">
+            <div class="sfja-grid">
+                @foreach(collect($overviewRows ?? []) as [$label, $displayValue, $icon])
+                    <div class="sfja-info">
+                        <div class="sfja-label">
+                            <span class="sfja-clean-icon" style="font-size:17px;">{{ $icon }}</span>
+                            {{ $label }}
+                        </div>
+                        <div class="sfja-value">{{ $displayValue }}</div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    </section>
+
+    <section class="sfja-clean-card">
+        <div class="sfja-clean-head">
+            <h2 class="sfja-clean-title">
+                <span class="sfja-clean-icon">badge</span>
+                Candidate Details
+            </h2>
+        </div>
+
+        <div class="sfja-clean-body">
+            <div class="sfja-grid">
+                @foreach(collect($candidateRows ?? []) as [$label, $displayValue, $icon])
+                    <div class="sfja-info">
+                        <div class="sfja-label">
+                            <span class="sfja-clean-icon" style="font-size:17px;">{{ $icon }}</span>
+                            {{ $label }}
+                        </div>
+                        <div class="sfja-value">{{ $displayValue }}</div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    </section>
+
+    @if(filled($declineNotes))
+        <section class="sfja-clean-card">
+            <div class="sfja-clean-head">
+                <h2 class="sfja-clean-title">
+                    <span class="sfja-clean-icon">report</span>
+                    Decline Notes
+                </h2>
+            </div>
+            <div class="sfja-clean-body">
+                <div class="sfja-info" style="min-height:auto;">
+                    <div class="sfja-value">{{ $declineNotes }}</div>
+                </div>
+            </div>
+        </section>
+    @endif
+
+    <section class="sfja-clean-card">
+        <div class="sfja-clean-head">
+            <h2 class="sfja-clean-title">
+                <span class="sfja-clean-icon">fact_check</span>
+                Application Answers
+            </h2>
+        </div>
+
+        <div class="sfja-clean-body">
+            @if(collect($answerRows ?? [])->isNotEmpty())
+                <div class="sfja-answer-list">
+                    @foreach(collect($answerRows ?? []) as $row)
+                        <div class="sfja-answer-row">
+                            <div class="sfja-label">{{ $row['label'] }}</div>
+                            <div class="sfja-value">
+                                @if($row['long'])
+                                    <details class="sfja-long-answer">
+                                        <summary>View full answer</summary>
+                                        <div style="margin-top:10px; white-space:pre-line;">{{ $row['value'] }}</div>
+                                    </details>
+                                @else
+                                    {{ $row['value'] }}
+                                @endif
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <div class="sfja-empty">No custom application answers found.</div>
+            @endif
+        </div>
+    </section>
+
+    <section class="sfja-clean-card">
+        <div class="sfja-clean-head">
+            <h2 class="sfja-clean-title">
+                <span class="sfja-clean-icon">folder_open</span>
+                Applicant Documents
+            </h2>
+        </div>
+
+        <div class="sfja-clean-body">
+            @if(collect($documentRows ?? [])->isNotEmpty())
+                <div class="sfja-doc-list">
+                    @foreach(collect($documentRows ?? []) as $doc)
+                        @php
+                            $docPath = (string) $doc['path'];
+                            $docUrl = str_starts_with($docPath, 'http')
+                                ? $docPath
+                                : asset('storage/' . ltrim($docPath, '/'));
+                        @endphp
+
+                        <div class="sfja-doc-row">
+                            <div class="sfja-value">{{ $doc['label'] }}</div>
+                            <a href="{{ $docUrl }}" target="_blank" class="sfja-open-doc">Open Document</a>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <div class="sfja-empty">No applicant documents found.</div>
+            @endif
+        </div>
+    </section>
+
+    <section class="sfja-clean-card sfja-timeline-print-area">
+        <div class="sfja-clean-head">
+            <h2 class="sfja-clean-title">
+                <span class="sfja-clean-icon">timeline</span>
+                Application Timeline
+            </h2>
+
+            <button type="button" class="sfja-print-timeline" onclick="window.sfjaPrintTimeline && window.sfjaPrintTimeline()">
+                Print Timeline
+            </button>
+        </div>
+
+        <div class="sfja-clean-body">
+            @if(collect($timelineRows ?? [])->isNotEmpty())
+                <div class="sfja-timeline">
+                    @foreach(collect($timelineRows ?? []) as $item)
+                        <div class="sfja-timeline-item">
+                            <div class="sfja-dot"></div>
+                            <div class="sfja-timeline-title">{{ $item['title'] }}</div>
+                            <div class="sfja-timeline-meta">{{ $item['meta'] }}</div>
+                            <div class="sfja-timeline-body">{{ $item['body'] }}</div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <div class="sfja-empty">No timeline events found.</div>
+            @endif
+        </div>
+    </section>
+</div>
+{{-- SF JOB APPLICATION CLEAN BODY END --}}
+
+
+
+<style id="sf-job-application-body-white-final">
+    /*
+     * FINAL Job Application body style.
+     * Header is untouched.
+     * Removes the dark external wrapper behind Applicant Overview / Candidate Details.
+     */
+
+    html body .sfja-body-clean {
+        background: transparent !important;
+        background-color: transparent !important;
+        background-image: none !important;
+        border: 0 !important;
+        outline: 0 !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin-top: 22px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 22px !important;
+        overflow: visible !important;
+    }
+
+    html body .sfja-body-clean::before,
+    html body .sfja-body-clean::after {
+        display: none !important;
+        content: none !important;
+        background: transparent !important;
+    }
+
+    html body .sfja-body-clean > section,
+    html body .sfja-body-clean > div {
+        background: transparent !important;
+        background-color: transparent !important;
+        background-image: none !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        outline: 0 !important;
+    }
+
+    html body .sfja-body-clean .sfja-clean-card {
+        overflow: hidden !important;
+        border-radius: 30px !important;
+        padding: 0 !important;
+        background:
+            radial-gradient(circle at top right, rgba(20, 184, 166, .045), transparent 34%),
+            rgba(255, 255, 255, .98) !important;
+        background-color: rgba(255, 255, 255, .98) !important;
+        border: 1px solid rgba(15, 23, 42, .08) !important;
+        box-shadow: 0 18px 46px rgba(15, 23, 42, .07) !important;
+    }
+
+    html body .sfja-body-clean .sfja-clean-head {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 12px !important;
+        padding: 22px 26px !important;
+        background: rgba(255, 255, 255, .78) !important;
+        border-bottom: 1px solid rgba(15, 23, 42, .08) !important;
+    }
+
+    html body .sfja-body-clean .sfja-clean-title {
+        color: #0f172a !important;
+        font-size: 18px !important;
+        font-weight: 950 !important;
+        letter-spacing: -.04em !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+    }
+
+    html body .sfja-body-clean .sfja-clean-icon {
+        color: #0f9f94 !important;
+    }
+
+    html body .sfja-body-clean .sfja-info-grid {
+        padding: 24px 26px !important;
+        display: grid !important;
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        gap: 14px !important;
+    }
+
+    html body .sfja-body-clean .sfja-info,
+    html body .sfja-body-clean .sfja-answer-row,
+    html body .sfja-body-clean .sfja-doc-row,
+    html body .sfja-body-clean .sfja-timeline-item,
+    html body .sfja-body-clean .sfja-empty {
+        background: rgba(248, 250, 252, .78) !important;
+        background-color: rgba(248, 250, 252, .78) !important;
+        background-image: none !important;
+        border: 1px solid rgba(15, 23, 42, .08) !important;
+        border-radius: 18px !important;
+        box-shadow: none !important;
+    }
+
+    html body .sfja-body-clean .sfja-info {
+        min-height: 92px !important;
+        padding: 18px !important;
+    }
+
+    html body .sfja-body-clean .sfja-label {
+        color: #64748b !important;
+        font-size: 11px !important;
+        font-weight: 950 !important;
+        letter-spacing: .14em !important;
+        text-transform: uppercase !important;
+        margin-bottom: 8px !important;
+    }
+
+    html body .sfja-body-clean .sfja-value,
+    html body .sfja-body-clean .sfja-timeline-title,
+    html body .sfja-body-clean strong,
+    html body .sfja-body-clean b {
+        color: #0f172a !important;
+        font-weight: 950 !important;
+    }
+
+    html body .sfja-body-clean .sfja-timeline-meta,
+    html body .sfja-body-clean .sfja-timeline-body {
+        color: #64748b !important;
+    }
+
+    @media (max-width: 1180px) {
+        html body .sfja-body-clean .sfja-info-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+    }
+
+    @media (max-width: 720px) {
+        html body .sfja-body-clean .sfja-info-grid {
+            grid-template-columns: 1fr !important;
+        }
+    }
+
+    /*
+     * Dark mode: keep page compatible, but no solid dark external wrapper.
+     */
+    html.dark body .sfja-body-clean,
+    .dark .sfja-body-clean {
+        background: transparent !important;
+        background-color: transparent !important;
+        background-image: none !important;
+    }
+
+    html.dark body .sfja-body-clean .sfja-clean-card,
+    .dark .sfja-body-clean .sfja-clean-card {
+        background:
+            radial-gradient(circle at top right, rgba(20, 184, 166, .09), transparent 34%),
+            rgba(15, 23, 42, .72) !important;
+        border-color: rgba(148, 163, 184, .18) !important;
+        box-shadow: 0 18px 46px rgba(0, 0, 0, .22) !important;
+    }
+
+    html.dark body .sfja-body-clean .sfja-clean-head,
+    .dark .sfja-body-clean .sfja-clean-head {
+        background: rgba(15, 23, 42, .42) !important;
+        border-bottom-color: rgba(148, 163, 184, .14) !important;
+    }
+
+    html.dark body .sfja-body-clean .sfja-info,
+    html.dark body .sfja-body-clean .sfja-answer-row,
+    html.dark body .sfja-body-clean .sfja-doc-row,
+    html.dark body .sfja-body-clean .sfja-timeline-item,
+    html.dark body .sfja-body-clean .sfja-empty,
+    .dark .sfja-body-clean .sfja-info,
+    .dark .sfja-body-clean .sfja-answer-row,
+    .dark .sfja-body-clean .sfja-doc-row,
+    .dark .sfja-body-clean .sfja-timeline-item,
+    .dark .sfja-body-clean .sfja-empty {
+        background: rgba(15, 23, 42, .48) !important;
+        border-color: rgba(148, 163, 184, .16) !important;
+    }
+
+    html.dark body .sfja-body-clean .sfja-clean-title,
+    html.dark body .sfja-body-clean .sfja-value,
+    html.dark body .sfja-body-clean .sfja-timeline-title,
+    html.dark body .sfja-body-clean strong,
+    html.dark body .sfja-body-clean b,
+    .dark .sfja-body-clean .sfja-clean-title,
+    .dark .sfja-body-clean .sfja-value,
+    .dark .sfja-body-clean .sfja-timeline-title,
+    .dark .sfja-body-clean strong,
+    .dark .sfja-body-clean b {
+        color: #f8fafc !important;
+    }
+
+    html.dark body .sfja-body-clean .sfja-label,
+    html.dark body .sfja-body-clean .sfja-timeline-meta,
+    html.dark body .sfja-body-clean .sfja-timeline-body,
+    .dark .sfja-body-clean .sfja-label,
+    .dark .sfja-body-clean .sfja-timeline-meta,
+    .dark .sfja-body-clean .sfja-timeline-body {
+        color: #94a3b8 !important;
+    }
+</style>
+
+</x-filament-panels::page>
+
+
+
+
+<style id="sf-candidate-request-decision-colors">
+    /*
+     * Colored decision buttons — visual only.
+     */
+
+    form:has(textarea[name*="negotiation"]) label:has(input[type="radio"]),
+    form:has(textarea[name*="candidate"]) label:has(input[type="radio"]),
+    form:has(textarea[name*="response"]) label:has(input[type="radio"]) {
+        overflow: hidden !important;
+    }
+
+    form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="approve"]),
+    form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="approve"]),
+    form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="approve"]) {
+        background: linear-gradient(135deg, #ecfdf5, #d1fae5) !important;
+        border-color: rgba(34,197,94,.42) !important;
+        color: #047857 !important;
+        box-shadow: 0 12px 28px rgba(34,197,94,.10) !important;
+    }
+
+    form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="decline"]),
+    form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="decline"]),
+    form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="decline"]) {
+        background: linear-gradient(135deg, #fef2f2, #fee2e2) !important;
+        border-color: rgba(239,68,68,.38) !important;
+        color: #b91c1c !important;
+        box-shadow: 0 12px 28px rgba(239,68,68,.10) !important;
+    }
+
+    form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="reconsider"]),
+    form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="reconsider"]),
+    form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="reconsider"]) {
+        background: linear-gradient(135deg, #fff7ed, #ffedd5) !important;
+        border-color: rgba(249,115,22,.38) !important;
+        color: #c2410c !important;
+        box-shadow: 0 12px 28px rgba(249,115,22,.10) !important;
+    }
+
+    form:has(textarea[name*="negotiation"]) label:has(input[type="radio"]:checked),
+    form:has(textarea[name*="candidate"]) label:has(input[type="radio"]:checked),
+    form:has(textarea[name*="response"]) label:has(input[type="radio"]:checked) {
+        transform: translateY(-1px) !important;
+        filter: saturate(1.12) !important;
+        box-shadow: 0 0 0 5px rgba(37,99,235,.10), 0 18px 38px rgba(15,23,42,.12) !important;
+    }
+
+    .dark form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="approve"]),
+    .dark form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="approve"]),
+    .dark form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="approve"]) {
+        background: rgba(6,78,59,.55) !important;
+        border-color: rgba(52,211,153,.34) !important;
+        color: #a7f3d0 !important;
+    }
+
+    .dark form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="decline"]),
+    .dark form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="decline"]),
+    .dark form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="decline"]) {
+        background: rgba(127,29,29,.48) !important;
+        border-color: rgba(248,113,113,.34) !important;
+        color: #fecaca !important;
+    }
+
+    .dark form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="reconsider"]),
+    .dark form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="reconsider"]),
+    .dark form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="reconsider"]) {
+        background: rgba(124,45,18,.48) !important;
+        border-color: rgba(251,146,60,.34) !important;
+        color: #fed7aa !important;
+    }
+</style>
+

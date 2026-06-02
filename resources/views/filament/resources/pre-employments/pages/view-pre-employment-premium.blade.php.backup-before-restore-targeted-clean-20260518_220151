@@ -1,0 +1,4775 @@
+<x-filament-panels::page>
+@php
+
+    $record->loadMissing([
+        'job.project.client',
+        'jobApplication.values.field',
+        'assignedHrUser',
+        'files',
+        'portalFields',
+        'portalValues.field',
+        'currentFinanceProfile',
+        'financeExpenses',
+    ]);
+
+    $candidateName = $record->candidate_name
+        ?? $record->jobApplication?->full_name
+        ?? 'Candidate';
+
+    $candidateEmail = $record->candidate_email
+        ?? $record->jobApplication?->email
+        ?? '-';
+
+    $candidatePhone = $record->candidate_phone
+        ?? $record->jobApplication?->phone
+        ?? '-';
+
+    $position = $record->job?->title
+        ?? $record->jobApplication?->job?->title
+        ?? '-';
+
+    $project = $record->job?->project?->name
+        ?? $record->jobApplication?->job?->project?->name
+        ?? '-';
+
+    $client = $record->job?->project?->client?->name
+        ?? $record->jobApplication?->job?->project?->client?->name
+        ?? '-';
+
+    $employeeCode = $record->employee_code ?: '-';
+
+    $statusLabel = filled($record->status)
+        ? \Illuminate\Support\Str::headline($record->status)
+        : '-';
+
+    $portalStatusLabel = filled($record->portal_status)
+        ? \Illuminate\Support\Str::headline($record->portal_status)
+        : 'Not Sent';
+
+    $createdAt = optional($record->created_at)->format('Y-m-d H:i') ?: '-';
+    $updatedAt = optional($record->updated_at)->format('Y-m-d H:i') ?: '-';
+    $portalSentAt = optional($record->portal_last_sent_at)->format('Y-m-d H:i') ?: '-';
+    $portalSubmittedAt = optional($record->portal_last_submitted_at)->format('Y-m-d H:i') ?: '-';
+    $convertedAt = optional($record->converted_to_employment_at)->format('Y-m-d H:i') ?: null;
+
+    $publicLink = filled($record->portal_token)
+        ? url('/pre-employment/portal/' . $record->portal_token)
+        : null;
+
+    $statusTone = match ($record->status) {
+        'ready_for_employment', 'converted_to_employment' => 'success',
+        'awaiting_candidate_upload', 'additional_documents_required', 'pending_medical', 'pending_visa', 'pending_travel' => 'warning',
+        'documents_under_review' => 'info',
+        'returned_to_job_application', 'declined' => 'danger',
+        default => 'neutral',
+    };
+
+    $prettyFileTitle = function (?string $title, ?string $category = null, ?string $path = null) use ($candidateName) {
+        $raw = trim((string) ($title ?: $category ?: ''));
+
+        $lower = strtolower($raw);
+
+        $map = [
+            'cv_path' => 'Candidate CV',
+            'cv file' => 'Candidate CV',
+            'cv_file' => 'Candidate CV',
+            'resume_path' => 'Candidate CV',
+            'caf_file_path' => 'CAF File',
+            'gl_file_path' => 'GL File',
+            'passport' => 'Passport',
+            'contract' => 'Contract',
+            'signed_contract' => 'Signed Contract',
+            'medical_certificate' => 'Medical Certificate',
+            'health certificate' => 'Medical Certificate',
+            'atex_certificate' => 'ATEX Certificate',
+            'atex cert' => 'ATEX Certificate',
+            'photo' => 'Personal Photo',
+            'visa' => 'Visa',
+            'travel' => 'Travel Document',
+            'certificate' => 'Certificate',
+        ];
+
+        foreach ($map as $needle => $label) {
+            if (str_contains($lower, $needle)) {
+                return $label . ' — ' . $candidateName;
+            }
+        }
+
+        if ($raw !== '') {
+            return \Illuminate\Support\Str::headline($raw) . ' — ' . $candidateName;
+        }
+
+        if ($path) {
+            return \Illuminate\Support\Str::headline(pathinfo($path, PATHINFO_FILENAME)) . ' — ' . $candidateName;
+        }
+
+        return 'Uploaded File — ' . $candidateName;
+    };
+
+    $normalizePath = function ($path) {
+        if (blank($path)) {
+            return null;
+        }
+
+        if (is_array($path)) {
+            $path = collect($path)->filter()->first();
+        }
+
+        $path = trim((string) $path);
+        $path = str_replace('\\', '/', $path);
+        $path = preg_replace('#^public/#', '', $path);
+        $path = preg_replace('#^storage/#', '', $path);
+
+        return $path ?: null;
+    };
+
+    $looksLikeFile = function ($label, $value) {
+        $label = strtolower((string) $label);
+        $value = is_array($value) ? implode(' ', $value) : (string) $value;
+        $lowerValue = strtolower($value);
+
+        return str_contains($label, 'cv')
+            || str_contains($label, 'file')
+            || str_contains($label, 'upload')
+            || str_contains($label, 'certificate')
+            || str_contains($label, 'passport')
+            || str_contains($label, 'contract')
+            || str_contains($lowerValue, '/')
+            || preg_match('/\.(pdf|doc|docx|jpg|jpeg|png|webp|rtf|xls|xlsx)$/i', $value);
+    };
+
+    $files = collect();
+    $seenFiles = [];
+
+    $addFile = function ($title, $category, $path, $source = 'Pre-Employment') use (&$files, &$seenFiles, $normalizePath, $prettyFileTitle) {
+        $cleanPath = $normalizePath($path);
+
+        if (! filled($cleanPath)) {
+            return;
+        }
+
+        $key = strtolower($cleanPath);
+
+        if (isset($seenFiles[$key])) {
+            return;
+        }
+
+        $seenFiles[$key] = true;
+
+        $files->push([
+            'title' => $prettyFileTitle($title, $category, $cleanPath),
+            'category' => filled($category) ? \Illuminate\Support\Str::headline($category) : 'File',
+            'path' => $cleanPath,
+            'url' => \Illuminate\Support\Facades\Storage::url($cleanPath),
+            'source' => $source,
+        ]);
+    };
+
+    foreach ($record->files ?? [] as $file) {
+        $addFile(
+            $file->title ?? $file->category ?? 'Uploaded File',
+            $file->category ?? 'Pre-Employment File',
+            $file->file_path ?? null,
+            ($file->uploaded_by_type ?? null) === 'candidate' ? 'Candidate Portal' : 'ERP Upload'
+        );
+    }
+
+    foreach (['caf_file_path' => 'CAF File', 'gl_file_path' => 'GL File'] as $column => $label) {
+        if (filled($record->{$column} ?? null)) {
+            $addFile($label, $label, $record->{$column}, 'Pre-Employment');
+        }
+    }
+
+    foreach ($record->portalValues ?? [] as $value) {
+        $field = $value->field ?? null;
+        $label = $field?->label ?? $value->field_key ?? 'Portal Upload';
+        $answer = $value->value ?? $value->file_path ?? null;
+
+        if (is_array($answer)) {
+            foreach ($answer as $one) {
+                if ($looksLikeFile($label, $one)) {
+                    $addFile($label, $field?->document_category ?? 'Portal Upload', $one, 'Candidate Portal');
+                }
+            }
+        } elseif ($looksLikeFile($label, $answer)) {
+            $addFile($label, $field?->document_category ?? 'Portal Upload', $answer, 'Candidate Portal');
+        }
+    }
+
+    if ($record->jobApplication) {
+        foreach (['cv_path' => 'Candidate CV', 'cv_file' => 'Candidate CV', 'resume_path' => 'Candidate CV', 'file_path' => 'Application File', 'attachment_path' => 'Application File'] as $column => $label) {
+            if (filled($record->jobApplication->{$column} ?? null)) {
+                $addFile($label, 'Job Application', $record->jobApplication->{$column}, 'Job Application');
+            }
+        }
+
+        foreach ($record->jobApplication->values ?? [] as $value) {
+            $field = $value->field ?? null;
+            $label = $field?->label ?? $field?->name ?? 'Application Upload';
+            $answer = $value->value ?? $value->answer ?? $value->field_value ?? null;
+
+            if (is_array($answer)) {
+                foreach ($answer as $one) {
+                    if ($looksLikeFile($label, $one)) {
+                        $addFile($label, 'Job Application Answer', $one, 'Job Application');
+                    }
+                }
+            } elseif ($looksLikeFile($label, $answer)) {
+                $addFile($label, 'Job Application Answer', $answer, 'Job Application');
+            }
+        }
+    }
+
+    $portalAnswers = collect();
+
+    foreach ($record->portalValues ?? [] as $value) {
+        $field = $value->field ?? null;
+        $label = $field?->label ?? $value->field_key ?? 'Portal Answer';
+        $answer = $value->value ?? null;
+
+        if (is_array($answer)) {
+            $answer = implode(', ', array_filter($answer));
+        }
+
+        if (filled($answer) && ! $looksLikeFile($label, $answer)) {
+            $portalAnswers->push([
+                'label' => $label,
+                'value' => $answer,
+            ]);
+        }
+    }
+
+    $portalFileRequests = collect($record->portalFields ?? [])
+        ->filter(fn ($field) => ($field->field_type ?? null) === 'file')
+        ->values();
+
+
+    /*
+     | Dynamic Candidate Details badge:
+     | Shows request progress clearly instead of only the raw workflow status.
+     */
+    $portalSubmittedValues = collect($record->portalValues ?? []);
+    $portalRequestedFileCount = $portalFileRequests->count();
+    $portalSubmittedFileCount = $portalFileRequests->filter(function ($field) use ($portalSubmittedValues) {
+        $value = $portalSubmittedValues->firstWhere('portal_field_id', $field->id);
+        return filled($value?->value);
+    })->count();
+
+    if ($portalRequestedFileCount > 0 && $portalSubmittedFileCount < $portalRequestedFileCount) {
+        $statusLabel = 'Waiting Candidate File';
+        $statusTone = 'warning';
+    } elseif ($portalRequestedFileCount > 0 && $portalSubmittedFileCount >= $portalRequestedFileCount) {
+        $statusLabel = 'Candidate Submitted File';
+        $statusTone = 'info';
+    } elseif (($record->status ?? null) === 'documents_under_review') {
+        $statusLabel = 'Documents Under Review';
+        $statusTone = 'info';
+    }
+
+    $financeProfile = $record->currentFinanceProfile;
+
+    $expenses = collect($record->financeExpenses ?? []);
+
+    $timelineRows = collect();
+
+    $pushTimeline = function ($type, $title, $subtitle = null, $date = null, array $meta = []) use (&$timelineRows) {
+        if (! $date) {
+            return;
+        }
+
+        try {
+            $time = $date instanceof \Carbon\CarbonInterface ? $date : \Carbon\Carbon::parse($date);
+        } catch (\Throwable $e) {
+            return;
+        }
+
+        $timelineRows->push([
+            'type' => $type ?: 'update',
+            'title' => $title ?: 'Update',
+            'subtitle' => $subtitle,
+            'date' => $time,
+            'meta' => array_filter($meta),
+        ]);
+    };
+
+    $pushTimeline('created', 'Pre-Employment Created', 'Pre-employment record opened for ' . $candidateName . '.', $record->created_at, ['Pre-Employment', $statusLabel]);
+
+    if (filled($record->portal_last_sent_at)) {
+        $pushTimeline('portal', 'Portal Link Sent', 'Candidate public portal link was sent.', $record->portal_last_sent_at, ['Portal', $portalStatusLabel]);
+    }
+
+    if (filled($record->portal_last_submitted_at)) {
+        $pushTimeline('portal', 'Portal Submitted', 'Candidate submitted portal answers/files.', $record->portal_last_submitted_at, ['Portal Submission']);
+    }
+
+    foreach ($portalFileRequests as $field) {
+        $pushTimeline(
+            'request',
+            'File Requested: ' . ($field->label ?: 'Document'),
+            $field->instructions ?: null,
+            $field->created_at,
+            [$field->document_category ? \Illuminate\Support\Str::headline($field->document_category) : 'File Request', $field->is_required ? 'Required' : 'Optional']
+        );
+    }
+
+    foreach ($files as $file) {
+        $pushTimeline(
+            'file',
+            'File Available: ' . $file['title'],
+            $file['source'] ?? null,
+            $record->updated_at ?? $record->created_at,
+            [$file['category'] ?? 'File']
+        );
+    }
+
+    foreach ($expenses as $expense) {
+        $pushTimeline(
+            'expense',
+            'Expense Added: ' . ($expense->title ?: \Illuminate\Support\Str::headline($expense->category ?? 'Expense')),
+            trim(($expense->amount ?? '') . ' ' . ($expense->currency ?? '')),
+            $expense->expense_date ?? $expense->created_at,
+            [\Illuminate\Support\Str::headline($expense->status ?? 'draft'), \Illuminate\Support\Str::headline($expense->paid_by ?? 'company')]
+        );
+    }
+
+    if (filled($record->converted_to_employment_at)) {
+        $pushTimeline('converted', 'Converted to Employment', 'Candidate moved from Pre-Employment to Employment.', $record->converted_to_employment_at, ['Employment']);
+    }
+
+    if (filled($record->updated_at) && (string) $record->updated_at !== (string) $record->created_at) {
+        $pushTimeline('updated', 'Last Updated', 'Pre-employment profile was updated.', $record->updated_at, ['Update']);
+    }
+
+    $timelineRows = $timelineRows
+        ->filter(fn ($row) => ! empty($row['date']))
+        ->sortByDesc(fn ($row) => $row['date']->timestamp)
+        ->values();
+
+    $timelineIcon = function ($type) {
+        return match ($type) {
+            'file' => 'description',
+            'portal' => 'language',
+            'request' => 'assignment',
+            'expense' => 'payments',
+            'converted' => 'verified',
+            'created' => 'badge',
+            default => 'update',
+        };
+    };
+@endphp
+
+
+{{-- SFPE REAL HEADER FORCE START --}}
+<section class="sfpe-real-hero" data-sfpe-main-hero="1">
+    <div class="sfpe-real-kicker">Recruitment › Pre-Employment › Profile</div>
+
+    <h1 class="sfpe-real-title">
+        Pre-Employment<br>
+        {{ $candidateName }}
+    </h1>
+
+    <p class="sfpe-real-subtitle">
+        Review candidate pre-employment status, files, requests, finance profile, expenses, and full candidate timeline.
+    </p>
+
+    <div class="sfpe-real-badges">
+        <span>{{ $statusLabel }}</span>
+        <span>{{ $employeeCode }}</span>
+    </div>
+
+    <div class="sfpe-real-actions sfpe-employment-like-actions">
+        @if($publicLink)
+            <a href="{{ $publicLink }}" target="_blank" class="sfpe-real-btn sfpe-emp-btn sfpe-emp-btn-gray">
+                <span class="sf-svg-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M14 3h7v7h-2V6.4l-9.3 9.3-1.4-1.4L17.6 5H14V3ZM5 5h6v2H5v12h12v-6h2v6q0 .825-.588 1.413T17 21H5q-.825 0-1.413-.588T3 19V7q0-.825.588-1.413T5 5Z"/></svg>
+                </span>
+                <span>Open Public Link</span>
+            </a>
+        @endif
+
+        <button type="button" wire:click="mountAction('sendPortalRequest')" class="sfpe-real-btn sfpe-emp-btn sfpe-emp-btn-blue">
+            <span class="sf-svg-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M3 20V4l19 8-19 8Zm2-3 11.85-5L5 7v3.5l6 1.5-6 1.5V17Z"/></svg>
+            </span>
+            <span>Resend Public Link</span>
+        </button>
+
+        <button type="button" wire:click="mountAction('requestPreEmploymentFile')" class="sfpe-real-btn sfpe-emp-btn sfpe-emp-btn-yellow">
+            <span class="sf-svg-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 16 7 11l1.4-1.45 2.6 2.6V4h2v8.15l2.6-2.6L17 11l-5 5ZM5 20q-.825 0-1.413-.588T3 18v-3h2v3h14v-3h2v3q0 .825-.588 1.413T19 20H5Z"/></svg>
+            </span>
+            <span>Request File</span>
+        </button>
+
+        <button type="button" wire:click="mountAction('uploadPreEmploymentFile')" class="sfpe-real-btn sfpe-emp-btn sfpe-emp-btn-blue">
+            <span class="sf-svg-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 22q-2.5 0-4.25-1.75T6 16V6.5q0-1.875 1.313-3.188T10.5 2q1.875 0 3.188 1.313T15 6.5V16q0 1.25-.875 2.125T12 19q-1.25 0-2.125-.875T9 16V7h2v9q0 .425.288.713T12 17q.425 0 .713-.288T13 16V6.5q0-1.05-.725-1.775T10.5 4q-1.05 0-1.775.725T8 6.5V16q0 1.65 1.175 2.825T12 20q1.65 0 2.825-1.175T16 16V7h2v9q0 2.5-1.75 4.25T12 22Z"/></svg>
+            </span>
+            <span>Upload File</span>
+        </button>
+
+        <button type="button" wire:click="mountAction('addExpense')" class="sfpe-real-btn sfpe-emp-btn sfpe-emp-btn-red">
+            <span class="sf-svg-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M3 18V6h18v12H3Zm2-2h14V8H5v8Zm2-1q.825 0 1.413-.588T9 13q0-.825-.588-1.413T7 11q-.825 0-1.413.588T5 13q0 .825.588 1.413T7 15Zm10 0h1v-4h-6v1h5v3Z"/></svg>
+            </span>
+            <span>Add Expense</span>
+        </button>
+
+        <button type="button" wire:click="mountAction('editFinalProfile')" class="sfpe-real-btn sfpe-emp-btn sfpe-emp-btn-gray">
+            <span class="sf-svg-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M4 20q-.825 0-1.413-.588T2 18V6q0-.825.588-1.413T4 4h16v4h-2V6H4v12h16v-4h2v4q0 .825-.588 1.413T20 20H4Zm10-4q-.825 0-1.413-.588T12 14v-4q0-.825.588-1.413T14 8h8v8h-8Zm0-2h6v-4h-6v4Zm3-1q.425 0 .713-.288T18 12q0-.425-.288-.713T17 11q-.425 0-.713.288T16 12q0 .425.288.713T17 13Z"/></svg>
+            </span>
+            <span>Finance Profile</span>
+        </button>
+
+        <button type="button" wire:click="mountAction('changePreEmploymentStatus')" class="sfpe-real-btn sfpe-emp-btn sfpe-emp-btn-gray">
+            <span class="sf-svg-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 21q-3.45 0-6.012-2.287T3.05 13H5.1q.35 2.6 2.313 4.3T12 19q2.925 0 4.963-2.038T19 12q0-2.925-2.038-4.963T12 5q-1.725 0-3.225.8T6.25 8H10v2H3V3h2v3.35q1.275-1.6 3.113-2.475T12 3q3.75 0 6.375 2.625T21 12q0 3.75-2.625 6.375T12 21Z"/></svg>
+            </span>
+            <span>Change Status</span>
+        </button>
+
+        <button type="button" wire:click="mountAction('convertToEmployment')" class="sfpe-real-btn sfpe-emp-btn sfpe-emp-btn-blue">
+            <span class="sf-svg-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 12q-1.65 0-2.825-1.175T8 8q0-1.65 1.175-2.825T12 4q1.65 0 2.825 1.175T16 8q0 1.65-1.175 2.825T12 12Zm-8 8v-2.8q0-.85.438-1.562T5.6 14.55q1.55-.775 3.15-1.162T12 13q1.65 0 3.25.388t3.15 1.162q.725.375 1.163 1.088T20 17.2V20H4Z"/></svg>
+            </span>
+            <span>Convert to Employment</span>
+        </button>
+    </div>
+</section>
+
+<style id="sfpe-preemployment-header-buttons-final-fix">
+    /*
+     | FINAL visual fix for Pre-Employment hero actions.
+     | Keeps direct mountAction(...) working.
+     | Makes buttons match Employment page style with visible icons and real colored pills.
+     */
+
+    .sfpe-real-actions,
+    .sfpe-employment-like-actions {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        gap: 10px !important;
+        margin-top: 24px !important;
+        position: relative !important;
+        z-index: 100 !important;
+        pointer-events: auto !important;
+    }
+
+    .sfpe-real-actions .sfpe-real-btn,
+    .sfpe-real-actions .sfpe-emp-btn,
+    .sfpe-employment-like-actions .sfpe-real-btn,
+    .sfpe-employment-like-actions .sfpe-emp-btn {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 8px !important;
+
+        min-height: 42px !important;
+        padding: 11px 16px !important;
+        border-radius: 999px !important;
+
+        border: 1px solid rgba(255,255,255,.14) !important;
+        box-shadow: none !important;
+        outline: none !important;
+
+        font-size: 13px !important;
+        line-height: 1 !important;
+        font-weight: 900 !important;
+        white-space: nowrap !important;
+        text-decoration: none !important;
+
+        cursor: pointer !important;
+        pointer-events: auto !important;
+        opacity: 1 !important;
+        filter: none !important;
+    }
+
+    .sfpe-real-actions .sfpe-real-btn:hover,
+    .sfpe-real-actions .sfpe-emp-btn:hover {
+        transform: translateY(-1px) !important;
+        filter: brightness(1.05) !important;
+    }
+
+    /*
+     | Button colors copied from Employment visual language.
+     */
+    .sfpe-real-actions .sfpe-btn-blue,
+    .sfpe-real-actions .sfpe-emp-btn-blue {
+        background: #2563eb !important;
+        color: #ffffff !important;
+    }
+
+    .sfpe-real-actions .sfpe-btn-orange,
+    .sfpe-real-actions .sfpe-btn-yellow,
+    .sfpe-real-actions .sfpe-emp-btn-yellow {
+        background: #f59e0b !important;
+        color: #111827 !important;
+    }
+
+    .sfpe-real-actions .sfpe-btn-red,
+    .sfpe-real-actions .sfpe-emp-btn-red {
+        background: #dc2626 !important;
+        color: #ffffff !important;
+    }
+
+    .sfpe-real-actions .sfpe-btn-green {
+        background: #16a34a !important;
+        color: #ffffff !important;
+    }
+
+    .sfpe-real-actions .sfpe-btn-purple {
+        background: #7c3aed !important;
+        color: #ffffff !important;
+    }
+
+    .sfpe-real-actions .sfpe-btn-teal {
+        background: #0f766e !important;
+        color: #ffffff !important;
+    }
+
+    .sfpe-real-actions .sfpe-btn-dark {
+        background: #020617 !important;
+        color: #ffffff !important;
+    }
+
+    .sfpe-real-actions .sfpe-btn-light,
+    .sfpe-real-actions .sfpe-emp-btn-gray {
+        background: rgba(255,255,255,.14) !important;
+        color: #ffffff !important;
+    }
+
+    /*
+     | Fix invisible/missing icons.
+     */
+    .sfpe-real-actions .material-symbols-rounded,
+    .sfpe-real-actions .material-symbols-outlined {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 18px !important;
+        height: 18px !important;
+        min-width: 18px !important;
+        font-size: 20px !important;
+        line-height: 1 !important;
+        color: currentColor !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        font-variation-settings: 'FILL' 0, 'wght' 700, 'GRAD' 0, 'opsz' 24 !important;
+    }
+
+    .sfpe-real-actions .sf-svg-icon {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 18px !important;
+        height: 18px !important;
+        min-width: 18px !important;
+        color: currentColor !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+
+    .sfpe-real-actions .sf-svg-icon svg {
+        display: block !important;
+        width: 18px !important;
+        height: 18px !important;
+        fill: currentColor !important;
+        color: currentColor !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+
+    .sfpe-real-actions .sf-svg-icon path {
+        fill: currentColor !important;
+        stroke: none !important;
+    }
+
+    /*
+     | Make sure the hero overlay never blocks buttons.
+     */
+    .sfpe-real-hero::before,
+    .sfpe-real-hero::after {
+        pointer-events: none !important;
+    }
+
+    @media (max-width: 760px) {
+        .sfpe-real-actions,
+        .sfpe-employment-like-actions {
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+        }
+
+        .sfpe-real-actions .sfpe-real-btn,
+        .sfpe-real-actions .sfpe-emp-btn {
+            width: 100% !important;
+        }
+    }
+</style>
+
+<style id="sfpe-real-hero-final-css">
+    .sfpe-real-hero {
+        width: min(100%, 1280px);
+        margin: 24px auto 28px !important;
+        padding: 34px;
+        border-radius: 32px;
+        position: relative;
+        overflow: hidden;
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .20), transparent 34%),
+            linear-gradient(135deg, #020617 0%, #0f172a 50%, #123456 100%);
+        border: 1px solid rgba(148, 163, 184, .18);
+        box-shadow: 0 24px 60px rgba(15, 23, 42, .22);
+        color: #fff;
+        z-index: 10;
+        order: -9999 !important;
+    }
+
+    .sfpe-real-kicker {
+        color: #cbd5e1;
+        font-size: 12px;
+        font-weight: 950;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        margin-bottom: 14px;
+    }
+
+    .sfpe-real-title {
+        margin: 0;
+        color: #fff;
+        font-size: clamp(40px, 5vw, 74px);
+        line-height: .92;
+        font-weight: 950;
+        letter-spacing: -.065em;
+    }
+
+    .sfpe-real-subtitle {
+        width: min(100%, 760px);
+        margin: 18px 0 0;
+        color: #dbeafe;
+        font-size: 15px;
+        line-height: 1.7;
+        font-weight: 750;
+    }
+
+    .sfpe-real-badges,
+    .sfpe-real-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .sfpe-real-badges {
+        margin-top: 20px;
+    }
+
+    .sfpe-real-badges span {
+        display: inline-flex;
+        align-items: center;
+        min-height: 34px;
+        padding: 0 14px;
+        border-radius: 999px;
+        background: rgba(255,255,255,.12);
+        color: #fff;
+        border: 1px solid rgba(255,255,255,.14);
+        font-size: 11px;
+        font-weight: 950;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+    }
+
+    .sfpe-real-actions {
+        margin-top: 24px;
+    }
+
+    .sfpe-real-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 46px;
+        padding: 0 16px;
+        border-radius: 999px;
+        border: 0;
+        text-decoration: none !important;
+        font-size: 12px;
+        font-weight: 950;
+        cursor: pointer;
+        box-shadow: 0 14px 28px rgba(0,0,0,.18);
+        white-space: nowrap;
+    }
+
+    .sfpe-real-btn .material-symbols-rounded {
+        font-size: 20px;
+        line-height: 1;
+        font-variation-settings: 'FILL' 0, 'wght' 700, 'GRAD' 0, 'opsz' 24;
+    }
+
+    .sfpe-btn-light { background: #ffffff; color: #0f172a !important; }
+    .sfpe-btn-green { background: #16a34a; color: #ffffff !important; }
+    .sfpe-btn-orange { background: #f59e0b; color: #111827 !important; }
+    .sfpe-btn-blue { background: #2563eb; color: #ffffff !important; }
+    .sfpe-btn-red { background: #ef4444; color: #ffffff !important; }
+    .sfpe-btn-purple { background: #7c3aed; color: #ffffff !important; }
+    .sfpe-btn-teal { background: #0f766e; color: #ffffff !important; }
+    .sfpe-btn-dark { background: #020617; color: #ffffff !important; border: 1px solid rgba(255,255,255,.14); }
+
+    @media (max-width: 760px) {
+        .sfpe-real-hero {
+            padding: 24px;
+            border-radius: 26px;
+        }
+
+        .sfpe-real-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+        }
+
+        .sfpe-real-btn {
+            width: 100%;
+        }
+    }
+</style>
+
+
+
+
+
+
+
+
+
+
+
+
+<style id="sfpe-real-hero-buttons-only-final">
+    /*
+     * SAFE FINAL:
+     * This block touches ONLY the custom Pre-Employment hero buttons/icons.
+     * It does NOT touch Filament modal, dialog, backdrop, scroll, or position.
+     */
+    .sfpe-real-hero {
+        position: relative !important;
+        z-index: 1 !important;
+        pointer-events: auto !important;
+        order: -9999 !important;
+    }
+
+    .sfpe-real-hero::before,
+    .sfpe-real-hero::after {
+        pointer-events: none !important;
+    }
+
+    .sfpe-real-actions {
+        position: relative !important;
+        z-index: 2 !important;
+        pointer-events: auto !important;
+    }
+
+    .sfpe-real-actions .sfpe-real-btn {
+        position: relative !important;
+        z-index: 3 !important;
+        pointer-events: auto !important;
+        cursor: pointer !important;
+    }
+
+    .sfpe-real-actions .sfpe-real-btn .material-symbols-rounded,
+    .sfpe-real-actions .sfpe-real-btn .material-symbols-outlined,
+    .sfpe-real-actions .sfpe-real-btn svg {
+        color: currentColor !important;
+        fill: currentColor !important;
+        stroke: currentColor !important;
+    }
+
+    .sfpe-real-actions .sfpe-btn-light,
+    .sfpe-real-actions .sfpe-btn-light .material-symbols-rounded {
+        color: #0f172a !important;
+    }
+
+    .sfpe-real-actions .sfpe-btn-orange,
+    .sfpe-real-actions .sfpe-btn-orange .material-symbols-rounded {
+        color: #111827 !important;
+    }
+
+    .sfpe-real-actions .sfpe-btn-green,
+    .sfpe-real-actions .sfpe-btn-blue,
+    .sfpe-real-actions .sfpe-btn-red,
+    .sfpe-real-actions .sfpe-btn-purple,
+    .sfpe-real-actions .sfpe-btn-teal,
+    .sfpe-real-actions .sfpe-btn-dark,
+    .sfpe-real-actions .sfpe-btn-green .material-symbols-rounded,
+    .sfpe-real-actions .sfpe-btn-blue .material-symbols-rounded,
+    .sfpe-real-actions .sfpe-btn-red .material-symbols-rounded,
+    .sfpe-real-actions .sfpe-btn-purple .material-symbols-rounded,
+    .sfpe-real-actions .sfpe-btn-teal .material-symbols-rounded,
+    .sfpe-real-actions .sfpe-btn-dark .material-symbols-rounded {
+        color: #ffffff !important;
+    }
+</style>
+
+
+
+{{-- SFPE REAL HEADER FORCE END --}}
+
+
+
+<style>
+    .fi-header {
+        display: none !important;
+    }
+
+    .sfpe-page {
+        width: min(100%, 1280px);
+        margin: 0 auto 72px;
+        display: grid;
+        gap: 22px;
+    }
+
+    .sfpe-hero {
+        position: relative;
+        width: min(100%, 1280px);
+        margin: 0 auto 26px;
+        border-radius: 34px;
+        overflow: hidden;
+        padding: 30px;
+        color: #ffffff;
+        background:
+            radial-gradient(circle at 78% 12%, rgba(34, 211, 238, .34), transparent 32%),
+            radial-gradient(circle at 20% 0%, rgba(37, 99, 235, .38), transparent 36%),
+            linear-gradient(135deg, #0f172a 0%, #12325a 50%, #0f766e 100%);
+        box-shadow: 0 24px 70px rgba(15, 23, 42, .28);
+    }
+
+    .sfpe-hero::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: linear-gradient(120deg, rgba(255,255,255,.10), transparent 38%, rgba(255,255,255,.06));
+    }
+
+    .sfpe-hero-inner {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        gap: 22px;
+    }
+
+    .sfpe-kicker {
+        font-size: 12px;
+        font-weight: 950;
+        letter-spacing: .16em;
+        text-transform: uppercase;
+        color: #bae6fd;
+    }
+
+    .sfpe-title {
+        margin: 8px 0 0;
+        font-size: clamp(34px, 5vw, 68px);
+        line-height: .92;
+        letter-spacing: -.07em;
+        font-weight: 950;
+        color: #ffffff;
+    }
+
+    .sfpe-subtitle {
+        margin-top: 14px;
+        max-width: 760px;
+        color: rgba(255,255,255,.78);
+        font-size: 15px;
+        line-height: 1.7;
+        font-weight: 700;
+    }
+
+    .sfpe-hero-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 22px;
+        flex-wrap: wrap;
+    }
+
+    .sfpe-hero-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: rgba(255,255,255,.12);
+        border: 1px solid rgba(255,255,255,.18);
+        color: #ffffff;
+        font-size: 12px;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        backdrop-filter: blur(12px);
+    }
+
+    .sfpe-hero-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 4px;
+    }
+
+    .sfpe-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 46px;
+        padding: 0 17px;
+        border-radius: 999px;
+        border: 0;
+        text-decoration: none !important;
+        font-size: 13px;
+        font-weight: 950;
+        cursor: pointer;
+        box-shadow: 0 14px 28px rgba(0,0,0,.18);
+    }
+
+    .sfpe-action-light {
+        color: #0f172a !important;
+        background: #ffffff;
+    }
+
+    .sfpe-action-blue {
+        color: #ffffff !important;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    }
+
+    .sfpe-action-green {
+        color: #ffffff !important;
+        background: linear-gradient(135deg, #16a34a, #15803d);
+    }
+
+    .sfpe-action-orange {
+        color: #111827 !important;
+        background: linear-gradient(135deg, #fbbf24, #f97316);
+    }
+
+    .sfpe-action-red {
+        color: #ffffff !important;
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+    }
+
+    .sfpe-stats {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 8px;
+    }
+
+    .sfpe-stat {
+        border-radius: 22px;
+        padding: 16px;
+        background: rgba(255,255,255,.10);
+        border: 1px solid rgba(255,255,255,.14);
+        backdrop-filter: blur(12px);
+    }
+
+    .sfpe-stat-label {
+        color: rgba(255,255,255,.66);
+        font-size: 11px;
+        font-weight: 950;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+    }
+
+    .sfpe-stat-value {
+        margin-top: 8px;
+        color: #ffffff;
+        font-size: 18px;
+        font-weight: 950;
+        overflow-wrap: anywhere;
+    }
+
+    .sfpe-card {
+        border-radius: 30px;
+        background:
+            radial-gradient(circle at top right, rgba(34,211,238,.08), transparent 35%),
+            #ffffff;
+        border: 1px solid rgba(15,23,42,.08);
+        box-shadow: 0 18px 46px rgba(15,23,42,.08);
+        overflow: hidden;
+    }
+
+    .dark .sfpe-card {
+        background:
+            radial-gradient(circle at top right, rgba(34,211,238,.12), transparent 35%),
+            rgba(15,23,42,.82);
+        border-color: rgba(148,163,184,.18);
+        box-shadow: 0 18px 46px rgba(0,0,0,.24);
+    }
+
+    .sfpe-card-head {
+        padding: 22px 26px;
+        border-bottom: 1px solid rgba(15,23,42,.08);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        flex-wrap: wrap;
+        background:
+            radial-gradient(circle at top right, rgba(34,211,238,.08), transparent 32%),
+            linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    }
+
+    .dark .sfpe-card-head {
+        border-bottom-color: rgba(148,163,184,.18);
+        background: rgba(15,23,42,.44);
+    }
+
+    .sfpe-card-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0;
+        color: #0f172a;
+        font-size: 20px;
+        line-height: 1.2;
+        letter-spacing: -.04em;
+        font-weight: 950;
+    }
+
+    .dark .sfpe-card-title {
+        color: #ffffff;
+    }
+
+    .sfpe-icon {
+        font-family: 'Material Symbols Rounded';
+        font-weight: 600;
+        font-style: normal;
+        font-size: 24px;
+        line-height: 1;
+        color: #1d4ed8;
+        display: inline-flex;
+    }
+
+    .dark .sfpe-icon {
+        color: #22d3ee;
+    }
+
+    .sfpe-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 900;
+        color: #0f172a;
+        background: rgba(224,242,254,.88);
+        border: 1px solid rgba(37,99,235,.16);
+        text-transform: uppercase;
+        letter-spacing: .06em;
+    }
+
+    .sfpe-chip.success {
+        background: #dcfce7;
+        color: #166534;
+        border-color: #86efac;
+    }
+
+    .sfpe-chip.warning {
+        background: #ffedd5;
+        color: #c2410c;
+        border-color: #fdba74;
+    }
+
+    .sfpe-chip.danger {
+        background: #fee2e2;
+        color: #b91c1c;
+        border-color: #fca5a5;
+    }
+
+    .sfpe-chip.info {
+        background: #dbeafe;
+        color: #1d4ed8;
+        border-color: #93c5fd;
+    }
+
+    .dark .sfpe-chip {
+        color: #bfdbfe;
+        background: rgba(37,99,235,.18);
+        border-color: rgba(147,197,253,.18);
+    }
+
+    .sfpe-grid {
+        padding: 24px 26px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    .sfpe-item {
+        min-height: 104px;
+        border-radius: 22px;
+        padding: 18px;
+        background: rgba(248,250,252,.82);
+        border: 1px solid rgba(15,23,42,.08);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .dark .sfpe-item {
+        background: rgba(15,23,42,.58);
+        border-color: rgba(148,163,184,.16);
+    }
+
+    .sfpe-label {
+        margin-bottom: 8px;
+        color: #64748b;
+        font-size: 11px;
+        line-height: 1.1;
+        font-weight: 950;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+    }
+
+    .dark .sfpe-label {
+        color: #94a3b8;
+    }
+
+    .sfpe-value {
+        color: #0f172a;
+        font-size: 16px;
+        line-height: 1.45;
+        font-weight: 850;
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+    }
+
+    .dark .sfpe-value {
+        color: #ffffff;
+    }
+
+    .sfpe-empty {
+        margin: 24px 26px;
+        padding: 20px;
+        border-radius: 22px;
+        border: 1px dashed rgba(15,23,42,.18);
+        background: rgba(248,250,252,.68);
+        color: #64748b;
+        font-weight: 800;
+    }
+
+    .sfpe-file-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: fit-content;
+        margin-top: 12px;
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #e0f2fe, #dbeafe);
+        color: #1d4ed8 !important;
+        text-decoration: none !important;
+        border: 1px solid rgba(37,99,235,.14);
+        font-size: 12px;
+        font-weight: 950;
+    }
+
+    .sfpe-request-list {
+        padding: 24px 26px;
+        display: grid;
+        gap: 14px;
+    }
+
+    .sfpe-request {
+        border-radius: 24px;
+        border: 1px solid rgba(15,23,42,.08);
+        background: rgba(248,250,252,.82);
+        padding: 18px;
+    }
+
+    .dark .sfpe-request {
+        background: rgba(15,23,42,.58);
+        border-color: rgba(148,163,184,.16);
+    }
+
+    .sfpe-request-title {
+        color: #0f172a;
+        font-size: 18px;
+        font-weight: 950;
+        letter-spacing: -.035em;
+    }
+
+    .dark .sfpe-request-title {
+        color: #ffffff;
+    }
+
+    .sfpe-request-meta {
+        margin-top: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .sfpe-notes {
+        margin-top: 14px;
+        color: #475569;
+        font-weight: 700;
+        line-height: 1.65;
+        white-space: pre-wrap;
+    }
+
+    .dark .sfpe-notes {
+        color: #cbd5e1;
+    }
+
+    .sfpe-timeline-card {
+        margin-bottom: 72px;
+    }
+
+    .sfpe-timeline-list {
+        position: relative;
+        max-height: 520px;
+        overflow-y: auto;
+        padding: 24px 26px 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .sfpe-timeline-row {
+        position: relative;
+        display: grid;
+        grid-template-columns: 64px 1fr;
+        gap: 16px;
+    }
+
+    .sfpe-timeline-marker {
+        position: relative;
+        display: flex;
+        justify-content: center;
+    }
+
+    .sfpe-timeline-marker::after {
+        content: "";
+        position: absolute;
+        top: 58px;
+        bottom: -18px;
+        width: 3px;
+        border-radius: 999px;
+        background: #dbeafe;
+    }
+
+    .sfpe-timeline-row:last-child .sfpe-timeline-marker::after {
+        display: none;
+    }
+
+    .sfpe-timeline-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Material Symbols Rounded';
+        font-size: 25px;
+        font-weight: 650;
+        color: #1d4ed8;
+        background: #e0f2fe;
+        border: 1px solid #bfdbfe;
+        box-shadow: 0 12px 28px rgba(37,99,235,.12);
+        z-index: 1;
+    }
+
+    .sfpe-timeline-body {
+        border-radius: 22px;
+        padding: 18px;
+        background: #ffffff;
+        border: 1px solid rgba(15,23,42,.08);
+        box-shadow: 0 12px 28px rgba(15,23,42,.045);
+    }
+
+    .dark .sfpe-timeline-body {
+        background: rgba(15,23,42,.58);
+        border-color: rgba(148,163,184,.16);
+    }
+
+    .sfpe-timeline-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .sfpe-timeline-title {
+        color: #0f172a;
+        font-size: 16px;
+        font-weight: 950;
+        letter-spacing: -.03em;
+    }
+
+    .dark .sfpe-timeline-title {
+        color: #ffffff;
+    }
+
+    .sfpe-timeline-date {
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 900;
+    }
+
+    .sfpe-timeline-subtitle {
+        margin-top: 8px;
+        color: #475569;
+        line-height: 1.6;
+        font-weight: 700;
+    }
+
+    .dark .sfpe-timeline-subtitle {
+        color: #cbd5e1;
+    }
+
+    .sfpe-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    @media (max-width: 1100px) {
+        .sfpe-grid,
+        .sfpe-stats {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 720px) {
+        .sfpe-hero {
+            padding: 22px;
+            border-radius: 26px;
+        }
+
+        .sfpe-grid,
+        .sfpe-stats {
+            grid-template-columns: 1fr;
+        }
+
+        .sfpe-grid,
+        .sfpe-card-head,
+        .sfpe-request-list,
+        .sfpe-timeline-list {
+            padding-left: 18px;
+            padding-right: 18px;
+        }
+
+        .sfpe-timeline-row {
+            grid-template-columns: 48px 1fr;
+        }
+
+        .sfpe-timeline-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 14px;
+            font-size: 22px;
+        }
+    }
+
+    @media print {
+        .fi-sidebar,
+        .fi-topbar,
+        .sfpe-hero-actions,
+        .sfpe-action,
+        button {
+            display: none !important;
+        }
+
+        .sfpe-timeline-list {
+            max-height: none !important;
+            overflow: visible !important;
+        }
+    }
+</style>
+
+<div class="sfpe-page">
+    <section class="sfpe-card" data-sfpe-fixed-order="candidate-details">
+        <div class="sfpe-card-head">
+            <h2 class="sfpe-card-title">
+                <span class="sfpe-icon">assignment_ind</span>
+                Candidate Details
+            </h2>
+            <span class="sfpe-chip {{ $statusTone }}">{{ $statusLabel }}</span>
+        </div>
+
+        <div class="sfpe-grid">
+            <div class="sfpe-item">
+                <div class="sfpe-label">Full Name</div>
+                <div class="sfpe-value">{{ $candidateName }}</div>
+            </div>
+
+            <div class="sfpe-item">
+                <div class="sfpe-label">Position</div>
+                <div class="sfpe-value">{{ $position }}</div>
+            </div>
+
+            <div class="sfpe-item">
+                <div class="sfpe-label">Project</div>
+                <div class="sfpe-value">{{ $project }}</div>
+            </div>
+
+            <div class="sfpe-item">
+                <div class="sfpe-label">Client</div>
+                <div class="sfpe-value">{{ $client }}</div>
+            </div>
+
+            <div class="sfpe-item">
+                <div class="sfpe-label">Email</div>
+                <div class="sfpe-value">{{ $candidateEmail }}</div>
+            </div>
+
+            <div class="sfpe-item">
+                <div class="sfpe-label">Phone</div>
+                <div class="sfpe-value">{{ $candidatePhone }}</div>
+            </div>
+
+            <div class="sfpe-item">
+                <div class="sfpe-label">Employee Code</div>
+                <div class="sfpe-value">{{ $employeeCode }}</div>
+            </div>
+
+            <div class="sfpe-item">
+                <div class="sfpe-label">Assigned HR / Officer</div>
+                <div class="sfpe-value">{{ $record->assignedHrUser?->name ?: '-' }}</div>
+            </div>
+
+            <div class="sfpe-item">
+                <div class="sfpe-label">Created At</div>
+                <div class="sfpe-value">{{ $createdAt }}</div>
+            </div>
+        </div>
+    </section>
+
+    
+
+
+
+    
+
+
+
+<style id="sfpe-candidate-files-final-style">
+    .sfpe-candidate-files-card {
+        width: min(100%, 1280px);
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .sfpe-count-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 36px;
+        padding: 0 14px;
+        border-radius: 999px;
+        background: #e0f2fe;
+        color: #0f172a;
+        border: 1px solid #bfdbfe;
+        font-size: 12px;
+        font-weight: 950;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+    }
+
+    .sfpe-candidate-files-grid {
+        padding: 24px 26px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .sfpe-candidate-file-item {
+        min-height: 174px;
+        border-radius: 24px;
+        padding: 20px;
+        background: rgba(248, 250, 252, .9);
+        border: 1px solid rgba(15, 23, 42, .08);
+        box-shadow: 0 12px 28px rgba(15, 23, 42, .04);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .sfpe-file-category {
+        color: #64748b;
+        font-size: 11px;
+        line-height: 1.1;
+        font-weight: 950;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        margin-bottom: 12px;
+    }
+
+    .sfpe-file-title {
+        color: #0f172a;
+        font-size: 17px;
+        line-height: 1.35;
+        font-weight: 950;
+        overflow-wrap: anywhere;
+    }
+
+    .sfpe-file-source {
+        margin-top: 14px;
+        color: #475569;
+        font-size: 13px;
+        font-weight: 850;
+    }
+
+    .sfpe-file-open-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: fit-content;
+        margin-top: 18px;
+        min-height: 40px;
+        padding: 0 16px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #e0f2fe, #dbeafe);
+        color: #1d4ed8 !important;
+        text-decoration: none !important;
+        border: 1px solid rgba(37, 99, 235, .14);
+        font-size: 12px;
+        font-weight: 950;
+    }
+
+    .dark .sfpe-candidate-file-item {
+        background: rgba(15, 23, 42, .58);
+        border-color: rgba(148, 163, 184, .16);
+    }
+
+    .dark .sfpe-file-title {
+        color: #ffffff;
+    }
+
+    .dark .sfpe-file-source {
+        color: #cbd5e1;
+    }
+
+    @media (max-width: 1100px) {
+        .sfpe-candidate-files-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 720px) {
+        .sfpe-candidate-files-grid {
+            grid-template-columns: 1fr;
+            padding: 18px;
+        }
+    }
+</style>
+
+
+    
+
+
+
+    
+
+
+<style id="sfpe-force-dark-header-final">
+    /*
+     | FINAL Pre-Employment dark header restore.
+     | CSS only. Does not touch candidate details, files, requests, expenses, or timeline logic.
+     */
+
+    .sfpe-page-header-restored,
+    .sfpe-employment-hero,
+    .pe-hero,
+    .pe-header,
+    .pe-premium-header,
+    .pe-page-hero {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: min(100%, 1280px) !important;
+        margin: 0 auto 28px auto !important;
+        padding: 30px !important;
+        border-radius: 34px !important;
+        overflow: hidden !important;
+        position: relative !important;
+        z-index: 5 !important;
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .22), transparent 34%),
+            radial-gradient(circle at bottom left, rgba(37, 99, 235, .24), transparent 38%),
+            linear-gradient(135deg, #07111f 0%, #0f172a 48%, #123057 100%) !important;
+        border: 1px solid rgba(148, 163, 184, .18) !important;
+        box-shadow: 0 24px 65px rgba(15, 23, 42, .26) !important;
+        color: #ffffff !important;
+    }
+
+    .sfpe-page-header-restored *,
+    .sfpe-employment-hero *,
+    .pe-hero *,
+    .pe-header *,
+    .pe-premium-header *,
+    .pe-page-hero * {
+        color: inherit;
+    }
+
+    .sfpe-page-title,
+    .sfpe-hero-title,
+    .pe-title,
+    .pe-hero-title,
+    .pe-header-title,
+    .sfpe-page-header-restored h1,
+    .sfpe-employment-hero h1,
+    .pe-hero h1,
+    .pe-header h1 {
+        color: #ffffff !important;
+        font-weight: 950 !important;
+        letter-spacing: -.055em !important;
+        line-height: .98 !important;
+        text-shadow: 0 10px 35px rgba(0, 0, 0, .18) !important;
+    }
+
+    .sfpe-page-subtitle,
+    .sfpe-hero-subtitle,
+    .pe-subtitle,
+    .pe-breadcrumb,
+    .sfpe-kicker,
+    .sfpe-page-breadcrumbs,
+    .pe-hero p,
+    .pe-header p {
+        color: rgba(226, 232, 240, .86) !important;
+    }
+
+    .sfpe-force-action-bar,
+    .sfpe-actions,
+    .pe-header-actions,
+    .pe-hero-actions {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 10px !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+    }
+
+    .sfpe-force-btn,
+    .sfpe-actions a,
+    .sfpe-actions button,
+    .pe-header-actions a,
+    .pe-header-actions button,
+    .pe-hero-actions a,
+    .pe-hero-actions button {
+        min-height: 46px !important;
+        border-radius: 999px !important;
+        padding: 0 18px !important;
+        font-weight: 900 !important;
+        text-decoration: none !important;
+        box-shadow: 0 12px 28px rgba(0, 0, 0, .18) !important;
+    }
+
+    .dark .sfpe-page-header-restored,
+    .dark .sfpe-employment-hero,
+    .dark .pe-hero,
+    .dark .pe-header,
+    .dark .pe-premium-header,
+    .dark .pe-page-hero {
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .24), transparent 34%),
+            radial-gradient(circle at bottom left, rgba(37, 99, 235, .28), transparent 38%),
+            linear-gradient(135deg, #020617 0%, #0f172a 52%, #123057 100%) !important;
+        color: #ffffff !important;
+    }
+
+    @media (max-width: 720px) {
+        .sfpe-page-header-restored,
+        .sfpe-employment-hero,
+        .pe-hero,
+        .pe-header,
+        .pe-premium-header,
+        .pe-page-hero {
+            padding: 22px !important;
+            border-radius: 26px !important;
+        }
+
+        .sfpe-force-action-bar,
+        .sfpe-actions,
+        .pe-header-actions,
+        .pe-hero-actions {
+            justify-content: flex-start !important;
+        }
+    }
+</style>
+
+
+
+<style id="sfpe-real-header-force-style">
+    /*
+     | Real Pre-Employment header.
+     | This creates a visible header even if old header blocks were hidden/removed.
+     */
+
+    .sfpe-real-header-force {
+        width: min(100%, 1280px) !important;
+        margin: 0 auto 28px auto !important;
+        padding: 30px !important;
+        border-radius: 34px !important;
+        position: relative !important;
+        z-index: 999 !important;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        overflow: hidden !important;
+        color: #ffffff !important;
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .24), transparent 34%),
+            radial-gradient(circle at bottom left, rgba(37, 99, 235, .28), transparent 38%),
+            linear-gradient(135deg, #06101f 0%, #0f172a 52%, #123057 100%) !important;
+        border: 1px solid rgba(148, 163, 184, .18) !important;
+        box-shadow: 0 24px 65px rgba(15, 23, 42, .26) !important;
+    }
+
+    .sfpe-real-header-force,
+    .sfpe-real-header-force * {
+        box-sizing: border-box !important;
+    }
+
+    .sfpe-real-header-main {
+        display: flex !important;
+        align-items: flex-start !important;
+        justify-content: space-between !important;
+        gap: 24px !important;
+        flex-wrap: wrap !important;
+    }
+
+    .sfpe-real-kicker {
+        margin-bottom: 12px !important;
+        color: rgba(226, 232, 240, .82) !important;
+        font-size: 13px !important;
+        font-weight: 900 !important;
+        letter-spacing: .08em !important;
+        text-transform: uppercase !important;
+    }
+
+    .sfpe-real-title {
+        margin: 0 !important;
+        color: #ffffff !important;
+        font-size: clamp(36px, 5vw, 68px) !important;
+        line-height: .95 !important;
+        font-weight: 950 !important;
+        letter-spacing: -.065em !important;
+        text-shadow: 0 12px 35px rgba(0, 0, 0, .22) !important;
+    }
+
+    .sfpe-real-subtitle {
+        max-width: 760px !important;
+        margin: 16px 0 0 !important;
+        color: rgba(226, 232, 240, .84) !important;
+        font-size: 15px !important;
+        line-height: 1.7 !important;
+        font-weight: 650 !important;
+    }
+
+    .sfpe-real-status-stack {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 10px !important;
+        justify-content: flex-end !important;
+        align-items: center !important;
+    }
+
+    .sfpe-real-status-pill,
+    .sfpe-real-code-pill {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-height: 42px !important;
+        padding: 0 16px !important;
+        border-radius: 999px !important;
+        color: #ffffff !important;
+        background: rgba(255, 255, 255, .12) !important;
+        border: 1px solid rgba(255, 255, 255, .18) !important;
+        font-size: 12px !important;
+        font-weight: 950 !important;
+        letter-spacing: .07em !important;
+        text-transform: uppercase !important;
+        backdrop-filter: blur(14px) !important;
+    }
+
+    .sfpe-real-code-pill {
+        background: rgba(34, 211, 238, .16) !important;
+        border-color: rgba(34, 211, 238, .28) !important;
+    }
+
+    .sfpe-real-action-row {
+        margin-top: 24px !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 10px !important;
+        align-items: center !important;
+    }
+
+    .sfpe-real-btn {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-height: 48px !important;
+        padding: 0 18px !important;
+        border-radius: 999px !important;
+        border: 0 !important;
+        text-decoration: none !important;
+        font-size: 13px !important;
+        font-weight: 950 !important;
+        cursor: pointer !important;
+        box-shadow: 0 14px 30px rgba(0, 0, 0, .18) !important;
+        white-space: nowrap !important;
+    }
+
+    .sfpe-real-btn-light {
+        background: #ffffff !important;
+        color: #0f172a !important;
+    }
+
+    .sfpe-real-btn-green {
+        background: linear-gradient(135deg, #16a34a, #15803d) !important;
+        color: #ffffff !important;
+    }
+
+    .sfpe-real-btn-orange {
+        background: linear-gradient(135deg, #f59e0b, #f97316) !important;
+        color: #111827 !important;
+    }
+
+    .sfpe-real-btn-blue {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+        color: #ffffff !important;
+    }
+
+    .sfpe-real-btn-red {
+        background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+        color: #ffffff !important;
+    }
+
+    .sfpe-real-btn-purple {
+        background: linear-gradient(135deg, #7c3aed, #6d28d9) !important;
+        color: #ffffff !important;
+    }
+
+    .sfpe-real-btn-teal {
+        background: linear-gradient(135deg, #14b8a6, #0f766e) !important;
+        color: #ffffff !important;
+    }
+
+    .sfpe-real-btn-dark {
+        background: linear-gradient(135deg, #111827, #020617) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, .14) !important;
+    }
+
+    @media (max-width: 720px) {
+        .sfpe-real-header-force {
+            padding: 22px !important;
+            border-radius: 26px !important;
+        }
+
+        .sfpe-real-status-stack {
+            justify-content: flex-start !important;
+        }
+
+        .sfpe-real-btn {
+            width: 100% !important;
+        }
+    }
+</style>
+
+
+
+<style id="sfpe-employment-like-compact-body-v1">
+    /*
+     | Sada Fezzan ERP — Pre-Employment compact body polish
+     | Goal: make Pre-Employment body closer to Employment profile blocks.
+     | Does not touch the dark hero/header.
+     */
+
+    .sfpe-real-hero {
+        margin-bottom: 22px !important;
+    }
+
+    /* Main page cards: smaller, cleaner, Employment-like */
+    .pe-card,
+    .sfpe-candidate-files-card,
+    .sfpe-clean-flow-files-card,
+    section[class*="candidate-files"],
+    section[class*="expenses"],
+    section[class*="finance"] {
+        width: min(100%, 1120px) !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        border-radius: 26px !important;
+        border: 1px solid rgba(15, 23, 42, .075) !important;
+        box-shadow: 0 18px 44px rgba(15, 23, 42, .075) !important;
+        overflow: hidden !important;
+    }
+
+    .dark .pe-card,
+    .dark .sfpe-candidate-files-card,
+    .dark .sfpe-clean-flow-files-card {
+        border-color: rgba(148, 163, 184, .16) !important;
+        box-shadow: 0 18px 44px rgba(0, 0, 0, .22) !important;
+    }
+
+    /* Card headers: compact like Employment */
+    .pe-card-header,
+    .sfpe-md-card-head,
+    .sfpe-card-header {
+        min-height: 70px !important;
+        padding: 18px 22px !important;
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .08), transparent 34%),
+            linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important;
+        border-bottom: 1px solid rgba(15, 23, 42, .07) !important;
+    }
+
+    .dark .pe-card-header,
+    .dark .sfpe-md-card-head,
+    .dark .sfpe-card-header {
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .11), transparent 34%),
+            rgba(15, 23, 42, .50) !important;
+        border-bottom-color: rgba(148, 163, 184, .14) !important;
+    }
+
+    .pe-card-title,
+    .sfpe-md-title,
+    .sfpe-card-title {
+        font-size: 20px !important;
+        line-height: 1.15 !important;
+        letter-spacing: -.045em !important;
+        font-weight: 950 !important;
+        color: #0f172a !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+    }
+
+    .dark .pe-card-title,
+    .dark .sfpe-md-title,
+    .dark .sfpe-card-title {
+        color: #ffffff !important;
+    }
+
+    .pe-card-title .material-symbols-rounded,
+    .sfpe-md-icon,
+    .sfpe-card-title .material-symbols-rounded {
+        font-size: 24px !important;
+        color: #2563eb !important;
+    }
+
+    .dark .pe-card-title .material-symbols-rounded,
+    .dark .sfpe-md-icon,
+    .dark .sfpe-card-title .material-symbols-rounded {
+        color: #22d3ee !important;
+    }
+
+    /* Grid items: reduce huge boxes */
+    .pe-grid,
+    .sfpe-grid,
+    .sfpe-md-grid,
+    .sfpe-candidate-files-grid {
+        padding: 18px 22px !important;
+        gap: 12px !important;
+    }
+
+    .pe-grid,
+    .sfpe-grid,
+    .sfpe-md-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+
+    .pe-info-box,
+    .pe-stat,
+    .pe-file-card,
+    .sfpe-info-item,
+    .sfpe-md-item,
+    .sfpe-candidate-file-item,
+    .sfpe-expense-card,
+    .sfpe-file-card,
+    .sfpe-request-card,
+    .sfpe-answer-item {
+        min-height: auto !important;
+        border-radius: 20px !important;
+        padding: 16px 18px !important;
+        background: rgba(248, 250, 252, .82) !important;
+        border: 1px solid rgba(15, 23, 42, .07) !important;
+        box-shadow: none !important;
+    }
+
+    .dark .pe-info-box,
+    .dark .pe-stat,
+    .dark .pe-file-card,
+    .dark .sfpe-info-item,
+    .dark .sfpe-md-item,
+    .dark .sfpe-candidate-file-item,
+    .dark .sfpe-expense-card,
+    .dark .sfpe-file-card,
+    .dark .sfpe-request-card,
+    .dark .sfpe-answer-item {
+        background: rgba(15, 23, 42, .58) !important;
+        border-color: rgba(148, 163, 184, .15) !important;
+    }
+
+    .pe-label,
+    .sfpe-label,
+    .sfpe-md-label,
+    .sfpe-file-category {
+        font-size: 11px !important;
+        line-height: 1.15 !important;
+        letter-spacing: .12em !important;
+        text-transform: uppercase !important;
+        color: #64748b !important;
+        font-weight: 950 !important;
+        margin-bottom: 8px !important;
+    }
+
+    .dark .pe-label,
+    .dark .sfpe-label,
+    .dark .sfpe-md-label,
+    .dark .sfpe-file-category {
+        color: #94a3b8 !important;
+    }
+
+    .pe-value,
+    .sfpe-value,
+    .sfpe-md-value,
+    .sfpe-file-title {
+        font-size: 15px !important;
+        line-height: 1.35 !important;
+        font-weight: 900 !important;
+        color: #0f172a !important;
+        overflow-wrap: anywhere !important;
+    }
+
+    .dark .pe-value,
+    .dark .sfpe-value,
+    .dark .sfpe-md-value,
+    .dark .sfpe-file-title {
+        color: #ffffff !important;
+    }
+
+    /* Finance Profile specifically: compact and placed after Candidate Details by JS */
+    .pe-card:has(.pe-card-title),
+    .pe-card:has(.sfpe-md-title) {
+        scroll-margin-top: 110px;
+    }
+
+    /* Candidate Files: same feeling as Employment latest files card, not huge */
+    .sfpe-candidate-files-card .sfpe-candidate-files-grid,
+    .sfpe-clean-flow-files-card .sfpe-candidate-files-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+
+    .sfpe-candidate-file-item {
+        min-height: 132px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+    }
+
+    .sfpe-file-source {
+        margin-top: 6px !important;
+        color: #64748b !important;
+        font-size: 12px !important;
+        font-weight: 800 !important;
+    }
+
+    .sfpe-file-open-btn,
+    .sfpe-file-link,
+    .pe-open-btn,
+    a[class*="open"] {
+        min-height: 34px !important;
+        width: fit-content !important;
+        padding: 0 12px !important;
+        border-radius: 999px !important;
+        font-size: 11px !important;
+        font-weight: 950 !important;
+        background: #e0f2fe !important;
+        color: #1d4ed8 !important;
+        border: 1px solid rgba(37, 99, 235, .14) !important;
+        text-decoration: none !important;
+    }
+
+    /* Expenses: stop giant cards */
+    .sfpe-expenses-grid,
+    .pe-expenses-grid,
+    .sfpe-expense-list,
+    .pe-card:has(.pe-card-title) .sfpe-expenses-grid {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 12px !important;
+        padding: 18px 22px !important;
+    }
+
+    .sfpe-expense-card,
+    .pe-expense-card,
+    .pe-card:has(.pe-card-title) .sfpe-expense-card {
+        min-height: 142px !important;
+        padding: 16px 18px !important;
+        border-radius: 20px !important;
+        display: grid !important;
+        gap: 8px !important;
+        align-content: start !important;
+    }
+
+    .sfpe-expense-card * ,
+    .pe-expense-card * {
+        line-height: 1.35 !important;
+    }
+
+    .sfpe-expense-card .amount,
+    .pe-expense-card .amount,
+    .sfpe-expense-amount {
+        font-size: 16px !important;
+        font-weight: 950 !important;
+        margin: 4px 0 !important;
+    }
+
+    /* Header buttons inside cards, like Add Expense */
+    .pe-card-header button,
+    .pe-card-header a,
+    .sfpe-card-header button,
+    .sfpe-card-header a {
+        min-height: 38px !important;
+        padding: 0 15px !important;
+        border-radius: 999px !important;
+        font-size: 12px !important;
+        font-weight: 950 !important;
+    }
+
+    /* Candidate details card stays clean but smaller */
+    .pe-card:first-of-type .pe-grid,
+    .sfpe-candidate-details .pe-grid {
+        padding: 18px 22px !important;
+    }
+
+    /* Hide duplicated old file block only if the new Candidate Files block exists */
+    body.sfpe-has-clean-candidate-files section[data-sfpe-old-files-block="1"] {
+        display: none !important;
+    }
+
+    @media (max-width: 1180px) {
+        .pe-grid,
+        .sfpe-grid,
+        .sfpe-md-grid,
+        .sfpe-candidate-files-card .sfpe-candidate-files-grid,
+        .sfpe-clean-flow-files-card .sfpe-candidate-files-grid,
+        .sfpe-expenses-grid,
+        .pe-expenses-grid,
+        .sfpe-expense-list {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+    }
+
+    @media (max-width: 760px) {
+        .pe-card,
+        .sfpe-candidate-files-card,
+        .sfpe-clean-flow-files-card {
+            width: min(100%, calc(100vw - 24px)) !important;
+            border-radius: 22px !important;
+        }
+
+        .pe-grid,
+        .sfpe-grid,
+        .sfpe-md-grid,
+        .sfpe-candidate-files-card .sfpe-candidate-files-grid,
+        .sfpe-clean-flow-files-card .sfpe-candidate-files-grid,
+        .sfpe-expenses-grid,
+        .pe-expenses-grid,
+        .sfpe-expense-list {
+            grid-template-columns: 1fr !important;
+            padding: 14px !important;
+        }
+
+        .pe-card-header,
+        .sfpe-md-card-head,
+        .sfpe-card-header {
+            padding: 16px !important;
+        }
+    }
+</style>
+<style id="sfpe-force-employment-profile-compact-v2">
+    /*
+     | FINAL FORCE LAYER
+     | Makes Pre-Employment body blocks closer to Employment profile style.
+     | Does not remove the dark hero/header.
+     */
+
+    :root {
+        --sfpe-compact-width: 980px;
+    }
+
+    /* Page content width */
+    .fi-main,
+    .fi-page,
+    .fi-page-content,
+    main.fi-main {
+        --max-width: 1180px !important;
+    }
+
+    /* Keep every main block compact */
+    .fi-page-content > *,
+    .fi-main section,
+    .pe-card,
+    .sfpe-md-card,
+    .sfpe-card,
+    .sfpe-candidate-files-card,
+    .sfpe-clean-flow-files-card {
+        max-width: var(--sfpe-compact-width) !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+
+    /* Main profile blocks */
+    .pe-card,
+    .sfpe-md-card,
+    .sfpe-card,
+    .sfpe-candidate-files-card,
+    .sfpe-clean-flow-files-card {
+        border-radius: 22px !important;
+        overflow: hidden !important;
+        background: rgba(255,255,255,.96) !important;
+        border: 1px solid rgba(15,23,42,.07) !important;
+        box-shadow: 0 14px 34px rgba(15,23,42,.07) !important;
+        margin-top: 16px !important;
+        margin-bottom: 16px !important;
+    }
+
+    .dark .pe-card,
+    .dark .sfpe-md-card,
+    .dark .sfpe-card,
+    .dark .sfpe-candidate-files-card,
+    .dark .sfpe-clean-flow-files-card {
+        background: rgba(15,23,42,.78) !important;
+        border-color: rgba(148,163,184,.16) !important;
+        box-shadow: 0 14px 34px rgba(0,0,0,.24) !important;
+    }
+
+    /* Card headers */
+    .pe-card-header,
+    .sfpe-md-card-head,
+    .sfpe-card-header {
+        min-height: 58px !important;
+        padding: 14px 18px !important;
+        border-bottom: 1px solid rgba(15,23,42,.065) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 12px !important;
+        background:
+            radial-gradient(circle at top right, rgba(34,211,238,.07), transparent 32%),
+            linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important;
+    }
+
+    .pe-card-title,
+    .sfpe-md-title,
+    .sfpe-card-title {
+        font-size: 18px !important;
+        line-height: 1.15 !important;
+        font-weight: 950 !important;
+        letter-spacing: -.04em !important;
+        margin: 0 !important;
+        color: #0f172a !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+    }
+
+    .pe-card-title .material-symbols-rounded,
+    .sfpe-md-icon,
+    .sfpe-card-title .material-symbols-rounded {
+        font-size: 22px !important;
+        width: 22px !important;
+        height: 22px !important;
+        color: #2563eb !important;
+    }
+
+    /* Force text icon names to become proper icon style */
+    .material-symbols-rounded {
+        font-family: 'Material Symbols Rounded' !important;
+        font-weight: normal !important;
+        font-style: normal !important;
+        font-size: 22px !important;
+        line-height: 1 !important;
+        letter-spacing: normal !important;
+        text-transform: none !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        white-space: nowrap !important;
+        word-wrap: normal !important;
+        direction: ltr !important;
+        -webkit-font-feature-settings: 'liga' !important;
+        -webkit-font-smoothing: antialiased !important;
+        font-feature-settings: 'liga' !important;
+    }
+
+    /* Pills / counters */
+    .sfpe-count-pill,
+    .pe-pill,
+    .sfpe-pill,
+    .sfpe-status-pill,
+    .pe-card-header > span,
+    .pe-card-header > a,
+    .pe-card-header > button {
+        min-height: 34px !important;
+        padding: 0 13px !important;
+        border-radius: 999px !important;
+        font-size: 11px !important;
+        line-height: 1 !important;
+        font-weight: 950 !important;
+        letter-spacing: .04em !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    /* Body grid */
+    .pe-grid,
+    .sfpe-grid,
+    .sfpe-md-grid,
+    .sfpe-candidate-files-grid,
+    .sfpe-clean-flow-files-grid {
+        padding: 16px 18px !important;
+        gap: 10px !important;
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+
+    /* Any body direct wrapper */
+    .pe-card-body,
+    .sfpe-card-body,
+    .sfpe-md-card-body {
+        padding: 16px 18px !important;
+    }
+
+    /* Inner small boxes */
+    .pe-grid > *,
+    .sfpe-grid > *,
+    .sfpe-md-grid > *,
+    .pe-info-box,
+    .pe-stat,
+    .sfpe-md-item,
+    .sfpe-info-item,
+    .sfpe-answer-item,
+    .sfpe-candidate-file-item,
+    .sfpe-file-card,
+    .pe-file-card,
+    .sfpe-request-item,
+    .sfpe-request-card {
+        min-height: 92px !important;
+        height: auto !important;
+        border-radius: 16px !important;
+        padding: 13px 14px !important;
+        background: rgba(248,250,252,.86) !important;
+        border: 1px solid rgba(15,23,42,.07) !important;
+        box-shadow: none !important;
+    }
+
+    .dark .pe-grid > *,
+    .dark .sfpe-grid > *,
+    .dark .sfpe-md-grid > *,
+    .dark .pe-info-box,
+    .dark .pe-stat,
+    .dark .sfpe-md-item,
+    .dark .sfpe-info-item,
+    .dark .sfpe-answer-item,
+    .dark .sfpe-candidate-file-item,
+    .dark .sfpe-file-card,
+    .dark .pe-file-card,
+    .dark .sfpe-request-item,
+    .dark .sfpe-request-card {
+        background: rgba(15,23,42,.58) !important;
+        border-color: rgba(148,163,184,.14) !important;
+    }
+
+    /* Labels and values */
+    .pe-label,
+    .sfpe-label,
+    .sfpe-md-label,
+    .sfpe-file-category,
+    .sfpe-expense-category,
+    .sfpe-card-label {
+        margin: 0 0 6px !important;
+        font-size: 10px !important;
+        line-height: 1.1 !important;
+        letter-spacing: .11em !important;
+        text-transform: uppercase !important;
+        color: #64748b !important;
+        font-weight: 950 !important;
+    }
+
+    .pe-value,
+    .sfpe-value,
+    .sfpe-md-value,
+    .sfpe-file-title,
+    .sfpe-expense-title,
+    .sfpe-card-value {
+        font-size: 14px !important;
+        line-height: 1.3 !important;
+        font-weight: 900 !important;
+        color: #0f172a !important;
+        margin: 0 !important;
+    }
+
+    .dark .pe-card-title,
+    .dark .sfpe-md-title,
+    .dark .sfpe-card-title,
+    .dark .pe-value,
+    .dark .sfpe-value,
+    .dark .sfpe-md-value,
+    .dark .sfpe-file-title,
+    .dark .sfpe-expense-title,
+    .dark .sfpe-card-value {
+        color: #ffffff !important;
+    }
+
+    .dark .pe-label,
+    .dark .sfpe-label,
+    .dark .sfpe-md-label,
+    .dark .sfpe-file-category,
+    .dark .sfpe-expense-category,
+    .dark .sfpe-card-label {
+        color: #94a3b8 !important;
+    }
+
+    /* Candidate Files specifically */
+    .sfpe-candidate-files-card,
+    .sfpe-clean-flow-files-card {
+        margin-top: 16px !important;
+    }
+
+    .sfpe-candidate-files-card .sfpe-candidate-files-grid,
+    .sfpe-clean-flow-files-card .sfpe-candidate-files-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+
+    .sfpe-candidate-file-item {
+        min-height: 118px !important;
+        display: grid !important;
+        align-content: space-between !important;
+        gap: 7px !important;
+    }
+
+    .sfpe-file-source {
+        font-size: 11px !important;
+        line-height: 1.25 !important;
+        color: #64748b !important;
+        font-weight: 800 !important;
+        margin: 0 !important;
+    }
+
+    .sfpe-file-open-btn,
+    .sfpe-file-link,
+    .pe-open-btn,
+    a.sfpe-file-open-btn {
+        min-height: 30px !important;
+        width: fit-content !important;
+        padding: 0 11px !important;
+        border-radius: 999px !important;
+        font-size: 10px !important;
+        font-weight: 950 !important;
+        background: #e0f2fe !important;
+        color: #1d4ed8 !important;
+        border: 1px solid rgba(37,99,235,.16) !important;
+        text-decoration: none !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    /* Finance profile must be compact */
+    .pe-card:has(.pe-card-title),
+    .sfpe-md-card:has(.sfpe-md-title) {
+        scroll-margin-top: 120px !important;
+    }
+
+    /* Expenses compact cards */
+    .sfpe-expenses-grid,
+    .pe-expenses-grid,
+    .sfpe-expense-list,
+    .pe-card-body:has(.sfpe-expense-card),
+    .pe-card-body:has(.pe-expense-card) {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+        padding: 16px 18px !important;
+    }
+
+    .sfpe-expense-card,
+    .pe-expense-card,
+    [class*="expense-card"] {
+        min-height: 116px !important;
+        height: auto !important;
+        border-radius: 16px !important;
+        padding: 13px 14px !important;
+        display: grid !important;
+        align-content: start !important;
+        gap: 7px !important;
+        background: rgba(248,250,252,.86) !important;
+        border: 1px solid rgba(15,23,42,.07) !important;
+        box-shadow: none !important;
+    }
+
+    .sfpe-expense-card > *,
+    .pe-expense-card > *,
+    [class*="expense-card"] > * {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        line-height: 1.25 !important;
+    }
+
+    .sfpe-expense-amount,
+    .pe-expense-amount,
+    .amount,
+    [class*="expense"] .amount {
+        font-size: 15px !important;
+        font-weight: 950 !important;
+        color: #234b74 !important;
+    }
+
+    /* Timeline: smaller and scrollable */
+    .sfpe-timeline-print-area,
+    section:has(.pe-timeline),
+    section:has(.sfpe-thread-timeline) {
+        max-width: var(--sfpe-compact-width) !important;
+    }
+
+    .pe-timeline,
+    .sfpe-thread-timeline,
+    .sfpe-candidate-timeline-list,
+    .sfpe-request-timeline-list {
+        max-height: 540px !important;
+        overflow-y: auto !important;
+        padding: 16px 18px !important;
+    }
+
+    .pe-timeline-item,
+    .sfpe-thread-row,
+    .sfpe-candidate-timeline-row,
+    .sfpe-request-timeline-row {
+        min-height: 84px !important;
+        border-radius: 16px !important;
+        padding: 13px 14px !important;
+    }
+
+    /* Reduce spacing between all sections */
+    .fi-page-content {
+        gap: 16px !important;
+    }
+
+    .fi-page-content > div,
+    .fi-page-content > section {
+        margin-top: 0 !important;
+    }
+
+    /* Responsive */
+    @media (max-width: 1100px) {
+        :root {
+            --sfpe-compact-width: 94vw;
+        }
+
+        .pe-grid,
+        .sfpe-grid,
+        .sfpe-md-grid,
+        .sfpe-candidate-files-grid,
+        .sfpe-clean-flow-files-grid,
+        .sfpe-expenses-grid,
+        .pe-expenses-grid,
+        .sfpe-expense-list {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+    }
+
+    @media (max-width: 720px) {
+        .pe-grid,
+        .sfpe-grid,
+        .sfpe-md-grid,
+        .sfpe-candidate-files-grid,
+        .sfpe-clean-flow-files-grid,
+        .sfpe-expenses-grid,
+        .pe-expenses-grid,
+        .sfpe-expense-list {
+            grid-template-columns: 1fr !important;
+            padding: 14px !important;
+        }
+
+        .pe-card-header,
+        .sfpe-md-card-head,
+        .sfpe-card-header {
+            padding: 14px !important;
+        }
+    }
+</style>
+
+
+<style id="sfpe-employment-like-layout-final-v1">
+    /*
+     | Sada Fezzan ERP — Pre-Employment employment-like final layout
+     | Goal:
+     | - Same visual width as Employment profile.
+     | - Hero must be the first main block.
+     | - Candidate Details / Finance / Status / Files / Requests / Expenses use one consistent wide container.
+     | - Cards become compact, not huge separated narrow blocks.
+     */
+
+    :root {
+        --sfpe-page-width: 1180px;
+        --sfpe-card-radius: 28px;
+        --sfpe-blue: #2563eb;
+        --sfpe-cyan: #22d3ee;
+        --sfpe-title: #234b74;
+        --sfpe-dark: #071424;
+    }
+
+    /* Main page content width */
+    .fi-main,
+    .fi-page,
+    .fi-page > section,
+    .fi-page-content,
+    .fi-page-content > div,
+    .fi-resource-view-record-page {
+        max-width: none !important;
+    }
+
+    /* Force all direct visual blocks to share the same center width */
+    .sfpe-employment-hero,
+    .sfpe-page-header-restored,
+    .pe-hero,
+    .pe-card,
+    .sfpe-clean-flow-files-card,
+    .sfpe-candidate-files-card,
+    .sfpe-ja-requests-card,
+    .sfpe-ja-timeline-card,
+    .sfpe-timeline-print-area,
+    section[class*="sfpe"],
+    section[class*="pe-card"] {
+        width: min(100%, var(--sfpe-page-width)) !important;
+        max-width: var(--sfpe-page-width) !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Hero should be at top and same width as Employment */
+    .sfpe-employment-hero {
+        order: -100 !important;
+        margin-top: 22px !important;
+        margin-bottom: 26px !important;
+        padding: 34px 36px !important;
+        border-radius: 30px !important;
+        min-height: auto !important;
+        overflow: visible !important;
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .20), transparent 36%),
+            linear-gradient(135deg, #071424 0%, #0b1b32 48%, #0f4c5c 100%) !important;
+        box-shadow: 0 24px 55px rgba(15, 23, 42, .22) !important;
+    }
+
+    .sfpe-employment-hero h1,
+    .sfpe-employment-hero .sfpe-page-title,
+    .sfpe-employment-hero .sfpe-hero-title,
+    .sfpe-employment-hero [class*="title"] {
+        font-size: clamp(42px, 5vw, 72px) !important;
+        line-height: .92 !important;
+        letter-spacing: -.07em !important;
+        color: #ffffff !important;
+        max-width: 760px !important;
+    }
+
+    .sfpe-employment-hero p,
+    .sfpe-employment-hero .sfpe-hero-subtitle {
+        max-width: 780px !important;
+        color: rgba(255, 255, 255, .78) !important;
+        font-weight: 750 !important;
+        line-height: 1.55 !important;
+    }
+
+    /* Hero action buttons: keep icons, compact like Employment */
+    .sfpe-employment-hero button,
+    .sfpe-employment-hero a,
+    .sfpe-employment-hero .fi-btn,
+    .sfpe-force-btn {
+        min-height: 42px !important;
+        border-radius: 999px !important;
+        padding: 0 16px !important;
+        font-size: 12px !important;
+        font-weight: 950 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 8px !important;
+        box-shadow: 0 14px 28px rgba(0, 0, 0, .18) !important;
+        white-space: nowrap !important;
+    }
+
+    .sfpe-employment-hero svg,
+    .sfpe-employment-hero .material-symbols-rounded,
+    .sfpe-employment-hero .material-symbols-outlined {
+        width: 18px !important;
+        height: 18px !important;
+        font-size: 18px !important;
+        display: inline-flex !important;
+        flex: 0 0 auto !important;
+    }
+
+    /* Main cards */
+    .pe-card,
+    .sfpe-clean-flow-files-card,
+    .sfpe-candidate-files-card,
+    .sfpe-ja-requests-card,
+    .sfpe-ja-timeline-card,
+    .sfpe-timeline-print-area {
+        border-radius: var(--sfpe-card-radius) !important;
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .10), transparent 34%),
+            #ffffff !important;
+        border: 1px solid rgba(15, 23, 42, .08) !important;
+        box-shadow: 0 20px 48px rgba(15, 23, 42, .08) !important;
+        overflow: hidden !important;
+        margin-top: 22px !important;
+        margin-bottom: 22px !important;
+    }
+
+    .pe-card-header,
+    .pe-card-head,
+    .sfpe-card-head,
+    .sfpe-clean-flow-files-card > div:first-child,
+    .sfpe-candidate-files-card > div:first-child {
+        min-height: 74px !important;
+        padding: 22px 26px !important;
+        border-bottom: 1px solid rgba(15, 23, 42, .08) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 14px !important;
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .10), transparent 30%),
+            linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important;
+    }
+
+    .pe-card-title,
+    .sfpe-card-title,
+    .sfpe-section-title {
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        color: #0f172a !important;
+        font-size: 22px !important;
+        line-height: 1.15 !important;
+        font-weight: 950 !important;
+        letter-spacing: -.04em !important;
+    }
+
+    .pe-card-title .material-symbols-rounded,
+    .pe-card-title .material-symbols-outlined,
+    .sfpe-card-title .material-symbols-rounded,
+    .sfpe-card-title .material-symbols-outlined,
+    .material-symbols-rounded {
+        font-family: 'Material Symbols Rounded' !important;
+        font-style: normal !important;
+        font-weight: 600 !important;
+        line-height: 1 !important;
+        text-transform: none !important;
+        letter-spacing: normal !important;
+        color: var(--sfpe-blue) !important;
+    }
+
+    /* Detail grids same as Employment: compact 3 columns */
+    .pe-grid,
+    .sfpe-grid,
+    .sfpe-info-grid,
+    .sfpe-cards-grid,
+    .sfpe-finance-grid,
+    .sfpe-status-grid,
+    .sfpe-candidate-files-grid,
+    .sfpe-expenses-grid,
+    .sfpe-files-grid {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 14px !important;
+        padding: 24px 26px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Compact internal cards */
+    .pe-info-item,
+    .pe-stat,
+    .pe-file,
+    .sfpe-info-item,
+    .sfpe-card-item,
+    .sfpe-candidate-file-item,
+    .sfpe-expense-card,
+    .sfpe-finance-item,
+    .sfpe-status-item,
+    .pe-card [class*="item"],
+    .pe-card [class*="file-item"] {
+        min-height: 112px !important;
+        border-radius: 22px !important;
+        padding: 18px !important;
+        background: rgba(248, 250, 252, .82) !important;
+        border: 1px solid rgba(15, 23, 42, .08) !important;
+        box-shadow: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        gap: 8px !important;
+    }
+
+    /* Finance profile should feel like Employment summary cards */
+    .sfpe-finance-item,
+    .pe-card:has(.pe-card-title:contains("Finance")) .pe-info-item {
+        position: relative !important;
+    }
+
+    .sfpe-finance-item::before,
+    .pe-card [class*="finance"]::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 18px;
+        right: 18px;
+        height: 4px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--sfpe-cyan), var(--sfpe-blue));
+    }
+
+    .sfpe-file-title,
+    .sfpe-expense-title,
+    .sfpe-value,
+    .pe-info-value,
+    .pe-stat-value,
+    .pe-card strong {
+        color: #0f172a !important;
+        font-size: 16px !important;
+        line-height: 1.35 !important;
+        font-weight: 950 !important;
+    }
+
+    .sfpe-file-category,
+    .sfpe-file-source,
+    .sfpe-label,
+    .pe-info-label,
+    .pe-stat-label {
+        color: #64748b !important;
+        font-size: 11px !important;
+        line-height: 1.1 !important;
+        font-weight: 950 !important;
+        letter-spacing: .12em !important;
+        text-transform: uppercase !important;
+    }
+
+    /* Candidate files: stop giant cards */
+    .sfpe-candidate-files-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+
+    .sfpe-candidate-file-item {
+        min-height: 150px !important;
+        align-items: flex-start !important;
+        justify-content: space-between !important;
+    }
+
+    .sfpe-file-open-btn,
+    .sfpe-open-btn,
+    .sfpe-btn,
+    .pe-card a[class*="btn"],
+    .pe-card button[class*="btn"] {
+        width: fit-content !important;
+        min-height: 36px !important;
+        padding: 0 14px !important;
+        border-radius: 999px !important;
+        background: #e0f2fe !important;
+        color: #1d4ed8 !important;
+        border: 1px solid rgba(37, 99, 235, .16) !important;
+        font-size: 12px !important;
+        font-weight: 950 !important;
+        text-decoration: none !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 6px !important;
+    }
+
+    /* Candidate Requests and Timeline should be scrollable, not enormous */
+    .sfpe-ja-requests-list,
+    .sfpe-ja-timeline-list,
+    .sfpe-thread-timeline,
+    .pe-timeline {
+        max-height: 560px !important;
+        overflow-y: auto !important;
+        padding-right: 8px !important;
+    }
+
+    .sfpe-ja-request-row,
+    .sfpe-ja-timeline-row,
+    .pe-timeline-item {
+        border-radius: 22px !important;
+        background: #ffffff !important;
+        border: 1px solid rgba(15, 23, 42, .08) !important;
+        box-shadow: 0 10px 28px rgba(15, 23, 42, .04) !important;
+    }
+
+    /* Expenses block compact */
+    .sfpe-expenses-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+
+    .sfpe-expense-card {
+        min-height: 150px !important;
+    }
+
+    /* Count pills */
+    .sfpe-count-pill,
+    .pe-count,
+    .pe-badge,
+    .sfpe-status-pill {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-height: 34px !important;
+        padding: 0 14px !important;
+        border-radius: 999px !important;
+        background: #e0f2fe !important;
+        color: #0f172a !important;
+        border: 1px solid rgba(37, 99, 235, .18) !important;
+        font-size: 12px !important;
+        font-weight: 950 !important;
+        letter-spacing: .04em !important;
+        text-transform: uppercase !important;
+        white-space: nowrap !important;
+    }
+
+    /* Make the visual order logical */
+    .sfpe-employment-hero { order: 1 !important; }
+    .pe-card:has(.pe-card-title),
+    .sfpe-candidate-files-card,
+    .sfpe-ja-requests-card,
+    .sfpe-ja-timeline-card {
+        order: 5 !important;
+    }
+
+    /* Dark mode */
+    .dark .pe-card,
+    .dark .sfpe-clean-flow-files-card,
+    .dark .sfpe-candidate-files-card,
+    .dark .sfpe-ja-requests-card,
+    .dark .sfpe-ja-timeline-card,
+    .dark .sfpe-timeline-print-area {
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .10), transparent 34%),
+            rgba(15, 23, 42, .86) !important;
+        border-color: rgba(148, 163, 184, .18) !important;
+        box-shadow: 0 20px 48px rgba(0, 0, 0, .26) !important;
+    }
+
+    .dark .pe-card-header,
+    .dark .pe-card-head,
+    .dark .sfpe-card-head {
+        background: rgba(15, 23, 42, .48) !important;
+        border-bottom-color: rgba(148, 163, 184, .18) !important;
+    }
+
+    .dark .pe-card-title,
+    .dark .sfpe-card-title,
+    .dark .sfpe-section-title,
+    .dark .sfpe-file-title,
+    .dark .sfpe-expense-title,
+    .dark .sfpe-value,
+    .dark .pe-info-value,
+    .dark .pe-stat-value {
+        color: #ffffff !important;
+    }
+
+    .dark .pe-info-item,
+    .dark .pe-stat,
+    .dark .pe-file,
+    .dark .sfpe-info-item,
+    .dark .sfpe-card-item,
+    .dark .sfpe-candidate-file-item,
+    .dark .sfpe-expense-card,
+    .dark .sfpe-finance-item,
+    .dark .sfpe-status-item {
+        background: rgba(15, 23, 42, .58) !important;
+        border-color: rgba(148, 163, 184, .16) !important;
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+        :root { --sfpe-page-width: calc(100vw - 48px); }
+    }
+
+    @media (max-width: 980px) {
+        .pe-grid,
+        .sfpe-grid,
+        .sfpe-info-grid,
+        .sfpe-cards-grid,
+        .sfpe-finance-grid,
+        .sfpe-status-grid,
+        .sfpe-candidate-files-grid,
+        .sfpe-expenses-grid,
+        .sfpe-files-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+
+        .sfpe-employment-hero {
+            padding: 28px !important;
+        }
+    }
+
+    @media (max-width: 680px) {
+        :root { --sfpe-page-width: calc(100vw - 24px); }
+
+        .pe-grid,
+        .sfpe-grid,
+        .sfpe-info-grid,
+        .sfpe-cards-grid,
+        .sfpe-finance-grid,
+        .sfpe-status-grid,
+        .sfpe-candidate-files-grid,
+        .sfpe-expenses-grid,
+        .sfpe-files-grid {
+            grid-template-columns: 1fr !important;
+            padding: 18px !important;
+        }
+
+        .sfpe-employment-hero h1,
+        .sfpe-employment-hero .sfpe-page-title,
+        .sfpe-employment-hero [class*="title"] {
+            font-size: 40px !important;
+        }
+    }
+</style>
+<style id="sfpe-safe-employment-like-layout-v3">
+    /*
+     | Safe Pre-Employment layout fix
+     | This does NOT grid the whole Filament page.
+     | It only:
+     | - restores normal width
+     | - keeps hero at top
+     | - fixes header icons
+     | - makes selected lower blocks more compact/scrollable
+     */
+
+    .sfpe-employment-hero,
+    .pe-card,
+    .sfpe-candidate-files-card,
+    .sfpe-ja-requests-card,
+    .sfpe-ja-timeline-card,
+    .sfpe-timeline-print-area,
+    .sfpe-clean-flow-files-card {
+        width: min(100%, 1180px) !important;
+        max-width: 1180px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        box-sizing: border-box !important;
+    }
+
+    .sfpe-employment-hero {
+        margin-top: 28px !important;
+        margin-bottom: 24px !important;
+        border-radius: 30px !important;
+        overflow: hidden !important;
+    }
+
+    /*
+     | Header button icons must not become blue.
+     | They should inherit the button text color.
+     */
+    .sfpe-employment-hero .material-symbols-rounded,
+    .sfpe-employment-hero .material-symbols-outlined,
+    .sfpe-employment-hero svg,
+    .sfpe-employment-hero a svg,
+    .sfpe-employment-hero button svg,
+    .sfpe-employment-hero a .material-symbols-rounded,
+    .sfpe-employment-hero button .material-symbols-rounded {
+        color: currentColor !important;
+        stroke: currentColor !important;
+        fill: none !important;
+    }
+
+    .sfpe-employment-hero a,
+    .sfpe-employment-hero button,
+    .sfpe-employment-hero .sfpe-btn {
+        white-space: nowrap !important;
+    }
+
+    /*
+     | Make normal cards cleaner and not huge.
+     */
+    .pe-card,
+    .sfpe-candidate-files-card,
+    .sfpe-ja-requests-card,
+    .sfpe-ja-timeline-card,
+    .sfpe-timeline-print-area {
+        border-radius: 28px !important;
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .10), transparent 34%),
+            #ffffff !important;
+        border: 1px solid rgba(15, 23, 42, .08) !important;
+        box-shadow: 0 18px 44px rgba(15, 23, 42, .07) !important;
+        overflow: hidden !important;
+        margin-top: 18px !important;
+        margin-bottom: 18px !important;
+    }
+
+    .pe-card-header,
+    .pe-card-head,
+    .sfpe-card-head {
+        min-height: 64px !important;
+        padding: 18px 22px !important;
+        border-bottom: 1px solid rgba(15, 23, 42, .08) !important;
+    }
+
+    .pe-grid,
+    .sfpe-grid,
+    .sfpe-info-grid,
+    .sfpe-finance-grid,
+    .sfpe-status-grid {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 14px !important;
+        padding: 20px !important;
+    }
+
+    .pe-info-item,
+    .pe-stat,
+    .sfpe-info-item,
+    .sfpe-finance-item,
+    .sfpe-status-item {
+        min-height: 96px !important;
+        padding: 16px 18px !important;
+        border-radius: 20px !important;
+        background: rgba(248, 250, 252, .84) !important;
+        border: 1px solid rgba(15, 23, 42, .08) !important;
+    }
+
+    /*
+     | Candidate Files / Requests / Expenses / Timeline become compact internally.
+     | No full-page grid, no broken columns.
+     */
+    .sfpe-candidate-files-grid,
+    .sfpe-expenses-grid {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 14px !important;
+        padding: 20px !important;
+        max-height: 560px !important;
+        overflow-y: auto !important;
+    }
+
+    .sfpe-ja-requests-list,
+    .sfpe-ja-timeline-list,
+    .sfpe-thread-timeline,
+    .pe-timeline {
+        max-height: 560px !important;
+        overflow-y: auto !important;
+        padding: 18px 20px !important;
+    }
+
+    .sfpe-candidate-file-item,
+    .sfpe-expense-card,
+    .sfpe-ja-request-row,
+    .sfpe-ja-timeline-row,
+    .pe-timeline-item {
+        min-height: auto !important;
+        padding: 16px !important;
+        border-radius: 20px !important;
+        background: rgba(248, 250, 252, .84) !important;
+        border: 1px solid rgba(15, 23, 42, .08) !important;
+        box-shadow: none !important;
+    }
+
+    /*
+     | Finance numbers closer to Employment style, without breaking layout.
+     */
+    .sfpe-finance-grid .sfpe-finance-item,
+    .sfpe-finance-grid > * {
+        position: relative !important;
+        min-height: 120px !important;
+    }
+
+    .sfpe-finance-grid .sfpe-finance-item::before,
+    .sfpe-finance-grid > *::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 18px;
+        right: 18px;
+        height: 4px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #22d3ee, #2563eb);
+    }
+
+    .sfpe-finance-grid .sfpe-value,
+    .sfpe-finance-grid .pe-info-value,
+    .sfpe-finance-grid .pe-stat-value {
+        color: #234b74 !important;
+        font-size: clamp(24px, 2.1vw, 38px) !important;
+        line-height: 1 !important;
+        font-weight: 950 !important;
+        letter-spacing: -.055em !important;
+    }
+
+    /*
+     | Labels and values compact.
+     */
+    .pe-info-label,
+    .pe-stat-label,
+    .sfpe-label,
+    .sfpe-file-category,
+    .sfpe-file-source {
+        font-size: 10px !important;
+        letter-spacing: .11em !important;
+        font-weight: 950 !important;
+        text-transform: uppercase !important;
+        color: #64748b !important;
+    }
+
+    .pe-info-value,
+    .pe-stat-value,
+    .sfpe-value,
+    .sfpe-file-title,
+    .sfpe-expense-title {
+        font-size: 15px !important;
+        line-height: 1.35 !important;
+        font-weight: 950 !important;
+        color: #0f172a !important;
+    }
+
+    /*
+     | Make open buttons smaller like Employment cards.
+     */
+    .sfpe-file-open-btn,
+    .sfpe-open-btn,
+    .pe-card a[class*="btn"],
+    .pe-card button[class*="btn"] {
+        min-height: 34px !important;
+        padding: 0 13px !important;
+        border-radius: 999px !important;
+        font-size: 11px !important;
+        font-weight: 950 !important;
+        width: fit-content !important;
+    }
+
+    /*
+     | Dark mode compatibility.
+     */
+    .dark .pe-card,
+    .dark .sfpe-candidate-files-card,
+    .dark .sfpe-ja-requests-card,
+    .dark .sfpe-ja-timeline-card,
+    .dark .sfpe-timeline-print-area {
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .10), transparent 34%),
+            rgba(15, 23, 42, .86) !important;
+        border-color: rgba(148, 163, 184, .18) !important;
+    }
+
+    .dark .pe-info-item,
+    .dark .pe-stat,
+    .dark .sfpe-info-item,
+    .dark .sfpe-finance-item,
+    .dark .sfpe-status-item,
+    .dark .sfpe-candidate-file-item,
+    .dark .sfpe-expense-card,
+    .dark .sfpe-ja-request-row,
+    .dark .sfpe-ja-timeline-row,
+    .dark .pe-timeline-item {
+        background: rgba(15, 23, 42, .58) !important;
+        border-color: rgba(148, 163, 184, .16) !important;
+    }
+
+    .dark .pe-info-value,
+    .dark .pe-stat-value,
+    .dark .sfpe-value,
+    .dark .sfpe-file-title,
+    .dark .sfpe-expense-title {
+        color: #ffffff !important;
+    }
+
+    @media (max-width: 1100px) {
+        .pe-grid,
+        .sfpe-grid,
+        .sfpe-info-grid,
+        .sfpe-finance-grid,
+        .sfpe-status-grid,
+        .sfpe-candidate-files-grid,
+        .sfpe-expenses-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+    }
+
+    @media (max-width: 720px) {
+        .pe-grid,
+        .sfpe-grid,
+        .sfpe-info-grid,
+        .sfpe-finance-grid,
+        .sfpe-status-grid,
+        .sfpe-candidate-files-grid,
+        .sfpe-expenses-grid {
+            grid-template-columns: 1fr !important;
+        }
+
+        .sfpe-employment-hero,
+        .pe-card,
+        .sfpe-candidate-files-card,
+        .sfpe-ja-requests-card,
+        .sfpe-ja-timeline-card,
+        .sfpe-timeline-print-area {
+            width: calc(100vw - 24px) !important;
+        }
+    }
+</style>
+
+
+
+    {{-- Sada Fezzan ERP: required inside the page wrapper for custom Blade buttons using mountAction(...) --}}
+
+    {{-- Sada Fezzan ERP: required for custom Blade buttons using Filament actions --}}
+
+
+
+
+
+{{-- SFPE FINAL PREEMPLOYMENT OPERATIONS START --}}
+@php
+    /*
+     | Sada Fezzan ERP — Final Pre-Employment Operations Block
+     | This block is visual/Blade only:
+     | - Header and header action buttons are untouched.
+     | - Old duplicate body blocks are hidden by JS/CSS only.
+     | - Data remains available in the original models.
+     */
+
+    $sfpeOpsFiles = isset($sfpeUnifiedFiles) && $sfpeUnifiedFiles instanceof \Illuminate\Support\Collection
+        ? $sfpeUnifiedFiles
+        : collect($files ?? []);
+
+
+    /*
+     | Build file version map for operation files.
+     | Files with the same category/title/source are shown as V1, V2, V3...
+     */
+    $sfpeOpsFileVersionMap = [];
+    $sfpeOpsFileVersionCounter = [];
+
+    foreach ($sfpeOpsFiles as $fileIndex => $fileRow) {
+        $versionKey = strtolower(trim(
+            (string) ($fileRow['category'] ?? $fileRow->category ?? 'file')
+            . '|' .
+            (string) ($fileRow['title'] ?? $fileRow->title ?? $fileRow['name'] ?? 'file')
+        ));
+
+        if (! isset($sfpeOpsFileVersionCounter[$versionKey])) {
+            $sfpeOpsFileVersionCounter[$versionKey] = 0;
+        }
+
+        $sfpeOpsFileVersionCounter[$versionKey]++;
+        $sfpeOpsFileVersionMap[$fileIndex] = $sfpeOpsFileVersionCounter[$versionKey];
+    }
+
+    $sfpeOpsExpenses = collect($expenses ?? $record->financeExpenses ?? []);
+
+    $sfpeOpsTimeline = collect($timelineRows ?? []);
+
+    /*
+     | Add Candidate Request history into Pre-Employment Operations > History.
+     | This keeps the separate Candidate Requests block for details,
+     | while History becomes the full chronological log.
+     */
+    if (isset($sfJobAppRequestTimeline)) {
+        foreach (collect($sfJobAppRequestTimeline) as $requestHistoryRow) {
+            try {
+                $requestHistoryDate = $requestHistoryRow['date'] ?? null;
+
+                if (! $requestHistoryDate) {
+                    continue;
+                }
+
+                $sfpeOpsTimeline->push([
+                    'type' => 'request',
+                    'title' => 'Candidate Request: ' . ($requestHistoryRow['request_title'] ?? 'Request'),
+                    'subtitle' => trim(($requestHistoryRow['title'] ?? '') . ' ' . ($requestHistoryRow['message'] ?? '')),
+                    'date' => \Carbon\Carbon::parse($requestHistoryDate),
+                    'meta' => array_filter([
+                        'Job Application',
+                        \Illuminate\Support\Str::headline($requestHistoryRow['event'] ?? 'Update'),
+                        \Illuminate\Support\Str::headline($requestHistoryRow['sender'] ?? 'System'),
+                    ]),
+                ]);
+            } catch (\Throwable $e) {
+                //
+            }
+        }
+    }
+
+    foreach (collect($portalFileRequests ?? []) as $field) {
+        $fieldValue = collect($record->portalValues ?? [])->firstWhere('portal_field_id', $field->id);
+
+        if (filled($field->created_at)) {
+            $sfpeOpsTimeline->push([
+                'type' => 'request',
+                'title' => 'Pre-Employment Request: ' . ($field->label ?: 'File Request'),
+                'subtitle' => $field->instructions ?: 'File requested from candidate.',
+                'date' => $field->created_at,
+                'meta' => array_filter([
+                    'Pre-Employment',
+                    filled($fieldValue?->value) ? 'Submitted' : 'Waiting Candidate',
+                    $field->is_required ? 'Required' : 'Optional',
+                ]),
+            ]);
+        }
+
+        if (filled($fieldValue?->submitted_at)) {
+            $sfpeOpsTimeline->push([
+                'type' => 'file',
+                'title' => 'Candidate Submitted: ' . ($field->label ?: 'Requested File'),
+                'subtitle' => 'Candidate uploaded the requested pre-employment file.',
+                'date' => $fieldValue->submitted_at,
+                'meta' => array_filter([
+                    'Pre-Employment',
+                    'Submitted',
+                    filled($field->document_category) ? \Illuminate\Support\Str::headline($field->document_category) : 'File',
+                ]),
+            ]);
+        }
+    }
+
+    $sfpeOpsTimeline = $sfpeOpsTimeline
+        ->filter(fn ($row) => ! empty($row['date']))
+        ->sortByDesc(fn ($row) => $row['date'] instanceof \Carbon\CarbonInterface ? $row['date']->timestamp : strtotime((string) $row['date']))
+        ->values();
+
+
+    $sfpeOpsDefaultTab = $sfpeOpsFiles->count()
+        ? 'files'
+        : ($sfpeOpsExpenses->count() ? 'expenses' : 'history');
+
+    $sfpeOpsExpenseUrl = function ($expense) {
+        try {
+            if (class_exists(\App\Filament\Resources\FinanceExpenses\FinanceExpenseResource::class)) {
+                return \App\Filament\Resources\FinanceExpenses\FinanceExpenseResource::getUrl('view', ['record' => $expense]);
+            }
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return null;
+    };
+
+    $sfpeOpsStatusClass = function ($status) {
+        $status = strtolower((string) $status);
+
+        return match (true) {
+            str_contains($status, 'approved'),
+            str_contains($status, 'completed'),
+            str_contains($status, 'uploaded'),
+            str_contains($status, 'ready'),
+            str_contains($status, 'paid') => 'sfpe-ops-pill-green',
+
+            str_contains($status, 'required'),
+            str_contains($status, 'pending'),
+            str_contains($status, 'awaiting'),
+            str_contains($status, 'draft') => 'sfpe-ops-pill-yellow',
+
+            str_contains($status, 'rejected'),
+            str_contains($status, 'declined'),
+            str_contains($status, 'cancelled'),
+            str_contains($status, 'expired') => 'sfpe-ops-pill-red',
+
+            default => 'sfpe-ops-pill-blue',
+        };
+    };
+@endphp
+
+<section class="sfpe-ops-card" data-sfpe-final-operations="1" data-sfpe-fixed-order="preemployment-operations">
+    <h2 class="sfpe-ops-title">Pre-Employment Operations</h2>
+
+    <input type="radio" name="sfpe-ops-tabs" id="sfpe-ops-tab-files" @checked($sfpeOpsDefaultTab === 'files')>
+    <input type="radio" name="sfpe-ops-tabs" id="sfpe-ops-tab-expenses" @checked($sfpeOpsDefaultTab === 'expenses')>
+    <input type="radio" name="sfpe-ops-tabs" id="sfpe-ops-tab-history" @checked($sfpeOpsDefaultTab === 'history')>
+
+    <div class="sfpe-ops-tabs">
+        <label for="sfpe-ops-tab-files">Files</label>
+        <label for="sfpe-ops-tab-expenses">Expenses</label>
+        <label for="sfpe-ops-tab-history">History</label>
+    </div>
+
+    <div class="sfpe-ops-content">
+        <div class="sfpe-ops-panel sfpe-ops-panel-files">
+            @if($sfpeOpsFiles->count())
+                <div class="sfpe-ops-table-wrap">
+                    <table class="sfpe-ops-table">
+                        <thead>
+                            <tr>
+                                <th>File</th>
+                                <th>Category</th>
+                                <th>Source</th>
+                                <th>Status</th>
+                                <th>Open</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($sfpeOpsFiles as $file)
+                                @php
+                                    $fileTitle = $file['title'] ?? $file->title ?? 'Candidate File';
+                                    $fileCategory = $file['category'] ?? $file->category ?? 'File';
+                                    $fileSource = $file['source'] ?? $file->uploaded_by_type ?? 'Pre-Employment';
+                                    $fileUrl = $file['url'] ?? null;
+
+                                    if (! $fileUrl) {
+                                        $rawPath = $file['file_path'] ?? $file->file_path ?? $file['path'] ?? null;
+
+                                        if ($rawPath) {
+                                            try {
+                                                $fileUrl = \Illuminate\Support\Facades\Storage::disk('public')->url($rawPath);
+                                            } catch (\Throwable $e) {
+                                                $fileUrl = null;
+                                            }
+                                        }
+                                    }
+
+                                    $fileStatus = $file['status'] ?? $file->document_status ?? ($file['is_current'] ?? $file->is_current ?? true ? 'Current' : 'Old Version');
+                                @endphp
+
+                                <tr>
+                                    <td>{{ $fileTitle }}</td>
+                                    <td>{{ \Illuminate\Support\Str::headline((string) $fileCategory) }}</td>
+                                    <td>{{ \Illuminate\Support\Str::headline((string) $fileSource) }}</td>
+                                    <td>
+                                        <span class="sfpe-ops-status {{ $sfpeOpsStatusClass($fileStatus) }}">
+                                            {{ \Illuminate\Support\Str::headline((string) $fileStatus) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @if($fileUrl)
+                                            <a href="{{ $fileUrl }}" target="_blank" class="sfpe-ops-open">Open</a>
+                                        @else
+                                            —
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <div class="sfpe-ops-empty">No candidate files found yet.</div>
+            @endif
+        </div>
+
+        <div class="sfpe-ops-panel sfpe-ops-panel-expenses">
+            @if($sfpeOpsExpenses->count())
+                <div class="sfpe-ops-table-wrap">
+                    <table class="sfpe-ops-table">
+                        <thead>
+                            <tr>
+                                <th>Expense</th>
+                                <th>Category</th>
+                                <th>Amount</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Open</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($sfpeOpsExpenses as $expense)
+                                @php
+                                    $expenseTitle = $expense->title ?? $expense->description ?? ('Expense #' . $expense->id);
+                                    $expenseCategory = $expense->category ?? $expense->expense_category ?? 'other';
+                                    $expenseAmount = $expense->amount ?? $expense->total_amount ?? 0;
+                                    $expenseCurrency = $expense->currency ?? 'EUR';
+                                    $expenseDate = $expense->expense_date ?? $expense->created_at;
+                                    $expenseStatus = $expense->status ?? 'draft';
+                                    $expenseUrl = $sfpeOpsExpenseUrl($expense);
+                                @endphp
+
+                                <tr>
+                                    <td>{{ $expenseTitle }}</td>
+                                    <td>{{ \Illuminate\Support\Str::headline((string) $expenseCategory) }}</td>
+                                    <td>{{ number_format((float) $expenseAmount, 2) }} {{ $expenseCurrency }}</td>
+                                    <td>{{ optional($expenseDate)->format('d M Y') ?: '—' }}</td>
+                                    <td>
+                                        <span class="sfpe-ops-status {{ $sfpeOpsStatusClass($expenseStatus) }}">
+                                            {{ \Illuminate\Support\Str::headline((string) $expenseStatus) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @if($expenseUrl)
+                                            <a href="{{ $expenseUrl }}" class="sfpe-ops-open">Open</a>
+                                        @else
+                                            —
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <div class="sfpe-ops-empty">No Pre-Employment expenses recorded yet.</div>
+            @endif
+        </div>
+
+        <div class="sfpe-ops-panel sfpe-ops-panel-history">
+            @if($sfpeOpsTimeline->count())
+                <div class="sfpe-ops-history">
+                    @foreach($sfpeOpsTimeline as $row)
+                        @php
+                            $historyType = $row['type'] ?? 'update';
+                            $historyDate = $row['date'] ?? null;
+                            $historyMeta = collect($row['meta'] ?? []);
+                        @endphp
+
+                        <div class="sfpe-ops-history-row">
+                            <div class="sfpe-ops-history-main">
+                                <strong>{{ $row['title'] ?? 'Update' }}</strong>
+
+                                @if(!empty($row['subtitle']))
+                                    <span>{{ $row['subtitle'] }}</span>
+                                @endif
+
+                                <div class="sfpe-ops-history-tags">
+                                    <span class="sfpe-ops-status {{ $sfpeOpsStatusClass($historyType) }}">
+                                        {{ \Illuminate\Support\Str::headline((string) $historyType) }}
+                                    </span>
+
+                                    @foreach($historyMeta as $tag)
+                                        <span class="sfpe-ops-status {{ $sfpeOpsStatusClass($tag) }}">
+                                            {{ $tag }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            <div class="sfpe-ops-history-date">
+                                {{ $historyDate ? $historyDate->format('d M Y H:i') : '—' }}
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <div class="sfpe-ops-empty">No timeline updates found yet.</div>
+            @endif
+        </div>
+    </div>
+</section>
+
+<style id="sfpe-final-preemployment-operations-style">
+    /*
+     | Final visual layout:
+     | Candidate Details -> Finance Profile -> Pre-Employment Operations.
+     | Header and header action buttons are untouched.
+     */
+
+    :root {
+        --sfpe-ops-width: 1180px;
+        --sfpe-ops-title: #234b74;
+        --sfpe-ops-blue: #2563eb;
+        --sfpe-ops-cyan: #22d3ee;
+    }
+
+    .sfpe-ops-card {
+        width: min(100%, var(--sfpe-ops-width));
+        margin: 24px auto 80px;
+        padding: 24px;
+        border-radius: 30px;
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .10), transparent 35%),
+            rgba(255,255,255,.96);
+        border: 1px solid rgba(15,23,42,.08);
+        box-shadow: 0 16px 42px rgba(15,23,42,.07);
+        overflow: hidden;
+    }
+
+    .sfpe-ops-card::before {
+        content: "";
+        display: block;
+        height: 4px;
+        margin: -24px -24px 22px;
+        background: linear-gradient(90deg, var(--sfpe-ops-cyan), var(--sfpe-ops-blue));
+    }
+
+    .sfpe-ops-title {
+        margin: 0 0 18px;
+        color: var(--sfpe-ops-title);
+        font-size: 25px;
+        font-weight: 950;
+        letter-spacing: -.055em;
+        line-height: 1.1;
+    }
+
+    .sfpe-ops-card > input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .sfpe-ops-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 18px;
+    }
+
+    .sfpe-ops-tabs label {
+        min-height: 42px;
+        padding: 0 18px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #e0f2fe;
+        color: #234b74;
+        border: 1px solid rgba(37,99,235,.16);
+        font-size: 13px;
+        font-weight: 950;
+        cursor: pointer;
+        transition: .18s ease;
+    }
+
+    #sfpe-ops-tab-files:checked ~ .sfpe-ops-tabs label[for="sfpe-ops-tab-files"],
+    #sfpe-ops-tab-expenses:checked ~ .sfpe-ops-tabs label[for="sfpe-ops-tab-expenses"],
+    #sfpe-ops-tab-history:checked ~ .sfpe-ops-tabs label[for="sfpe-ops-tab-history"] {
+        background: #2563eb;
+        color: #ffffff;
+        box-shadow: 0 12px 28px rgba(37,99,235,.22);
+    }
+
+    .sfpe-ops-panel {
+        display: none;
+    }
+
+    #sfpe-ops-tab-files:checked ~ .sfpe-ops-content .sfpe-ops-panel-files,
+    #sfpe-ops-tab-expenses:checked ~ .sfpe-ops-content .sfpe-ops-panel-expenses,
+    #sfpe-ops-tab-history:checked ~ .sfpe-ops-content .sfpe-ops-panel-history {
+        display: block;
+    }
+
+    .sfpe-ops-table-wrap {
+        max-height: 560px;
+        overflow: auto;
+        border-radius: 24px;
+        border: 1px solid rgba(15,23,42,.08);
+        background: rgba(255,255,255,.72);
+    }
+
+    .sfpe-ops-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 760px;
+    }
+
+    .sfpe-ops-table th {
+        padding: 15px 18px;
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 950;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        text-align: left;
+        background: rgba(248,250,252,.88);
+        border-bottom: 1px solid rgba(15,23,42,.08);
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }
+
+    .sfpe-ops-table td {
+        padding: 16px 18px;
+        color: #0f172a;
+        font-size: 13px;
+        font-weight: 850;
+        border-bottom: 1px solid rgba(15,23,42,.06);
+        vertical-align: middle;
+    }
+
+    .sfpe-ops-table tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .sfpe-ops-status,
+    .sfpe-ops-open {
+        min-height: 30px;
+        padding: 0 12px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: fit-content;
+        font-size: 11px;
+        line-height: 1;
+        font-weight: 950;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .sfpe-ops-open {
+        background: #e0f2fe;
+        color: #1d4ed8;
+        border: 1px solid rgba(37,99,235,.16);
+    }
+
+    .sfpe-ops-pill-blue {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .sfpe-ops-pill-green {
+        background: #dcfce7;
+        color: #047857;
+    }
+
+    .sfpe-ops-pill-yellow {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .sfpe-ops-pill-red {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .sfpe-ops-history {
+        max-height: 580px;
+        overflow-y: auto;
+        display: grid;
+        gap: 12px;
+        padding-right: 6px;
+    }
+
+    .sfpe-ops-history-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: start;
+        padding: 16px 18px;
+        border-radius: 22px;
+        background: #ffffff;
+        border: 1px solid rgba(15,23,42,.08);
+        box-shadow: 0 10px 28px rgba(15,23,42,.04);
+    }
+
+    .sfpe-ops-history-main strong {
+        display: block;
+        color: #0f172a;
+        font-size: 14px;
+        font-weight: 950;
+        line-height: 1.35;
+    }
+
+    .sfpe-ops-history-main span {
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.45;
+    }
+
+    .sfpe-ops-history-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-top: 10px;
+    }
+
+    .sfpe-ops-history-date {
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 900;
+        white-space: nowrap;
+    }
+
+    .sfpe-ops-empty {
+        padding: 24px;
+        border-radius: 22px;
+        background: #f8fafc;
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 850;
+        border: 1px dashed rgba(15,23,42,.12);
+    }
+
+    /*
+     | Hide old / duplicate body sections only after JS marks the body.
+     */
+    body.sfpe-ops-ready .sfpe-ops-hidden {
+        display: none !important;
+    }
+
+    /*
+     | Keep main blocks ordered.
+     */
+    body.sfpe-ops-ready .sfpe-main-candidate-details {
+        order: 10 !important;
+    }
+
+    body.sfpe-ops-ready .sfpe-main-finance-profile {
+        order: 20 !important;
+    }
+
+    body.sfpe-ops-ready .sfpe-ops-card {
+        order: 30 !important;
+    }
+
+    .dark .sfpe-ops-card {
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .12), transparent 35%),
+            rgba(15,23,42,.78);
+        border-color: rgba(148,163,184,.18);
+    }
+
+    .dark .sfpe-ops-table-wrap,
+    .dark .sfpe-ops-history-row {
+        background: rgba(15,23,42,.58);
+        border-color: rgba(148,163,184,.16);
+    }
+
+    .dark .sfpe-ops-table th {
+        background: rgba(15,23,42,.82);
+        color: #94a3b8;
+    }
+
+    .dark .sfpe-ops-table td,
+    .dark .sfpe-ops-history-main strong {
+        color: #ffffff;
+    }
+
+    .dark .sfpe-ops-history-main span,
+    .dark .sfpe-ops-history-date {
+        color: #94a3b8;
+    }
+
+    @media (max-width: 760px) {
+        .sfpe-ops-card {
+            width: calc(100vw - 24px);
+            padding: 18px;
+            border-radius: 24px;
+        }
+
+        .sfpe-ops-card::before {
+            margin: -18px -18px 18px;
+        }
+
+        .sfpe-ops-history-row {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+
+
+{{-- SFPE FINAL PREEMPLOYMENT OPERATIONS END --}}
+
+
+
+
+
+
+
+
+
+{{-- SFPE HARD FINAL PAGE ORDER START --}}
+{{-- SFPE HARD FINAL PAGE ORDER END --}}
+
+
+
+
+
+
+
+
+
+{{-- SFPE FINAL DOM ORDER START --}}
+{{-- SFPE FINAL DOM ORDER END --}}
+
+
+
+
+
+
+
+
+
+{{-- SFPE STATIC PAGE ORDER ONLY - NO JS MOVEMENT --}}
+
+<style id="sfpe-clean-no-shuffle-final">
+    /*
+     | Sada Fezzan ERP — Pre-Employment clean final layout.
+     | No JavaScript movement. No MutationObserver. No delayed reorder.
+     | Final visible order:
+     | Candidate Details -> Finance Profile -> Pre-Employment Status
+     | -> Pre-Employment Operations -> Candidate Requests / Request Timeline.
+     */
+
+    .sfpe-page {
+        width: min(100%, 1280px) !important;
+        margin: 0 auto 72px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 22px !important;
+    }
+
+    [data-sfpe-main-hero="1"] {
+        width: min(100%, 1280px) !important;
+        margin: 24px auto 28px !important;
+    }
+
+    [data-sfpe-fixed-order="candidate-details"] {
+        order: 10 !important;
+    }
+
+    [data-sfpe-fixed-order="finance-profile"] {
+        order: 20 !important;
+    }
+
+    [data-sfpe-fixed-order="preemployment-status"] {
+        order: 30 !important;
+    }
+
+    [data-sfpe-fixed-order="preemployment-operations"],
+    [data-sfpe-final-operations="1"] {
+        order: 40 !important;
+    }
+
+    [data-sfpe-fixed-order="candidate-requests-end"],
+    .sfpe-ja-card:has(.sfpe-ja-head h2),
+    .sfpe-ja-timeline-print {
+        order: 90 !important;
+    }
+
+    /*
+     | Hide old duplicated blocks only.
+     | Their data is already merged into Pre-Employment Operations or Candidate Requests.
+     */
+    .sfpe-candidate-files-card,
+    .sfpe-clean-flow-files-card,
+    section:has(.sfpe-card-title):has(.sfpe-icon):has(+ *):has(.sfpe-request-list),
+    section:has(.sfpe-card-title):has(.sfpe-icon):has(.sfpe-request-list),
+    section:has(.sfpe-card-title):has(.sfpe-icon):has(.sfpe-timeline-list),
+    section:has(.sfpe-card-title):has(.sfpe-icon):has(.sfpe-grid):has(.sfpe-notes),
+    section:has(.sfpe-card-title):has(.sfpe-icon):has(.sfpe-grid):has(.sfpe-item) + section:has(.sfpe-card-title):has(.sfpe-icon):has(.sfpe-grid):has(.sfpe-value) {
+        display: none !important;
+    }
+
+    /*
+     | Explicitly hide these old blocks by title where browser supports :has.
+     */
+    section:has(h2):has(.sfpe-icon):has(.sfpe-card-title):has(.sfpe-request-list),
+    section:has(h2):has(.sfpe-card-title):has(.sfpe-timeline-list),
+    section:has(h2):has(.sfpe-card-title):has(.sfpe-grid):has(.sfpe-notes),
+    section:has(h2):has(.sfpe-card-title):has(.sfpe-grid):has(.sfpe-item):has(.sfpe-empty) {
+        display: none !important;
+    }
+
+    /*
+     | Keep the main required blocks visible even if old generic rules matched them.
+     */
+    [data-sfpe-fixed-order="candidate-details"],
+    [data-sfpe-fixed-order="finance-profile"],
+    [data-sfpe-fixed-order="preemployment-status"],
+    [data-sfpe-final-operations="1"],
+    .sfpe-ja-card,
+    .sfpe-ja-timeline-print {
+        display: block !important;
+    }
+
+    /*
+     | Operations: same feeling as Employment Operations.
+     */
+    [data-sfpe-final-operations="1"] {
+        width: min(100%, 1180px) !important;
+        margin: 0 auto !important;
+        border-radius: 30px !important;
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .10), transparent 35%),
+            rgba(255,255,255,.96) !important;
+        border: 1px solid rgba(15,23,42,.08) !important;
+        box-shadow: 0 16px 42px rgba(15,23,42,.07) !important;
+        overflow: hidden !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-ops-title {
+        margin: 0 !important;
+        padding: 22px 24px 10px !important;
+        color: #234b74 !important;
+        font-size: 25px !important;
+        font-weight: 950 !important;
+        letter-spacing: -.04em !important;
+    }
+
+    [data-sfpe-final-operations="1"] > input[type="radio"] {
+        display: none !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-ops-tabs {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        padding: 0 24px 18px !important;
+        border-bottom: 1px solid rgba(15,23,42,.08) !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-ops-tabs label {
+        min-height: 38px !important;
+        padding: 0 15px !important;
+        border-radius: 999px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        cursor: pointer !important;
+        background: #f8fafc !important;
+        color: #334155 !important;
+        border: 1px solid rgba(15,23,42,.10) !important;
+        font-size: 12px !important;
+        font-weight: 950 !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-ops-tabs label::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #cbd5e1;
+        box-shadow: 0 0 0 4px rgba(203,213,225,.22);
+    }
+
+    #sfpe-ops-tab-files:checked ~ .sfpe-ops-tabs label[for="sfpe-ops-tab-files"],
+    #sfpe-ops-tab-expenses:checked ~ .sfpe-ops-tabs label[for="sfpe-ops-tab-expenses"],
+    #sfpe-ops-tab-history:checked ~ .sfpe-ops-tabs label[for="sfpe-ops-tab-history"] {
+        background: #e0f2fe !important;
+        color: #1d4ed8 !important;
+        border-color: rgba(37,99,235,.20) !important;
+    }
+
+    #sfpe-ops-tab-files:checked ~ .sfpe-ops-tabs label[for="sfpe-ops-tab-files"]::before,
+    #sfpe-ops-tab-expenses:checked ~ .sfpe-ops-tabs label[for="sfpe-ops-tab-expenses"]::before,
+    #sfpe-ops-tab-history:checked ~ .sfpe-ops-tabs label[for="sfpe-ops-tab-history"]::before {
+        background: #2563eb;
+        box-shadow: 0 0 0 4px rgba(37,99,235,.16);
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-ops-content {
+        padding: 20px 24px 24px !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-ops-panel {
+        display: none !important;
+    }
+
+    #sfpe-ops-tab-files:checked ~ .sfpe-ops-content .sfpe-ops-panel-files,
+    #sfpe-ops-tab-expenses:checked ~ .sfpe-ops-content .sfpe-ops-panel-expenses,
+    #sfpe-ops-tab-history:checked ~ .sfpe-ops-content .sfpe-ops-panel-history {
+        display: block !important;
+    }
+
+    [data-sfpe-final-operations="1"] table {
+        width: 100% !important;
+        border-collapse: separate !important;
+        border-spacing: 0 10px !important;
+    }
+
+    [data-sfpe-final-operations="1"] th {
+        padding: 0 14px 8px !important;
+        color: #64748b !important;
+        font-size: 11px !important;
+        font-weight: 950 !important;
+        text-transform: uppercase !important;
+        letter-spacing: .10em !important;
+        text-align: left !important;
+    }
+
+    [data-sfpe-final-operations="1"] td {
+        padding: 14px !important;
+        background: #f8fafc !important;
+        border-top: 1px solid rgba(15,23,42,.08) !important;
+        border-bottom: 1px solid rgba(15,23,42,.08) !important;
+        color: #0f172a !important;
+        font-size: 13px !important;
+        font-weight: 800 !important;
+        vertical-align: middle !important;
+    }
+
+    [data-sfpe-final-operations="1"] td:first-child {
+        border-left: 1px solid rgba(15,23,42,.08) !important;
+        border-radius: 18px 0 0 18px !important;
+        font-weight: 950 !important;
+    }
+
+    [data-sfpe-final-operations="1"] td:last-child {
+        border-right: 1px solid rgba(15,23,42,.08) !important;
+        border-radius: 0 18px 18px 0 !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-ops-pill,
+    [data-sfpe-final-operations="1"] .sf-status-pill,
+    [data-sfpe-final-operations="1"] .sfpe-chip,
+    [data-sfpe-final-operations="1"] a {
+        border-radius: 999px !important;
+        min-height: 30px !important;
+        padding: 6px 11px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: fit-content !important;
+        text-decoration: none !important;
+        font-size: 11px !important;
+        font-weight: 950 !important;
+    }
+
+    [data-sfpe-final-operations="1"] a {
+        background: #e0f2fe !important;
+        color: #1d4ed8 !important;
+        border: 1px solid rgba(37,99,235,.18) !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-status-green,
+    [data-sfpe-final-operations="1"] .sfpe-ops-pill-green {
+        background: #dcfce7 !important;
+        color: #047857 !important;
+        border: 1px solid rgba(16,185,129,.20) !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-status-yellow,
+    [data-sfpe-final-operations="1"] .sfpe-ops-pill-yellow {
+        background: #fef3c7 !important;
+        color: #92400e !important;
+        border: 1px solid rgba(245,158,11,.22) !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-status-red,
+    [data-sfpe-final-operations="1"] .sfpe-ops-pill-red {
+        background: #fee2e2 !important;
+        color: #991b1b !important;
+        border: 1px solid rgba(239,68,68,.22) !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-status-blue,
+    [data-sfpe-final-operations="1"] .sfpe-ops-pill-blue {
+        background: #dbeafe !important;
+        color: #1d4ed8 !important;
+        border: 1px solid rgba(37,99,235,.18) !important;
+    }
+
+    /*
+     | Candidate Requests at end.
+     */
+    .sfpe-ja-card,
+    .sfpe-ja-timeline-print {
+        width: min(100%, 1180px) !important;
+        margin: 0 auto !important;
+        border-radius: 30px !important;
+        background: rgba(255,255,255,.96) !important;
+        border: 1px solid rgba(15,23,42,.08) !important;
+        box-shadow: 0 16px 42px rgba(15,23,42,.07) !important;
+        overflow: hidden !important;
+    }
+
+    .sfpe-ja-timeline,
+    .sfpe-ja-request-list {
+        max-height: 560px !important;
+        overflow-y: auto !important;
+    }
+
+    /*
+     | Dark mode compatibility.
+     */
+    .dark [data-sfpe-final-operations="1"],
+    .dark .sfpe-ja-card,
+    .dark .sfpe-ja-timeline-print {
+        background:
+            radial-gradient(circle at top right, rgba(34,211,238,.12), transparent 35%),
+            rgba(15,23,42,.82) !important;
+        border-color: rgba(148,163,184,.18) !important;
+    }
+
+    .dark [data-sfpe-final-operations="1"] td {
+        background: rgba(15,23,42,.58) !important;
+        color: #ffffff !important;
+        border-color: rgba(148,163,184,.16) !important;
+    }
+
+    .dark [data-sfpe-final-operations="1"] th {
+        color: #94a3b8 !important;
+    }
+
+    @media (max-width: 780px) {
+        [data-sfpe-final-operations="1"],
+        .sfpe-ja-card,
+        .sfpe-ja-timeline-print {
+            width: calc(100vw - 24px) !important;
+            border-radius: 24px !important;
+        }
+
+        [data-sfpe-final-operations="1"] .sfpe-ops-content {
+            padding: 16px !important;
+            overflow-x: auto !important;
+        }
+
+        [data-sfpe-final-operations="1"] table {
+            min-width: 760px !important;
+        }
+    }
+</style>
+
+
+
+<style id="sfpe-request-cleanup-final">
+    /*
+     | Hide unwanted duplicate blocks.
+     | Candidate Requests stays.
+     | Candidate Request Timeline is now represented in Operations > History.
+     */
+
+    /* Portal Answers block */
+    .sfpe-page > section:has(.sfpe-card-title):has(.sfpe-icon):has(.sfpe-grid):has(.sfpe-value):has(.sfpe-empty),
+    .sfpe-page > section:has(.sfpe-card-title):has(.sfpe-icon):has(.sfpe-grid):has(.sfpe-item):has(.sfpe-value):has(.sfpe-chip) {
+        scroll-margin-top: 120px;
+    }
+
+    .sfpe-page > section:has(.sfpe-card-title):has(.sfpe-icon):has(.sfpe-grid):has(.sfpe-value):has(h2):has(.sfpe-chip) {
+        /* keep candidate/status/finance visible through explicit rules below */
+    }
+
+    .sfpe-page > section:has(h2):has(.sfpe-card-title):has(.sfpe-icon):has(.sfpe-grid):has(.sfpe-empty),
+    .sfpe-page > section:has(h2):has(.sfpe-card-title):has(.sfpe-icon):has(.sfpe-grid):has(.sfpe-value):not([data-sfpe-fixed-order="candidate-details"]):not([data-sfpe-fixed-order="finance-profile"]):not([data-sfpe-fixed-order="preemployment-status"]) {
+        display: none !important;
+    }
+
+    /* Job Application Snapshot */
+    .sfpe-ja-card:has(.material-symbols-rounded):has(h2):has(.sfpe-ja-grid):not(:has(.sfpe-ja-request-list)):not(:has(.sfpe-ja-request)) {
+        display: none !important;
+    }
+
+    /* Candidate Request Timeline separate block */
+    .sfpe-ja-timeline-print {
+        display: none !important;
+    }
+
+    /* Keep required blocks visible */
+    [data-sfpe-fixed-order="candidate-details"],
+    [data-sfpe-fixed-order="finance-profile"],
+    [data-sfpe-fixed-order="preemployment-status"],
+    [data-sfpe-final-operations="1"],
+    .sfpe-ja-card:has(.sfpe-ja-request),
+    .sfpe-ja-card:has(.sfpe-ja-request-list) {
+        display: block !important;
+    }
+
+    /* Pre-Employment Requests inside Candidate Requests block */
+    .sfpe-preemployment-request {
+        border: 1px solid rgba(37,99,235,.12) !important;
+        background:
+            radial-gradient(circle at top right, rgba(34,211,238,.08), transparent 35%),
+            #ffffff !important;
+    }
+
+    .sfpe-preemployment-request summary {
+        cursor: pointer !important;
+    }
+
+    .sfpe-ja-file-link {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-height: 34px !important;
+        padding: 0 13px !important;
+        border-radius: 999px !important;
+        background: #e0f2fe !important;
+        color: #1d4ed8 !important;
+        border: 1px solid rgba(37,99,235,.16) !important;
+        font-size: 12px !important;
+        font-weight: 950 !important;
+        text-decoration: none !important;
+        margin-right: 8px !important;
+        margin-top: 10px !important;
+    }
+
+    .sfpe-ja-note {
+        margin-top: 14px !important;
+        padding: 14px 16px !important;
+        border-radius: 18px !important;
+        background: #f8fafc !important;
+        border: 1px solid rgba(15,23,42,.08) !important;
+        color: #475569 !important;
+        font-size: 13px !important;
+        font-weight: 750 !important;
+        line-height: 1.6 !important;
+    }
+
+    .dark .sfpe-preemployment-request {
+        background:
+            radial-gradient(circle at top right, rgba(34,211,238,.10), transparent 35%),
+            rgba(15,23,42,.72) !important;
+        border-color: rgba(148,163,184,.18) !important;
+    }
+
+    .dark .sfpe-ja-note {
+        background: rgba(15,23,42,.58) !important;
+        border-color: rgba(148,163,184,.16) !important;
+        color: #cbd5e1 !important;
+    }
+</style>
+
+
+
+<style id="sfpe-ops-match-employment-final">
+    /*
+     | Pre-Employment Operations visual match with Employment Operations.
+     | Header/action buttons are untouched.
+     */
+
+    [data-sfpe-final-operations="1"] {
+        width: min(100%, 1280px) !important;
+        margin: 26px auto !important;
+        padding: 34px !important;
+        border-radius: 32px !important;
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .12), transparent 34%),
+            rgba(255,255,255,.94) !important;
+        border: 1px solid rgba(15,23,42,.08) !important;
+        box-shadow: 0 22px 60px rgba(15,23,42,.10) !important;
+        overflow: hidden !important;
+    }
+
+    /* remove any top colored/accent line */
+    [data-sfpe-final-operations="1"]::before,
+    [data-sfpe-final-operations="1"]::after,
+    [data-sfpe-final-operations="1"] .sfpe-top-line,
+    [data-sfpe-final-operations="1"] .sfpe-accent-line {
+        display: none !important;
+        content: none !important;
+    }
+
+    [data-sfpe-final-operations="1"] h2,
+    [data-sfpe-final-operations="1"] .sfpe-ops-title,
+    [data-sfpe-final-operations="1"] .sf-tabs-title {
+        margin: 0 0 22px !important;
+        font-size: 26px !important;
+        line-height: 1.1 !important;
+        font-weight: 950 !important;
+        letter-spacing: -.045em !important;
+        color: #234b74 !important;
+    }
+
+    /* show dots below title exactly like Employment Operations */
+    [data-sfpe-final-operations="1"] > input[type="radio"] {
+        appearance: auto !important;
+        -webkit-appearance: radio !important;
+        display: inline-block !important;
+        width: 14px !important;
+        height: 14px !important;
+        margin: 0 5px 14px 0 !important;
+        opacity: 1 !important;
+        position: static !important;
+        pointer-events: none !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-ops-tabs,
+    [data-sfpe-final-operations="1"] .sf-tabs {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 12px !important;
+        margin: 0 0 22px !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-ops-tabs label,
+    [data-sfpe-final-operations="1"] .sf-tabs label {
+        min-height: 48px !important;
+        padding: 0 24px !important;
+        border-radius: 999px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: #eef6ff !important;
+        color: #234b74 !important;
+        border: 1px solid rgba(37,99,235,.14) !important;
+        font-size: 15px !important;
+        font-weight: 950 !important;
+        cursor: pointer !important;
+        box-shadow: none !important;
+    }
+
+    [data-sfpe-final-operations="1"] #sfpe-ops-tab-files:checked ~ .sfpe-ops-tabs label[for="sfpe-ops-tab-files"],
+    [data-sfpe-final-operations="1"] #sfpe-ops-tab-expenses:checked ~ .sfpe-ops-tabs label[for="sfpe-ops-tab-expenses"],
+    [data-sfpe-final-operations="1"] #sfpe-ops-tab-history:checked ~ .sfpe-ops-tabs label[for="sfpe-ops-tab-history"] {
+        background: #2563eb !important;
+        color: #ffffff !important;
+        border-color: #2563eb !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-ops-table-wrap,
+    [data-sfpe-final-operations="1"] .sf-table-wrap {
+        border-radius: 24px !important;
+        border: 1px solid rgba(15,23,42,.08) !important;
+        overflow: auto !important;
+        max-height: 560px !important;
+        background: #ffffff !important;
+    }
+
+    [data-sfpe-final-operations="1"] table,
+    [data-sfpe-final-operations="1"] .sfpe-ops-table,
+    [data-sfpe-final-operations="1"] .sf-ops-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        min-width: 980px !important;
+        background: transparent !important;
+    }
+
+    [data-sfpe-final-operations="1"] thead th {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 2 !important;
+        background: #f8fafc !important;
+        color: #64748b !important;
+        font-size: 12px !important;
+        font-weight: 950 !important;
+        letter-spacing: .16em !important;
+        text-transform: uppercase !important;
+        padding: 18px 20px !important;
+        text-align: left !important;
+        border-bottom: 1px solid rgba(15,23,42,.08) !important;
+    }
+
+    [data-sfpe-final-operations="1"] tbody td {
+        padding: 22px 20px !important;
+        border-bottom: 1px solid rgba(15,23,42,.06) !important;
+        font-size: 15px !important;
+        font-weight: 850 !important;
+        color: #0f172a !important;
+        vertical-align: middle !important;
+        white-space: nowrap !important;
+    }
+
+    [data-sfpe-final-operations="1"] tbody tr:last-child td {
+        border-bottom: 0 !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sf-status-pill,
+    [data-sfpe-final-operations="1"] .sfpe-status-pill,
+    [data-sfpe-final-operations="1"] .sfpe-ops-pill {
+        min-height: 30px !important;
+        padding: 0 13px !important;
+        border-radius: 999px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: #e0f2fe !important;
+        color: #075985 !important;
+        border: 1px solid rgba(14,165,233,.16) !important;
+        font-size: 12px !important;
+        font-weight: 950 !important;
+        white-space: nowrap !important;
+    }
+
+    [data-sfpe-final-operations="1"] a.sf-pill,
+    [data-sfpe-final-operations="1"] a.sfpe-ops-open,
+    [data-sfpe-final-operations="1"] a[class*="open"] {
+        min-height: 34px !important;
+        padding: 0 14px !important;
+        border-radius: 999px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: #e0f2fe !important;
+        color: #0f172a !important;
+        border: 1px solid rgba(14,165,233,.16) !important;
+        font-size: 12px !important;
+        font-weight: 950 !important;
+        text-decoration: none !important;
+        white-space: nowrap !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-ops-history,
+    [data-sfpe-final-operations="1"] .sfpe-history-timeline {
+        max-height: 560px !important;
+        overflow-y: auto !important;
+        padding: 18px 20px 18px 34px !important;
+        border-radius: 24px !important;
+        border: 1px solid rgba(15,23,42,.08) !important;
+        background: #ffffff !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sfpe-ops-empty,
+    [data-sfpe-final-operations="1"] .sf-empty-panel {
+        border-radius: 22px !important;
+        padding: 22px !important;
+        background: #f8fafc !important;
+        border: 1px dashed rgba(15,23,42,.12) !important;
+        color: #64748b !important;
+        font-size: 14px !important;
+        font-weight: 850 !important;
+    }
+
+    .dark [data-sfpe-final-operations="1"] {
+        background:
+            radial-gradient(circle at top right, rgba(34,211,238,.10), transparent 34%),
+            rgba(15,23,42,.78) !important;
+        border-color: rgba(148,163,184,.18) !important;
+        box-shadow: 0 22px 60px rgba(0,0,0,.22) !important;
+    }
+
+    .dark [data-sfpe-final-operations="1"] h2,
+    .dark [data-sfpe-final-operations="1"] .sfpe-ops-title,
+    .dark [data-sfpe-final-operations="1"] .sf-tabs-title {
+        color: #e0f2fe !important;
+    }
+
+    .dark [data-sfpe-final-operations="1"] .sfpe-ops-table-wrap,
+    .dark [data-sfpe-final-operations="1"] .sf-table-wrap,
+    .dark [data-sfpe-final-operations="1"] .sfpe-ops-history,
+    .dark [data-sfpe-final-operations="1"] .sfpe-history-timeline {
+        background: rgba(15,23,42,.58) !important;
+        border-color: rgba(148,163,184,.16) !important;
+    }
+
+    .dark [data-sfpe-final-operations="1"] thead th {
+        background: rgba(15,23,42,.92) !important;
+        color: #94a3b8 !important;
+    }
+
+    .dark [data-sfpe-final-operations="1"] tbody td {
+        color: #ffffff !important;
+        border-bottom-color: rgba(148,163,184,.12) !important;
+    }
+
+    @media (max-width: 900px) {
+        [data-sfpe-final-operations="1"] {
+            width: calc(100vw - 24px) !important;
+            padding: 22px !important;
+            border-radius: 26px !important;
+        }
+
+        [data-sfpe-final-operations="1"] table,
+        [data-sfpe-final-operations="1"] .sfpe-ops-table,
+        [data-sfpe-final-operations="1"] .sf-ops-table {
+            min-width: 860px !important;
+        }
+    }
+</style>
+
+
+
+{{-- SFPE CLEAN FINAL PAGE ORDER — NO JS MOVEMENT --}}
+<style id="sfpe-clean-final-page-order-no-js">
+    /*
+     | Final static Pre-Employment page order.
+     | No JavaScript movement.
+     | No MutationObserver.
+     | No delayed block shuffle.
+     |
+     | Order:
+     | 1. Header
+     | 2. Candidate Details
+     | 3. Finance Profile
+     | 4. Pre-Employment Status
+     | 5. Pre-Employment Operations
+     | 6. Candidate Requests
+     */
+
+    .fi-page-content > div,
+    .fi-page-content > div > div,
+    .sfpe-page {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 22px !important;
+    }
+
+    [data-sfpe-main-hero="1"],
+    .sfpe-real-hero {
+        order: 0 !important;
+    }
+
+    [data-sfpe-fixed-order="candidate-details"] {
+        order: 10 !important;
+    }
+
+    [data-sfpe-fixed-order="finance-profile"] {
+        order: 20 !important;
+    }
+
+    [data-sfpe-fixed-order="preemployment-status"],
+    [data-sfpe-fixed-order="pre-employment-status"] {
+        order: 30 !important;
+    }
+
+    [data-sfpe-final-operations="1"],
+    [data-sfpe-fixed-order="preemployment-operations"] {
+        order: 40 !important;
+    }
+
+    [data-sfpe-fixed-order="candidate-requests-end"] {
+        order: 50 !important;
+    }
+
+    /* Hard-hide old duplicate blocks if any escaped cleanup. */
+    .sfpe-candidate-files-card,
+    .sfpe-clean-flow-files-card,
+    .sfpe-ja-timeline-print {
+        display: none !important;
+    }
+
+    /* Keep Pre-Employment Operations visually closer to Employment Operations. */
+    [data-sfpe-final-operations="1"] {
+        width: min(100%, 1180px) !important;
+        margin: 22px auto !important;
+        border-radius: 30px !important;
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .10), transparent 35%),
+            rgba(255,255,255,.94) !important;
+        border: 1px solid rgba(15,23,42,.08) !important;
+        box-shadow: 0 18px 46px rgba(15,23,42,.08) !important;
+        overflow: hidden !important;
+    }
+
+    [data-sfpe-final-operations="1"]::before,
+    [data-sfpe-final-operations="1"]::after {
+        display: none !important;
+        content: none !important;
+    }
+
+    [data-sfpe-final-operations="1"] table,
+    [data-sfpe-final-operations="1"] .sf-table-wrap,
+    [data-sfpe-final-operations="1"] .sfpe-ops-table-wrap {
+        width: 100% !important;
+    }
+
+    [data-sfpe-final-operations="1"] .sf-table-wrap,
+    [data-sfpe-final-operations="1"] .sfpe-ops-table-wrap,
+    [data-sfpe-final-operations="1"] .sfpe-ops-history {
+        max-height: 560px !important;
+        overflow-y: auto !important;
+    }
+
+    [data-sfpe-final-operations="1"] input[type="radio"] {
+        display: inline-block !important;
+        appearance: auto !important;
+        width: auto !important;
+        height: auto !important;
+        margin: 0 4px 10px 0 !important;
+        opacity: 1 !important;
+        position: static !important;
+    }
+</style>
+
+
+</x-filament-panels::page>
+
+{{-- SFPE OPERATIONS POLISH FINAL START --}}
+{{-- SFPE OPERATIONS POLISH FINAL END --}}
+
+{{-- SFPE UNIFIED EMPLOYMENT-LIKE OPERATIONS STYLE START --}}
+{{-- SFPE UNIFIED EMPLOYMENT-LIKE OPERATIONS STYLE END --}}
+
+{{-- SFPE FINAL OPS DOTS + REQUEST HISTORY + VERSION START --}}
+{{-- SFPE FINAL OPS DOTS + REQUEST HISTORY + VERSION END --}}
+
+{{-- SFPE FINAL SEPARATE REQUESTS BLOCK START --}}
+{{-- SFPE FINAL SEPARATE REQUESTS BLOCK END --}}
+

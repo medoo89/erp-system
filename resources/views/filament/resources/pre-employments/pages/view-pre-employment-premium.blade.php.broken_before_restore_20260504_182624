@@ -1,0 +1,3762 @@
+<x-filament-panels::page>
+
+@php
+    $record = $this->record ?? $record ?? null;
+
+    $sfpeClean = $sfpeClean ?? function ($value) {
+        if ($value instanceof \Carbon\CarbonInterface) {
+            return $value->format('M d, Y - H:i');
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'Yes' : 'No';
+        }
+
+        if ($value === null || $value === '') {
+            return '—';
+        }
+
+        if (is_array($value)) {
+            $value = collect($value)
+                ->flatten()
+                ->filter(fn ($item) => filled($item))
+                ->map(fn ($item) => is_scalar($item) ? (string) $item : json_encode($item, JSON_UNESCAPED_UNICODE))
+                ->implode(', ');
+        }
+
+        $textValue = trim((string) $value);
+        $map = [
+            'yes' => 'Yes',
+            'y_e_s' => 'Yes',
+            'no' => 'No',
+            'n_o' => 'No',
+            'true' => 'Yes',
+            'false' => 'No',
+            '1' => 'Yes',
+            '0' => 'No',
+        ];
+
+        $key = strtolower($textValue);
+
+        if (array_key_exists($key, $map)) {
+            return $map[$key];
+        }
+
+        return trim(preg_replace('/\s+/', ' ', str_replace('_', ' ', $textValue))) ?: '—';
+    };
+
+    $sfpeMoney = function ($amount, $currency = null) use ($sfpeClean) {
+        if ($amount === null || $amount === '') {
+            return '—';
+        }
+
+        $number = is_numeric($amount) ? number_format((float) $amount, 2) : $sfpeClean($amount);
+
+        return trim($number . ' ' . ($currency ?: ''));
+    };
+
+    $sfpeStatusLabel = $sfpeClean($record?->status ?? null);
+    $sfpeIsReadyForEmployment = ($record?->status ?? null) === 'ready_for_employment';
+
+    $preEmploymentEditUrl = '#';
+    $jobApplicationUrl = '#';
+    $portalUrl = '#';
+
+    try {
+        if ($record) {
+            $preEmploymentEditUrl = \App\Filament\Resources\PreEmployments\PreEmploymentResource::getUrl('edit', ['record' => $record]);
+        }
+    } catch (\Throwable $e) {
+        $preEmploymentEditUrl = url('/admin/pre-employments/' . ($record?->id ?? '') . '/edit');
+    }
+
+    try {
+        if ($record?->job_application_id) {
+            $jobApplicationUrl = \App\Filament\Resources\JobApplications\JobApplicationResource::getUrl('view', ['record' => $record->job_application_id]);
+        } else {
+            $jobApplicationUrl = url('/admin/job-applications');
+        }
+    } catch (\Throwable $e) {
+        $jobApplicationUrl = url('/admin/job-applications/' . ($record?->job_application_id ?? ''));
+    }
+
+    try {
+        if (filled($record?->portal_token)) {
+            $portalUrl = url('/pre-employment-portal/' . $record->portal_token);
+        }
+    } catch (\Throwable $e) {
+        $portalUrl = '#';
+    }
+
+    $sfpeClientName = $record?->job?->project?->client?->name ?? '—';
+    $sfpeProjectName = $record?->job?->project?->name ?? '—';
+    $sfpePositionName = $record?->job?->title ?? '—';
+
+    $candidateRequestCards = collect();
+
+    try {
+        if (\Illuminate\Support\Facades\Schema::hasTable('candidate_requests')) {
+            $rows = \Illuminate\Support\Facades\DB::table('candidate_requests')
+                ->where('job_application_id', $record?->job_application_id)
+                ->orderBy('created_at')
+                ->get();
+
+            foreach ($rows as $row) {
+                $rowArray = (array) $row;
+                $response = [];
+
+                if (filled($rowArray['candidate_response'] ?? null)) {
+                    $decoded = json_decode((string) $rowArray['candidate_response'], true);
+                    if (is_array($decoded)) {
+                        $response = $decoded;
+                    }
+                }
+
+                $thread = collect($response['thread'] ?? [])
+                    ->filter(fn ($item) => is_array($item))
+                    ->values();
+
+                $uploadedFiles = collect($response['uploaded_files'] ?? [])
+                    ->filter(fn ($item) => is_array($item))
+                    ->values();
+
+                $candidateRequestCards->push([
+                    'title' => $sfpeClean($rowArray['title'] ?? 'Candidate Request'),
+                    'type' => $sfpeClean($rowArray['type'] ?? null),
+                    'status' => $sfpeClean($rowArray['request_status'] ?? null),
+                    'proposed_salary' => $sfpeMoney($rowArray['proposed_salary'] ?? null, $rowArray['currency'] ?? null),
+                    'accepted_salary' => $sfpeMoney($rowArray['accepted_salary'] ?? null, $rowArray['accepted_currency'] ?? null),
+                    'decision' => $sfpeClean($response['decision'] ?? null),
+                    'counter_offer' => $sfpeMoney($response['counter_offer'] ?? ($rowArray['candidate_counter_offer'] ?? null), $rowArray['currency'] ?? null),
+                    'negotiation_result' => $sfpeClean($rowArray['negotiation_result'] ?? null),
+                    'requires_upload' => (bool) ($rowArray['requires_upload'] ?? false),
+                    'requested_file_label' => $sfpeClean($rowArray['requested_file_label'] ?? null),
+                    'created_at' => filled($rowArray['created_at'] ?? null) ? \Carbon\Carbon::parse($rowArray['created_at'])->format('M d, Y - H:i') : '—',
+                    'updated_at' => filled($rowArray['updated_at'] ?? null) ? \Carbon\Carbon::parse($rowArray['updated_at'])->format('M d, Y - H:i') : '—',
+                    'responded_at' => filled($rowArray['responded_at'] ?? null) ? \Carbon\Carbon::parse($rowArray['responded_at'])->format('M d, Y - H:i') : '—',
+                    'thread' => $thread,
+                    'uploaded_files' => $uploadedFiles,
+                ]);
+            }
+        }
+    } catch (\Throwable $e) {
+        $candidateRequestCards = collect();
+    }
+
+    $sfpeExpenses = collect();
+
+    try {
+        $sfpeExpenses = $record?->financeExpenses?->values() ?? collect();
+    } catch (\Throwable $e) {
+        $sfpeExpenses = collect();
+    }
+
+    $sfpeTotalExpenses = $sfpeExpenses->sum(fn ($expense) => (float) ($expense->amount ?? 0));
+    $sfpeExpenseCurrency = $sfpeExpenses->first()?->currency ?? 'EUR';
+@endphp
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,600,0,0" />
+
+@php
+    $record = $this->record ?? $record ?? null;
+
+    $preEmploymentEditUrl = '#';
+    $jobApplicationUrl = '#';
+
+    try {
+        if ($record) {
+            $preEmploymentEditUrl = \App\Filament\Resources\PreEmployments\PreEmploymentResource::getUrl('edit', ['record' => $record]);
+        }
+    } catch (\Throwable $e) {
+        $preEmploymentEditUrl = url('/admin/pre-employments/' . ($record?->id ?? '') . '/edit');
+    }
+
+    try {
+        if ($record?->job_application_id) {
+            $jobApplicationUrl = \App\Filament\Resources\JobApplications\JobApplicationResource::getUrl('view', ['record' => $record->job_application_id]);
+        } else {
+            $jobApplicationUrl = url('/admin/job-applications');
+        }
+    } catch (\Throwable $e) {
+        $jobApplicationUrl = url('/admin/job-applications/' . ($record?->job_application_id ?? ''));
+    }
+
+    $portalUrl = '#';
+
+    try {
+        if (filled($record?->portal_token)) {
+            $portalUrl = url('/pre-employment-portal/' . $record->portal_token);
+        }
+    } catch (\Throwable $e) {
+        $portalUrl = '#';
+    }
+
+    $sfpeClean = function ($value) {
+        if ($value instanceof \Carbon\CarbonInterface) {
+            return $value->format('M d, Y - H:i');
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'Yes' : 'No';
+        }
+
+        if (is_array($value)) {
+            $value = collect($value)
+                ->flatten()
+                ->filter(fn ($item) => filled($item))
+                ->map(fn ($item) => is_scalar($item) ? (string) $item : json_encode($item))
+                ->implode(', ');
+        }
+
+        if ($value === null || $value === '') {
+            return '—';
+        }
+
+        $text = trim((string) $value);
+
+        $map = [
+            'yes' => 'Yes',
+            'y_e_s' => 'Yes',
+            'no' => 'No',
+            'n_o' => 'No',
+            'true' => 'Yes',
+            'false' => 'No',
+            '1' => 'Yes',
+            '0' => 'No',
+        ];
+
+        $key = strtolower($text);
+
+        if (array_key_exists($key, $map)) {
+            return $map[$key];
+        }
+
+        $text = str_replace('_', ' ', $text);
+        $text = preg_replace('/\s+/', ' ', $text);
+
+        return $text === '' ? '—' : $text;
+    };
+
+    $sfpeHasValue = function ($value) use ($sfpeClean) {
+        $cleaned = $sfpeClean($value);
+
+        return filled($cleaned) && $cleaned !== '—';
+    };
+
+    $sfpeDate = function ($value) {
+        if (blank($value)) {
+            return '—';
+        }
+
+        try {
+            return \Carbon\Carbon::parse($value)->format('M d, Y - H:i');
+        } catch (\Throwable $e) {
+            return (string) $value;
+        }
+    };
+
+    $candidateRequestCards = collect();
+
+    try {
+        if (\Illuminate\Support\Facades\Schema::hasTable('candidate_requests')) {
+            $columns = \Illuminate\Support\Facades\Schema::getColumnListing('candidate_requests');
+
+            $query = \Illuminate\Support\Facades\DB::table('candidate_requests');
+
+            $query->where(function ($requestQuery) use ($columns, $record) {
+                $added = false;
+
+                if (in_array('pre_employment_id', $columns, true) && $record?->id) {
+                    $requestQuery->orWhere('pre_employment_id', $record->id);
+                    $added = true;
+                }
+
+                if (in_array('job_application_id', $columns, true) && $record?->job_application_id) {
+                    $requestQuery->orWhere('job_application_id', $record->job_application_id);
+                    $added = true;
+                }
+
+                if (in_array('application_id', $columns, true) && $record?->job_application_id) {
+                    $requestQuery->orWhere('application_id', $record->job_application_id);
+                    $added = true;
+                }
+
+                if (! $added) {
+                    $requestQuery->whereRaw('1 = 0');
+                }
+            });
+
+            if (in_array('created_at', $columns, true)) {
+                $query->orderBy('created_at');
+            } elseif (in_array('id', $columns, true)) {
+                $query->orderBy('id');
+            }
+
+            $rows = $query->get();
+
+            foreach ($rows as $row) {
+                $rowArray = (array) $row;
+
+                $title = null;
+                foreach (['title', 'subject', 'request_title', 'request_type', 'type', 'name'] as $key) {
+                    if (array_key_exists($key, $rowArray) && filled($rowArray[$key])) {
+                        $title = $rowArray[$key];
+                        break;
+                    }
+                }
+
+                $status = null;
+                foreach (['status', 'workflow_status', 'request_status', 'candidate_request_status'] as $key) {
+                    if (array_key_exists($key, $rowArray) && filled($rowArray[$key])) {
+                        $status = $rowArray[$key];
+                        break;
+                    }
+                }
+
+                $candidateText = null;
+                foreach (['candidate_message', 'candidate_reply', 'applicant_message', 'applicant_reply', 'message', 'request_message', 'notes', 'description'] as $key) {
+                    if (array_key_exists($key, $rowArray) && filled($rowArray[$key])) {
+                        $candidateText = $rowArray[$key];
+                        break;
+                    }
+                }
+
+                $companyText = null;
+                foreach (['admin_reply', 'company_reply', 'hr_reply', 'recruiter_reply', 'response', 'reply', 'admin_notes', 'internal_response'] as $key) {
+                    if (array_key_exists($key, $rowArray) && filled($rowArray[$key])) {
+                        $companyText = $rowArray[$key];
+                        break;
+                    }
+                }
+
+                $requestedValue = null;
+                foreach (['requested_value', 'expected_salary', 'current_salary', 'salary', 'amount', 'value', 'final_value', 'offered_value'] as $key) {
+                    if (array_key_exists($key, $rowArray) && filled($rowArray[$key])) {
+                        $requestedValue = $rowArray[$key];
+                        break;
+                    }
+                }
+
+                $candidateRequestCards->push([
+                    'title' => $sfpeClean($title ?: 'Candidate Request'),
+                    'status' => $sfpeClean($status),
+                    'candidate_text' => $sfpeClean($candidateText),
+                    'company_text' => $sfpeClean($companyText),
+                    'requested_value' => $sfpeClean($requestedValue),
+                    'created_at' => $sfpeDate($rowArray['created_at'] ?? null),
+                    'updated_at' => $sfpeDate($rowArray['updated_at'] ?? null),
+                ]);
+            }
+        }
+    } catch (\Throwable $e) {
+        $candidateRequestCards = collect();
+    }
+@endphp
+
+
+@php
+    $candidateDisplayName = $record?->candidate_name ?: '-';
+    $positionDisplayName = $record?->job?->title ?: '-';
+    $clientDisplayName = $record?->job?->project?->client?->name ?: '-';
+    $projectDisplayName = $record?->job?->project?->name ?: '-';
+    $statusDisplayName = filled($record?->status) ? str_replace('_', ' ', ucfirst((string) $record->status)) : '-';
+    $officerDisplayName = $record?->assignedHrUser?->name ?: '-';
+@endphp
+
+    @php
+        $record = $this->record ?? null;
+
+        $candidate = $record?->candidate ?? $record?->jobApplication ?? $record?->application ?? null;
+        $job = $record?->job ?? $record?->jobOpening ?? $candidate?->job ?? $candidate?->jobOpening ?? null;
+        $client = $record?->client ?? $job?->client ?? null;
+        $project = $record?->project ?? $job?->project ?? null;
+        $officer = $record?->operationOfficer ?? $record?->hrOfficer ?? $record?->officer ?? null;
+
+        $candidateName = $record?->candidate_name
+            ?? $record?->full_name
+            ?? $candidate?->full_name
+            ?? $candidate?->name
+            ?? $candidate?->candidate_name
+            ?? 'Pre-Employment';
+
+        $position = $record?->position
+            ?? $record?->job_title
+            ?? $job?->title
+            ?? $job?->job_title
+            ?? $job?->position
+            ?? '-';
+
+        $status = $record?->status
+            ?? $record?->current_status
+            ?? $record?->final_status
+            ?? 'Initiated';
+
+        $clientName = $client?->name ?? $record?->client_name ?? '-';
+        $projectName = $project?->name ?? $record?->project_name ?? '-';
+        $officerName = $officer?->name ?? $record?->operation_officer_name ?? $record?->hr_officer_name ?? '-';
+
+        $contractStatus = $record?->contract_status ?? '-';
+        $cafStatus = $record?->caf_status ?? '-';
+        $generalLetterStatus = $record?->general_letter_status ?? '-';
+        $publicLink = $record?->public_link ?? $record?->portal_link ?? null;
+
+        $createdAt = $record?->created_at ? $record->created_at->format('Y-m-d') : '-';
+        $updatedAt = $record?->updated_at ? $record->updated_at->format('Y-m-d') : '-';
+
+        try {
+            $resourceClass = static::getResource();
+            $indexUrl = $resourceClass::getUrl('index');
+            $editUrl = $resourceClass::getUrl('edit', ['record' => $record]);
+        } catch (\Throwable $e) {
+            $indexUrl = url('/admin/pre-employments');
+            $editUrl = '#';
+        }
+
+        $statusClass = strtolower(str_replace([' ', '_'], '-', (string) $status));
+    @endphp
+
+    <style>
+        .fi-header { display:none !important; }
+
+        .pe-view-wrap {
+            max-width: 1240px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .pe-hero {
+            position: relative;
+            overflow: hidden;
+            border-radius: 30px;
+            padding: 34px 36px;
+            border: 1px solid rgba(76,167,168,.24);
+            background:
+                radial-gradient(circle at 92% 20%, rgba(76,167,168,.26), transparent 24%),
+                radial-gradient(circle at 12% 110%, rgba(179,139,47,.16), transparent 30%),
+                linear-gradient(135deg,#081a34 0%,#12385d 56%,#2f6f73 100%) !important;
+            box-shadow: 0 18px 36px rgba(15,23,42,.14);
+            color: #fff;
+        }
+
+        .pe-hero::after {
+            content: "";
+            position: absolute;
+            left: 0; right: 0; bottom: 0;
+            height: 4px;
+            background: linear-gradient(90deg,#4ca7a8,#b38b2f);
+        }
+
+        .pe-hero-inner {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 22px;
+            flex-wrap: wrap;
+        }
+
+        .pe-breadcrumb {
+            font-size: 14px;
+            color: rgba(255,255,255,.72);
+            font-weight: 650;
+            margin-bottom: 12px;
+        }
+
+        .pe-title {
+            font-size: clamp(44px,4vw,64px);
+            line-height: .95;
+            font-weight: 950;
+            letter-spacing: -.055em;
+            color: #fff !important;
+        }
+
+        .pe-subtitle {
+            margin-top: 16px;
+            max-width: 860px;
+            font-size: 15px;
+            line-height: 1.7;
+            color: rgba(255,255,255,.82) !important;
+        }
+
+        .pe-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .pe-btn,
+        .pe-btn-soft {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 46px;
+            padding: 0 18px;
+            border-radius: 999px;
+            text-decoration: none !important;
+            font-size: 14px;
+            font-weight: 950;
+            transition: .18s ease;
+        }
+
+        .pe-btn {
+            background: #f2b705;
+            color: #3b2a00 !important;
+            box-shadow: 0 12px 24px rgba(242,183,5,.22);
+        }
+
+        .pe-btn-soft {
+            background: rgba(255,255,255,.12);
+            color: #fff !important;
+            border: 1px solid rgba(255,255,255,.16);
+        }
+
+        .pe-btn:hover,
+        .pe-btn-soft:hover {
+            transform: translateY(-1px);
+        }
+
+        .pe-badges {
+            margin-top: 18px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .pe-badge {
+            display: inline-flex;
+            align-items: center;
+            min-height: 36px;
+            padding: 0 14px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.12);
+            border: 1px solid rgba(255,255,255,.14);
+            color: #fff;
+            font-size: 12px;
+            font-weight: 950;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+
+        .pe-status-badge {
+            background: rgba(16,185,129,.18);
+            border-color: rgba(16,185,129,.28);
+            color: #d1fae5;
+        }
+
+        .pe-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .pe-stat {
+            border-radius: 24px;
+            border: 1px solid #d7e2e5;
+            background: linear-gradient(180deg,#ffffff 0%,#f8fbfc 100%);
+            box-shadow: 0 14px 30px rgba(15,23,42,.07);
+            padding: 20px;
+        }
+
+        .pe-stat-label {
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 950;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .pe-stat-value {
+            color: #0f172a;
+            font-size: 24px;
+            font-weight: 950;
+            line-height: 1.1;
+        }
+
+        .pe-card {
+            border-radius: 28px;
+            border: 1px solid #d7e2e5;
+            background:
+                radial-gradient(circle at 88% 8%, rgba(76,167,168,.08), transparent 30%),
+                linear-gradient(180deg,#ffffff 0%,#f8fbfc 100%);
+            box-shadow: 0 14px 30px rgba(15,23,42,.07);
+            overflow: hidden;
+        }
+
+        .pe-card-header {
+            padding: 18px 22px;
+            border-bottom: 1px solid #e4ecef;
+            background: linear-gradient(180deg,#ffffff 0%,#f4f8fa 100%);
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .pe-card-title {
+            color: #0f172a;
+            font-size: 16px;
+            font-weight: 950;
+        }
+
+        .pe-card-body {
+            padding: 22px;
+        }
+
+        .pe-info-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .pe-info {
+            border-radius: 18px;
+            background: rgba(248,252,253,.9);
+            border: 1px solid #e4ecef;
+            padding: 16px;
+        }
+
+        .pe-info-label {
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 850;
+            margin-bottom: 8px;
+        }
+
+        .pe-info-value {
+            color: #0f172a;
+            font-size: 15px;
+            font-weight: 900;
+            word-break: break-word;
+        }
+
+        .pe-timeline {
+            display: grid;
+            gap: 12px;
+        }
+
+        .pe-timeline-item {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            padding: 14px;
+            border-radius: 18px;
+            background: rgba(248,252,253,.9);
+            border: 1px solid #e4ecef;
+        }
+
+        .pe-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 999px;
+            margin-top: 4px;
+            background: #4ca7a8;
+            box-shadow: 0 0 0 4px rgba(76,167,168,.15);
+        }
+
+        .pe-timeline-title {
+            color: #0f172a;
+            font-weight: 950;
+            font-size: 14px;
+        }
+
+        .pe-timeline-meta {
+            color: #64748b;
+            font-weight: 700;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        .dark .pe-hero {
+            background:
+                radial-gradient(circle at 92% 20%, rgba(76,167,168,.20), transparent 24%),
+                radial-gradient(circle at 12% 110%, rgba(179,139,47,.12), transparent 30%),
+                linear-gradient(135deg,#071427 0%,#0b1a31 58%,#12385d 100%) !important;
+            border-color: rgba(76,167,168,.18) !important;
+        }
+
+        .dark .pe-stat,
+        .dark .pe-card {
+            background:
+                radial-gradient(circle at 88% 8%, rgba(76,167,168,.09), transparent 30%),
+                linear-gradient(180deg,rgba(12,23,38,.98) 0%,rgba(15,23,42,.96) 100%) !important;
+            border-color: rgba(76,167,168,.18) !important;
+            box-shadow: 0 14px 30px rgba(0,0,0,.28) !important;
+        }
+
+        .dark .pe-card-header {
+            background: rgba(15,23,42,.92) !important;
+            border-bottom-color: rgba(76,167,168,.16) !important;
+        }
+
+        .dark .pe-card-title,
+        .dark .pe-stat-value,
+        .dark .pe-info-value,
+        .dark .pe-timeline-title {
+            color: #f8fafc !important;
+        }
+
+        .dark .pe-stat-label,
+        .dark .pe-info-label,
+        .dark .pe-timeline-meta {
+            color: #aab8c6 !important;
+        }
+
+        .dark .pe-info,
+        .dark .pe-timeline-item {
+            background: rgba(15,23,42,.70) !important;
+            border-color: rgba(76,167,168,.14) !important;
+        }
+
+        @media (max-width: 1100px) {
+            .pe-grid,
+            .pe-info-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 760px) {
+            .pe-hero {
+                padding: 28px 24px;
+            }
+
+            .pe-grid,
+            .pe-info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    
+
+/* =========================================================
+   SADA FEZZAN ERP — PRE-EMPLOYMENT MD3 UNIFIED VIEW
+   Matches Employment profile visual language.
+   ========================================================= */
+
+.fi-page,
+.fi-main,
+.fi-page-content {
+    overflow-x: hidden !important;
+}
+
+.pe-wrap,
+.pe-shell,
+.pe-page,
+.pe-profile-shell {
+    width: min(1440px, calc(100vw - 64px)) !important;
+    max-width: 1440px !important;
+    margin: 0 auto !important;
+}
+
+/* Header / hero */
+.pe-hero,
+.pe-header,
+.pe-premium-header,
+.pe-page-hero {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 260px !important;
+    padding: 42px 48px 34px !important;
+    margin: 0 auto 28px !important;
+    border-radius: 36px !important;
+    border: 1px solid rgba(20, 184, 166, .18) !important;
+    background:
+        radial-gradient(circle at 12% 8%, rgba(20, 184, 166, .16), transparent 34%),
+        radial-gradient(circle at 95% 10%, rgba(34, 197, 94, .12), transparent 36%),
+        linear-gradient(135deg, rgba(255,255,255,.94), rgba(236,253,245,.78)) !important;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, .08) !important;
+    overflow: visible !important;
+}
+
+.dark .pe-hero,
+.dark .pe-header,
+.dark .pe-premium-header,
+.dark .pe-page-hero {
+    border-color: rgba(45, 212, 191, .20) !important;
+    background:
+        radial-gradient(circle at 12% 8%, rgba(20, 184, 166, .22), transparent 34%),
+        radial-gradient(circle at 95% 10%, rgba(34, 197, 94, .13), transparent 36%),
+        linear-gradient(135deg, rgba(2, 6, 23, .96), rgba(8, 47, 73, .72)) !important;
+    box-shadow: 0 26px 80px rgba(0, 0, 0, .35) !important;
+}
+
+.pe-hero-inner,
+.pe-header-inner,
+.pe-premium-header-inner,
+.pe-page-hero-inner {
+    display: grid !important;
+    grid-template-columns: minmax(320px, 470px) minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 34px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* Breadcrumb */
+.pe-breadcrumb,
+.pe-kicker,
+.pe-eyebrow,
+.pe-title-kicker {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    align-items: center !important;
+    color: rgba(15, 23, 42, .56) !important;
+    font-size: 15px !important;
+    font-weight: 800 !important;
+    letter-spacing: -.02em !important;
+    margin-bottom: 14px !important;
+}
+
+.dark .pe-breadcrumb,
+.dark .pe-kicker,
+.dark .pe-eyebrow,
+.dark .pe-title-kicker {
+    color: rgba(226, 232, 240, .62) !important;
+}
+
+/* Title */
+.pe-title,
+.pe-title-block,
+.pe-hero-title,
+.pe-header-title,
+.pe-page-title {
+    min-width: 0 !important;
+    max-width: 100% !important;
+}
+
+.pe-title h1,
+.pe-title-block h1,
+.pe-hero-title h1,
+.pe-header-title h1,
+.pe-page-title h1,
+.pe-wrap h1,
+.pe-shell h1 {
+    max-width: 100% !important;
+    margin: 0 !important;
+    color: #07111f !important;
+    font-size: clamp(46px, 4.8vw, 82px) !important;
+    line-height: .90 !important;
+    letter-spacing: -.065em !important;
+    font-weight: 950 !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+    white-space: normal !important;
+}
+
+.dark .pe-title h1,
+.dark .pe-title-block h1,
+.dark .pe-hero-title h1,
+.dark .pe-header-title h1,
+.dark .pe-page-title h1,
+.dark .pe-wrap h1,
+.dark .pe-shell h1 {
+    color: #f8fafc !important;
+}
+
+/* Actions */
+.pe-actions,
+.pe-header-actions,
+.pe-hero-actions,
+.pe-page-actions {
+    min-width: 0 !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 12px !important;
+    width: 100% !important;
+    overflow: visible !important;
+}
+
+.pe-actions > *,
+.pe-header-actions > *,
+.pe-hero-actions > *,
+.pe-page-actions > * {
+    flex: 0 1 auto !important;
+    min-width: max-content !important;
+    max-width: 100% !important;
+}
+
+.pe-actions a,
+.pe-actions button,
+.pe-actions .fi-btn,
+.pe-header-actions a,
+.pe-header-actions button,
+.pe-header-actions .fi-btn,
+.pe-hero-actions a,
+.pe-hero-actions button,
+.pe-hero-actions .fi-btn,
+.pe-page-actions a,
+.pe-page-actions button,
+.pe-page-actions .fi-btn,
+.pe-btn,
+.pe-btn-soft,
+.pe-btn-primary,
+.pe-btn-danger {
+    position: relative !important;
+    min-height: 52px !important;
+    padding: 0 22px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 10px !important;
+    border-radius: 999px !important;
+    font-size: 15px !important;
+    font-weight: 900 !important;
+    letter-spacing: -.025em !important;
+    white-space: nowrap !important;
+    text-decoration: none !important;
+    box-shadow: 0 14px 30px rgba(15, 23, 42, .10) !important;
+    transform: translateZ(0) !important;
+    transition: transform .18s ease, box-shadow .18s ease, filter .18s ease !important;
+}
+
+.pe-actions a:hover,
+.pe-actions button:hover,
+.pe-actions .fi-btn:hover,
+.pe-btn:hover,
+.pe-btn-soft:hover,
+.pe-btn-primary:hover,
+.pe-btn-danger:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 18px 38px rgba(15, 23, 42, .14) !important;
+}
+
+/* Material-style icons injected by label */
+.pe-actions a::before,
+.pe-actions button::before,
+.pe-actions .fi-btn::before,
+.pe-btn::before,
+.pe-btn-soft::before,
+.pe-btn-primary::before,
+.pe-btn-danger::before {
+    font-family: "Material Symbols Rounded" !important;
+    font-weight: 400 !important;
+    font-style: normal !important;
+    font-size: 22px !important;
+    line-height: 1 !important;
+    letter-spacing: normal !important;
+    text-transform: none !important;
+    white-space: nowrap !important;
+    direction: ltr !important;
+    -webkit-font-feature-settings: "liga" !important;
+    font-feature-settings: "liga" !important;
+    -webkit-font-smoothing: antialiased !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* Hide old SVG icons inside page action buttons to keep Material look */
+.pe-actions svg,
+.pe-header-actions svg,
+.pe-hero-actions svg,
+.pe-page-actions svg {
+    width: 0 !important;
+    min-width: 0 !important;
+    opacity: 0 !important;
+    margin: 0 !important;
+}
+
+/* Label-specific icons */
+.pe-actions a[href*="job-applications"]::before,
+.pe-actions button:has(span):has(.sr-only)::before,
+.pe-btn[href*="job-applications"]::before {
+    content: "keyboard_backspace";
+}
+
+.pe-actions a:contains("Back")::before,
+.pe-btn:contains("Back")::before {
+    content: "keyboard_backspace";
+}
+
+/* Browser-safe class-independent icon defaults using button text is limited in CSS,
+   so these target common button order/known custom classes */
+.pe-actions > *:nth-child(1)::before { content: "keyboard_backspace"; }
+.pe-actions > *:nth-child(2)::before { content: "account_balance_wallet"; }
+.pe-actions > *:nth-child(3)::before { content: "open_in_new"; }
+.pe-actions > *:nth-child(4)::before { content: "send"; }
+.pe-actions > *:nth-child(5)::before { content: "badge"; }
+.pe-actions > *:nth-child(6)::before { content: "edit"; }
+.pe-actions > *:nth-child(7)::before { content: "delete"; }
+
+/* Cards */
+.pe-card,
+.pe-panel,
+.pe-section,
+.pe-info-card,
+.pe-overview-card,
+.pe-process-card {
+    border-radius: 28px !important;
+    border: 1px solid rgba(15, 23, 42, .08) !important;
+    background: rgba(255, 255, 255, .92) !important;
+    box-shadow: 0 18px 44px rgba(15, 23, 42, .07) !important;
+    overflow: hidden !important;
+}
+
+.dark .pe-card,
+.dark .pe-panel,
+.dark .pe-section,
+.dark .pe-info-card,
+.dark .pe-overview-card,
+.dark .pe-process-card {
+    border-color: rgba(148, 163, 184, .16) !important;
+    background: rgba(15, 23, 42, .78) !important;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, .30) !important;
+}
+
+.pe-card-header,
+.pe-panel-header,
+.pe-section-header {
+    padding: 22px 28px !important;
+    border-bottom: 1px solid rgba(15, 23, 42, .08) !important;
+    font-size: 19px !important;
+    font-weight: 950 !important;
+    letter-spacing: -.035em !important;
+}
+
+.dark .pe-card-header,
+.dark .pe-panel-header,
+.dark .pe-section-header {
+    border-bottom-color: rgba(148, 163, 184, .14) !important;
+    color: #f8fafc !important;
+}
+
+/* Forms/selects inside Pre-Employment */
+.pe-wrap .fi-input,
+.pe-wrap .fi-select-input,
+.pe-wrap .choices__inner,
+.pe-wrap textarea,
+.pe-shell .fi-input,
+.pe-shell .fi-select-input,
+.pe-shell .choices__inner,
+.pe-shell textarea {
+    border-radius: 16px !important;
+}
+
+/* Responsive */
+@media (max-width: 1280px) {
+    .pe-hero-inner,
+    .pe-header-inner,
+    .pe-premium-header-inner,
+    .pe-page-hero-inner {
+        grid-template-columns: 1fr !important;
+        align-items: flex-start !important;
+    }
+
+    .pe-actions,
+    .pe-header-actions,
+    .pe-hero-actions,
+    .pe-page-actions {
+        justify-content: flex-start !important;
+    }
+
+    .pe-title h1,
+    .pe-title-block h1,
+    .pe-hero-title h1,
+    .pe-header-title h1,
+    .pe-page-title h1,
+    .pe-wrap h1,
+    .pe-shell h1 {
+        font-size: clamp(46px, 7vw, 72px) !important;
+        line-height: .92 !important;
+    }
+}
+
+@media (max-width: 760px) {
+    .pe-wrap,
+    .pe-shell,
+    .pe-page,
+    .pe-profile-shell {
+        width: min(100%, calc(100vw - 28px)) !important;
+    }
+
+    .pe-hero,
+    .pe-header,
+    .pe-premium-header,
+    .pe-page-hero {
+        padding: 28px 20px !important;
+        border-radius: 28px !important;
+    }
+
+    .pe-actions,
+    .pe-header-actions,
+    .pe-hero-actions,
+    .pe-page-actions {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+
+    .pe-actions > *,
+    .pe-header-actions > *,
+    .pe-hero-actions > *,
+    .pe-page-actions > *,
+    .pe-actions a,
+    .pe-actions button,
+    .pe-actions .fi-btn,
+    .pe-btn,
+    .pe-btn-soft,
+    .pe-btn-primary,
+    .pe-btn-danger {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .pe-title h1,
+    .pe-title-block h1,
+    .pe-hero-title h1,
+    .pe-header-title h1,
+    .pe-page-title h1,
+    .pe-wrap h1,
+    .pe-shell h1 {
+        font-size: clamp(40px, 13vw, 56px) !important;
+    }
+}
+
+@media (max-width: 1180px) {
+    .pe-hero {
+        width: min(100%, calc(100vw - 40px)) !important;
+        padding: 34px 28px !important;
+    }
+
+    .pe-actions {
+        gap: 10px !important;
+    }
+
+    .pe-actions a,
+    .pe-actions button,
+    .pe-actions .fi-btn,
+    .pe-btn,
+    .pe-btn-soft,
+    .pe-btn-primary,
+    .pe-btn-danger {
+        font-size: 14px !important;
+        min-height: 48px !important;
+        padding: 0 18px !important;
+    }
+}
+
+@media (max-width: 760px) {
+    .pe-hero {
+        width: min(100%, calc(100vw - 24px)) !important;
+        padding: 28px 20px !important;
+        border-radius: 28px !important;
+    }
+
+    .pe-title-block h1 {
+        font-size: clamp(36px, 11vw, 52px) !important;
+        line-height: .96 !important;
+    }
+
+    .pe-actions {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+    }
+
+    .pe-actions > *,
+    .pe-actions a,
+    .pe-actions button,
+    .pe-actions .fi-btn,
+    .pe-btn,
+    .pe-btn-soft,
+    .pe-btn-primary,
+    .pe-btn-danger {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+}
+
+
+<style>
+    .sfpe-action-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .75rem;
+        align-items: center;
+        margin: 0 0 1.25rem;
+    }
+
+    .sfpe-action-btn {
+        appearance: none;
+        border: 1px solid rgba(15, 23, 42, .12);
+        border-radius: 999px;
+        min-height: 44px;
+        padding: .72rem 1.05rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .45rem;
+        font-weight: 850;
+        font-size: .88rem;
+        line-height: 1;
+        text-decoration: none;
+        cursor: pointer;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
+        transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+    }
+
+    .sfpe-action-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 14px 28px rgba(15, 23, 42, .12);
+    }
+
+    .sfpe-action-warning {
+        background: #fbbf24;
+        color: #111827;
+        border-color: rgba(217, 119, 6, .25);
+    }
+
+    .sfpe-action-success {
+        background: #22c55e;
+        color: #052e16;
+        border-color: rgba(22, 163, 74, .28);
+    }
+
+    .sfpe-action-teal {
+        background: #5eead4;
+        color: #134e4a;
+        border-color: rgba(20, 184, 166, .28);
+    }
+
+    .sfpe-action-teal-solid {
+        background: #14b8a6;
+        color: #042f2e;
+        border-color: rgba(20, 184, 166, .28);
+    }
+
+    .sfpe-action-light {
+        background: rgba(255, 255, 255, .92);
+        color: #0f172a;
+        border-color: rgba(15, 23, 42, .14);
+    }
+
+    .sfpe-action-disabled {
+        background: rgba(148, 163, 184, .16);
+        color: #64748b;
+        cursor: not-allowed;
+        box-shadow: none;
+    }
+
+    .sfpe-candidate-requests-card {
+        break-inside: avoid;
+    }
+
+    .sfpe-request-thread {
+        display: grid;
+        gap: .85rem;
+    }
+
+    .sfpe-request-item {
+        background: rgba(255, 255, 255, .78);
+        border: 1px solid rgba(15, 23, 42, .10);
+        border-radius: 20px;
+        padding: 1rem;
+    }
+
+    .sfpe-request-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: .85rem;
+    }
+
+    .sfpe-request-title {
+        font-size: .98rem;
+        font-weight: 900;
+        letter-spacing: -.02em;
+        color: #0f172a;
+    }
+
+    .sfpe-request-date {
+        margin-top: .18rem;
+        color: #64748b;
+        font-size: .78rem;
+        font-weight: 650;
+    }
+
+    .sfpe-request-status {
+        display: inline-flex;
+        width: fit-content;
+        border-radius: 999px;
+        padding: .35rem .65rem;
+        background: rgba(37, 99, 235, .10);
+        color: #1d4ed8;
+        border: 1px solid rgba(37, 99, 235, .18);
+        font-size: .76rem;
+        font-weight: 900;
+        text-transform: capitalize;
+        white-space: nowrap;
+    }
+
+    .sfpe-message-stack {
+        display: grid;
+        gap: .65rem;
+    }
+
+    .sfpe-message {
+        border-radius: 18px;
+        padding: .85rem .95rem;
+        border: 1px solid rgba(15, 23, 42, .10);
+    }
+
+    .sfpe-message-candidate {
+        background: rgba(37, 99, 235, .08);
+    }
+
+    .sfpe-message-company {
+        background: rgba(34, 197, 94, .10);
+    }
+
+    .sfpe-message-label {
+        color: #64748b;
+        font-size: .72rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: .045em;
+        margin-bottom: .28rem;
+    }
+
+    .sfpe-message-text {
+        color: #0f172a;
+        font-weight: 750;
+        line-height: 1.45;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .sfpe-empty-line {
+        background: rgba(248, 250, 252, .8);
+        border: 1px dashed rgba(15, 23, 42, .14);
+        border-radius: 18px;
+        padding: 1rem;
+        color: #64748b;
+        font-weight: 700;
+    }
+
+    .dark .sfpe-request-item,
+    .dark .sfpe-action-light {
+        background: rgba(255, 255, 255, .08);
+        color: #f8fafc;
+        border-color: rgba(255, 255, 255, .12);
+    }
+
+    .dark .sfpe-request-title,
+    .dark .sfpe-message-text {
+        color: #f8fafc;
+    }
+
+    .dark .sfpe-request-date,
+    .dark .sfpe-message-label,
+    .dark .sfpe-empty-line {
+        color: #cbd5e1;
+    }
+
+    .dark .sfpe-empty-line {
+        background: rgba(255, 255, 255, .06);
+        border-color: rgba(255, 255, 255, .14);
+    }
+
+    @media print {
+        .sfpe-action-strip {
+            display: none !important;
+        }
+
+        .sfpe-candidate-requests-card {
+            break-inside: avoid;
+        }
+    }
+
+<style>
+    .sfpe-force-action-bar {
+        max-width: 1040px;
+        margin: 0 auto 1.25rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: .75rem;
+        align-items: center;
+    }
+
+    .sfpe-force-btn {
+        border: 1px solid rgba(15, 23, 42, .12);
+        border-radius: 999px;
+        min-height: 44px;
+        padding: .72rem 1.05rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 850;
+        font-size: .88rem;
+        line-height: 1;
+        text-decoration: none;
+        cursor: pointer;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
+        transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+    }
+
+    .sfpe-force-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 14px 28px rgba(15, 23, 42, .12);
+    }
+
+    .sfpe-force-warning {
+        background: #fbbf24;
+        color: #111827;
+    }
+
+    .sfpe-force-success {
+        background: #22c55e;
+        color: #052e16;
+    }
+
+    .sfpe-force-teal {
+        background: #5eead4;
+        color: #134e4a;
+    }
+
+    .sfpe-force-teal-solid {
+        background: #14b8a6;
+        color: #042f2e;
+    }
+
+    .sfpe-force-light {
+        background: rgba(255, 255, 255, .92);
+        color: #0f172a;
+    }
+
+    .sfpe-force-disabled {
+        background: rgba(148, 163, 184, .16);
+        color: #64748b;
+        cursor: not-allowed;
+        box-shadow: none;
+    }
+
+    @media print {
+        .sfpe-force-action-bar {
+            display: none !important;
+        }
+    }
+
+<style>
+    .sfpe-page-header-restored {
+        max-width: 1040px;
+        margin: 0 auto 1.5rem;
+        padding: 2.4rem 2.6rem;
+        border-radius: 28px;
+        position: relative;
+        overflow: hidden;
+        background:
+            radial-gradient(circle at 86% 12%, rgba(45, 212, 191, .22), transparent 38%),
+            linear-gradient(135deg, #0f172a 0%, #12365a 55%, #27777b 100%);
+        border: 1px solid rgba(255, 255, 255, .12);
+        box-shadow: 0 22px 52px rgba(15, 23, 42, .20);
+    }
+
+    .sfpe-page-header-restored::after {
+        content: "";
+        position: absolute;
+        inset-inline: 0;
+        bottom: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #14b8a6, #fbbf24);
+        opacity: .95;
+    }
+
+    .sfpe-page-breadcrumbs {
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+        color: rgba(226, 232, 240, .82);
+        font-size: .9rem;
+        font-weight: 750;
+        margin-bottom: .55rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .sfpe-page-breadcrumbs span {
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .sfpe-page-title {
+        margin: 0;
+        color: #ffffff;
+        font-size: clamp(2.4rem, 5vw, 4.6rem);
+        font-weight: 920;
+        line-height: .94;
+        letter-spacing: -.07em;
+        position: relative;
+        z-index: 1;
+        max-width: 900px;
+    }
+
+    .sfpe-page-subtitle {
+        margin-top: 1rem;
+        color: rgba(226, 232, 240, .86);
+        font-size: 1rem;
+        font-weight: 600;
+        line-height: 1.6;
+        position: relative;
+        z-index: 1;
+        max-width: 860px;
+    }
+
+    .dark .sfpe-page-title {
+        color: #ffffff;
+    }
+
+    .dark .sfpe-page-breadcrumbs,
+    .dark .sfpe-page-subtitle {
+        color: rgba(226, 232, 240, .86);
+    }
+
+    @media (max-width: 720px) {
+        .sfpe-page-header-restored {
+            padding: 1.7rem;
+            border-radius: 24px;
+        }
+
+        .sfpe-page-title {
+            font-size: 2.4rem;
+        }
+    }
+
+    @media print {
+        .sfpe-page-header-restored {
+            margin-bottom: 1rem;
+            box-shadow: none;
+            background: #0f172a !important;
+            color: white !important;
+        }
+    }
+</style>
+
+</style>
+
+</style>
+
+</style>
+
+    <div class="pe-view-wrap">
+        
+
+
+        
+
+
+
+<section class="pe-card sfpe-candidate-requests-card">
+    <div class="pe-card-head">
+        <div>
+            <div class="pe-card-title">Candidate Requests</div>
+            <div class="pe-card-subtitle">
+                Salary negotiation, certificate requests, uploaded files, and candidate-company replies from the portal.
+            </div>
+        </div>
+    </div>
+
+    <div class="pe-card-body">
+        @if(($candidateRequestCards ?? collect())->isNotEmpty())
+            <div class="sfpe-request-thread">
+                @foreach($candidateRequestCards as $request)
+                    @php
+                        $thread = collect($request['thread'] ?? []);
+                        $files = collect($request['files'] ?? []);
+                    @endphp
+
+                    <div class="sfpe-negotiation-card">
+                        <div class="sfpe-request-top">
+                            <div>
+                                <div class="sfpe-request-badge">Candidate Request</div>
+                                <div class="sfpe-request-title">{{ $request['title'] ?? 'Candidate Request' }}</div>
+                                <div class="sfpe-request-tags">
+                                    <span>{{ $request['type'] ?? '—' }}</span>
+                                    <span>{{ $request['status'] ?? '—' }}</span>
+                                </div>
+                            </div>
+
+                            <span class="sfpe-request-status">{{ $request['status'] ?? '—' }}</span>
+                        </div>
+
+                        <div class="sfpe-request-columns">
+                            <div class="sfpe-negotiation-history">
+                                <div class="sfpe-panel-title">Negotiation History</div>
+
+                                @if($thread->isNotEmpty())
+                                    <div class="sfpe-thread-timeline">
+                                        @foreach($thread as $message)
+                                            <div class="sfpe-thread-row {{ ($message['sender'] ?? '') === 'candidate' ? 'is-candidate' : 'is-hr' }}">
+                                                <div class="sfpe-thread-dot"></div>
+
+                                                <div class="sfpe-thread-card">
+                                                    <div class="sfpe-thread-head">
+                                                        <strong>{{ $message['label'] ?? 'Update' }}</strong>
+                                                        <span>{{ $message['created_at'] ?? '—' }}</span>
+                                                    </div>
+
+                                                    @if(filled($message['message'] ?? null))
+                                                        <div class="sfpe-thread-main">{{ $message['message'] }}</div>
+                                                    @endif
+
+                                                    <div class="sfpe-thread-pills">
+                                                        @if(($message['salary'] ?? '—') !== '—')
+                                                            <span>Salary: {{ $message['salary'] }}</span>
+                                                        @endif
+
+                                                        @if(($message['decision'] ?? '—') !== '—')
+                                                            <span>Decision: {{ $message['decision'] }}</span>
+                                                        @endif
+
+                                                        @if(($message['counter_offer'] ?? '—') !== '—')
+                                                            <span>Counter Offer: {{ $message['counter_offer'] }}</span>
+                                                        @endif
+                                                    </div>
+
+                                                    @if(filled($message['notes'] ?? null))
+                                                        <div class="sfpe-thread-notes">{{ $message['notes'] }}</div>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <div class="sfpe-empty-line">No negotiation history was recorded for this request.</div>
+                                @endif
+                            </div>
+
+                            <div class="sfpe-request-side">
+                                <div class="sfpe-side-panel">
+                                    <div class="sfpe-panel-title">Request Summary</div>
+
+                                    <div class="sfpe-summary-line"><span>Status</span><strong>{{ $request['status'] ?? '—' }}</strong></div>
+                                    <div class="sfpe-summary-line"><span>Type</span><strong>{{ $request['type'] ?? '—' }}</strong></div>
+                                    <div class="sfpe-summary-line"><span>Proposed Salary</span><strong>{{ $request['proposed_salary'] ?? '—' }}</strong></div>
+                                    <div class="sfpe-summary-line"><span>Accepted Salary</span><strong>{{ $request['accepted_salary'] ?? '—' }}</strong></div>
+                                    <div class="sfpe-summary-line"><span>Decision</span><strong>{{ $request['decision'] ?? '—' }}</strong></div>
+                                    <div class="sfpe-summary-line"><span>Created At</span><strong>{{ $request['created_at'] ?? '—' }}</strong></div>
+                                    <div class="sfpe-summary-line"><span>Files Count</span><strong>{{ $request['files_count'] ?? 0 }}</strong></div>
+                                </div>
+
+                                <div class="sfpe-side-panel">
+                                    <div class="sfpe-panel-title">Uploaded Files <span>{{ $files->count() }} file(s)</span></div>
+
+                                    @if($files->isNotEmpty())
+                                        <div class="sfpe-upload-list">
+                                            @foreach($files as $file)
+                                                <div class="sfpe-upload-row">
+                                                    <div class="sfpe-file-icon">PDF</div>
+
+                                                    <div class="sfpe-file-info">
+                                                        <strong>{{ $file['name'] ?? 'Document' }}</strong>
+                                                        <span>{{ $file['label'] ?? 'Uploaded File' }}</span>
+                                                    </div>
+
+                                                    @if(filled($file['url'] ?? null))
+                                                        <a href="{{ $file['url'] }}" target="_blank" rel="noopener" class="sfpe-pill-link">Open</a>
+                                                    @endif
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <div class="sfpe-empty-line">No uploaded files for this request.</div>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        @else
+            <div class="sfpe-empty-line">No candidate requests or negotiation replies have been recorded yet.</div>
+        @endif
+    </div>
+</section>
+
+
+<section class="pe-card sfpe-expenses-card">
+    <div class="pe-card-head">
+        <div>
+            <div class="pe-card-title">Pre-Employment Expenses</div>
+            <div class="pe-card-subtitle">
+                Scrollable pre-hire expenses linked to this candidate before conversion to Employment.
+            </div>
+        </div>
+
+        <button type="button" wire:click="mountAction('addExpense')" class="sfpe-mini-action-btn">
+            Add Expense
+        </button>
+    </div>
+
+    <div class="pe-card-body">
+        <div class="sfpe-expense-total">
+            <span>Total Pre-Hire Cost</span>
+            <strong>{{ $sfpeExpenseTotalLabel ?? '0.00 EUR' }}</strong>
+        </div>
+
+        <div class="sfpe-expense-scroll">
+            @if(($sfpeExpenseRows ?? collect())->isNotEmpty())
+                @foreach($sfpeExpenseRows as $expense)
+                    <div class="sfpe-expense-row">
+                        <div>
+                            <strong>{{ $expense->title ?: 'Expense' }}</strong>
+                            <span>
+                                {{ ucfirst(str_replace('_', ' ', $expense->category ?: $expense->expense_category ?: 'other')) }}
+                                · {{ optional($expense->expense_date)->format('M d, Y') ?: '—' }}
+                                · {{ ucfirst($expense->status ?: 'draft') }}
+                            </span>
+                        </div>
+
+                        <div class="sfpe-expense-amount">
+                            {{ number_format((float) ($expense->amount ?? 0), 2) }} {{ $expense->currency ?: 'EUR' }}
+                        </div>
+                    </div>
+                @endforeach
+            @else
+                <div class="sfpe-empty-line">No Pre-Employment expenses recorded yet. Use Add Expense to record visa, ticket, medical, hotel, or transport costs.</div>
+            @endif
+        </div>
+    </div>
+</section>
+
+<section class="pe-card sfpe-timeline-print-area">
+            <div class="pe-card-header">
+                <div class="pe-card-title">Timeline</div>
+            <button type="button" class="sfpe-print-timeline-btn" onclick="document.body.classList.add('sfpe-print-timeline-only'); window.print(); setTimeout(() => document.body.classList.remove('sfpe-print-timeline-only'), 800);" data-print-action="printTimelineOverview">
+                Print Timeline
+            </button>
+            </div>
+
+            <div class="pe-card-body">
+                <div class="pe-timeline">
+                    <div class="pe-timeline-item">
+                        <div class="pe-dot"></div>
+                        <div>
+                            <div class="pe-timeline-title">Pre-employment record created</div>
+                            <div class="pe-timeline-meta">{{ $createdAt }}</div>
+                        </div>
+                    </div>
+
+                    <div class="pe-timeline-item">
+                        <div class="pe-dot"></div>
+                        <div>
+                            <div class="pe-timeline-title">Last updated</div>
+                            <div class="pe-timeline-meta">{{ $updatedAt }}</div>
+                        </div>
+                    </div>
+
+                    @if($publicLink)
+                        <div class="pe-timeline-item">
+                            <div class="pe-dot"></div>
+                            <div>
+                                <div class="pe-timeline-title">Public portal link available</div>
+                                <div class="pe-timeline-meta">{{ $publicLink }}</div>
+                            </div>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </section>
+    </div>
+
+<style id="sf-pre-employment-md3-final-polish">
+/* =========================================================
+   SADA FEZZAN ERP — PRE-EMPLOYMENT FINAL PREMIUM STYLE
+   Single source of truth for this page.
+   ========================================================= */
+
+.fi-header,
+.fi-page-header,
+header.fi-header,
+.fi-page-header-heading,
+.fi-page-header-breadcrumbs,
+.fi-page-header-actions,
+.fi-page-header-ctas {
+    display: none !important;
+}
+
+.fi-main,
+.fi-main-ctn,
+.fi-page,
+.fi-page-content {
+    overflow-x: hidden !important;
+}
+
+.pe-page-shell,
+.pe-view-wrap {
+    width: min(100%, 1280px) !important;
+    max-width: 1280px !important;
+    margin: 0 auto 56px !important;
+    padding: 0 18px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 22px !important;
+}
+
+/* Top custom page header */
+.pe-hero {
+    width: min(100%, 1280px) !important;
+    max-width: 1280px !important;
+    margin: 0 auto 34px !important;
+    padding: 34px 38px 32px !important;
+    border-radius: 34px !important;
+    overflow: visible !important;
+    background:
+        radial-gradient(circle at 88% 10%, rgba(34, 211, 238, .18), transparent 32%),
+        radial-gradient(circle at 12% 6%, rgba(16, 185, 129, .14), transparent 28%),
+        linear-gradient(135deg, rgba(255,255,255,.96), rgba(236,253,245,.84)) !important;
+    border: 1px solid rgba(15, 23, 42, .08) !important;
+    box-shadow: 0 22px 60px rgba(15, 23, 42, .09) !important;
+}
+
+.dark .pe-hero {
+    background:
+        radial-gradient(circle at 88% 10%, rgba(34, 211, 238, .20), transparent 32%),
+        radial-gradient(circle at 12% 6%, rgba(16, 185, 129, .14), transparent 28%),
+        linear-gradient(135deg, rgba(15,23,42,.96), rgba(17,24,39,.92) 62%, rgba(35,75,116,.78)) !important;
+    border-color: rgba(148, 163, 184, .18) !important;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, .24) !important;
+}
+
+.pe-hero-inner {
+    width: 100% !important;
+    max-width: 100% !important;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 28px !important;
+    align-items: start !important;
+}
+
+.pe-title-block,
+.pe-title {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+}
+
+.pe-title-kicker {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    margin-bottom: 10px !important;
+    color: #64748b !important;
+    font-size: 14px !important;
+    font-weight: 900 !important;
+    letter-spacing: -.02em !important;
+}
+
+.dark .pe-title-kicker {
+    color: #94a3b8 !important;
+}
+
+.pe-title-block h1,
+.pe-title {
+    margin: 0 !important;
+    max-width: 100% !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+    font-size: clamp(46px, 6.4vw, 88px) !important;
+    line-height: .92 !important;
+    letter-spacing: -.075em !important;
+    font-weight: 950 !important;
+    color: #020617 !important;
+}
+
+.dark .pe-title-block h1,
+.dark .pe-title {
+    color: #ffffff !important;
+}
+
+.pe-title-block p {
+    max-width: 680px !important;
+    margin: 14px 0 0 !important;
+    color: #64748b !important;
+    font-size: 15px !important;
+    line-height: 1.65 !important;
+    font-weight: 650 !important;
+}
+
+.dark .pe-title-block p {
+    color: #cbd5e1 !important;
+}
+
+/* Header actions */
+.pe-actions {
+    width: 100% !important;
+    max-width: 100% !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+    overflow: visible !important;
+}
+
+.pe-actions > *,
+.pe-actions a,
+.pe-actions button,
+.pe-actions .fi-btn,
+.pe-btn,
+.pe-btn-soft,
+.pe-btn-primary,
+.pe-btn-danger {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    min-height: 44px !important;
+    width: auto !important;
+    max-width: 100% !important;
+    flex: 0 1 auto !important;
+    padding: 11px 18px !important;
+    border-radius: 999px !important;
+    white-space: nowrap !important;
+    font-size: 13px !important;
+    font-weight: 950 !important;
+    line-height: 1 !important;
+    text-decoration: none !important;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, .08) !important;
+}
+
+.pe-actions svg {
+    width: 19px !important;
+    height: 19px !important;
+    flex: 0 0 19px !important;
+}
+
+/* Summary cards */
+.pe-grid {
+    width: min(100%, 1180px) !important;
+    margin: 0 auto !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+}
+
+.pe-stat {
+    min-height: 112px !important;
+    padding: 22px !important;
+    border-radius: 24px !important;
+    background:
+        radial-gradient(circle at top right, rgba(34, 211, 238, .08), transparent 36%),
+        rgba(255,255,255,.94) !important;
+    border: 1px solid rgba(15,23,42,.09) !important;
+    box-shadow: 0 18px 46px rgba(15,23,42,.07) !important;
+}
+
+.dark .pe-stat {
+    background:
+        radial-gradient(circle at top right, rgba(34, 211, 238, .12), transparent 36%),
+        rgba(15,23,42,.74) !important;
+    border-color: rgba(148,163,184,.18) !important;
+    box-shadow: 0 20px 52px rgba(0,0,0,.20) !important;
+}
+
+.pe-stat-label,
+.pe-info-label {
+    margin-bottom: 10px !important;
+    color: #64748b !important;
+    font-size: 11px !important;
+    font-weight: 950 !important;
+    letter-spacing: .12em !important;
+    text-transform: uppercase !important;
+}
+
+.dark .pe-stat-label,
+.dark .pe-info-label {
+    color: #94a3b8 !important;
+}
+
+.pe-stat-value,
+.pe-info-value {
+    color: #020617 !important;
+    font-size: 22px !important;
+    line-height: 1.15 !important;
+    font-weight: 950 !important;
+    letter-spacing: -.045em !important;
+    overflow-wrap: anywhere !important;
+}
+
+.dark .pe-stat-value,
+.dark .pe-info-value {
+    color: #ffffff !important;
+}
+
+/* Content cards */
+.pe-card {
+    width: min(100%, 1180px) !important;
+    margin: 0 auto !important;
+    overflow: hidden !important;
+    border-radius: 30px !important;
+    background:
+        radial-gradient(circle at top right, rgba(34, 211, 238, .07), transparent 34%),
+        rgba(255,255,255,.96) !important;
+    border: 1px solid rgba(15,23,42,.08) !important;
+    box-shadow: 0 18px 50px rgba(15,23,42,.075) !important;
+}
+
+.dark .pe-card {
+    background:
+        radial-gradient(circle at top right, rgba(34, 211, 238, .12), transparent 34%),
+        rgba(15,23,42,.76) !important;
+    border-color: rgba(148,163,184,.18) !important;
+    box-shadow: 0 22px 58px rgba(0,0,0,.22) !important;
+}
+
+.pe-card-header {
+    padding: 22px 24px !important;
+    border-bottom: 1px solid rgba(15,23,42,.08) !important;
+}
+
+.dark .pe-card-header {
+    border-bottom-color: rgba(148,163,184,.16) !important;
+}
+
+.pe-card-title {
+    color: #020617 !important;
+    font-size: 18px !important;
+    font-weight: 950 !important;
+    letter-spacing: -.04em !important;
+}
+
+.dark .pe-card-title {
+    color: #ffffff !important;
+}
+
+.pe-card-body {
+    padding: 24px !important;
+}
+
+.pe-info-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+}
+
+.pe-info {
+    min-height: 96px !important;
+    padding: 18px !important;
+    border-radius: 22px !important;
+    background: rgba(248,250,252,.78) !important;
+    border: 1px solid rgba(15,23,42,.07) !important;
+}
+
+.dark .pe-info {
+    background: rgba(15,23,42,.58) !important;
+    border-color: rgba(148,163,184,.14) !important;
+}
+
+/* Timeline */
+.pe-timeline {
+    display: grid !important;
+    gap: 14px !important;
+}
+
+.pe-timeline-item {
+    display: grid !important;
+    grid-template-columns: 14px 1fr !important;
+    gap: 14px !important;
+    align-items: start !important;
+    padding: 14px !important;
+    border-radius: 18px !important;
+    background: rgba(248,250,252,.72) !important;
+    border: 1px solid rgba(15,23,42,.06) !important;
+}
+
+.dark .pe-timeline-item {
+    background: rgba(15,23,42,.52) !important;
+    border-color: rgba(148,163,184,.14) !important;
+}
+
+.pe-dot {
+    width: 12px !important;
+    height: 12px !important;
+    margin-top: 5px !important;
+    border-radius: 999px !important;
+    background: #14b8a6 !important;
+    box-shadow: 0 0 0 5px rgba(20,184,166,.12) !important;
+}
+
+.pe-timeline-title {
+    color: #020617 !important;
+    font-weight: 900 !important;
+    font-size: 14px !important;
+}
+
+.dark .pe-timeline-title {
+    color: #ffffff !important;
+}
+
+.pe-timeline-meta {
+    margin-top: 4px !important;
+    color: #64748b !important;
+    font-size: 13px !important;
+    font-weight: 650 !important;
+    overflow-wrap: anywhere !important;
+}
+
+.dark .pe-timeline-meta {
+    color: #94a3b8 !important;
+}
+
+/* Filament select dropdown final clean fix */
+.fi-modal .choices__list--dropdown,
+.fi-modal .choices__list[aria-expanded],
+.fi-form .choices__list--dropdown,
+.fi-form .choices__list[aria-expanded],
+.fi-fo-field-wrp .choices__list--dropdown,
+.fi-fo-field-wrp .choices__list[aria-expanded] {
+    background: rgba(255,255,255,.98) !important;
+    color: #0f172a !important;
+    border: 1px solid rgba(15,23,42,.12) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 20px 46px rgba(15,23,42,.18) !important;
+    padding: 8px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    max-height: 280px !important;
+    z-index: 999999 !important;
+}
+
+.dark .fi-modal .choices__list--dropdown,
+.dark .fi-modal .choices__list[aria-expanded],
+.dark .fi-form .choices__list--dropdown,
+.dark .fi-form .choices__list[aria-expanded],
+.dark .fi-fo-field-wrp .choices__list--dropdown,
+.dark .fi-fo-field-wrp .choices__list[aria-expanded] {
+    background: #0f172a !important;
+    color: #e5e7eb !important;
+    border-color: rgba(148,163,184,.22) !important;
+}
+
+.fi-modal .choices__item--choice,
+.fi-modal [role="option"],
+.fi-form .choices__item--choice,
+.fi-form [role="option"],
+.fi-fo-field-wrp .choices__item--choice,
+.fi-fo-field-wrp [role="option"] {
+    min-height: 46px !important;
+    height: auto !important;
+    display: flex !important;
+    align-items: center !important;
+    padding: 10px 14px !important;
+    margin: 2px 0 !important;
+    border-radius: 14px !important;
+    color: #0f172a !important;
+    font-family: inherit !important;
+    font-size: 14px !important;
+    font-weight: 800 !important;
+    line-height: 1.35 !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-indent: 0 !important;
+}
+
+.dark .fi-modal .choices__item--choice,
+.dark .fi-modal [role="option"],
+.dark .fi-form .choices__item--choice,
+.dark .fi-form [role="option"],
+.dark .fi-fo-field-wrp .choices__item--choice,
+.dark .fi-fo-field-wrp [role="option"] {
+    color: #e5e7eb !important;
+}
+
+.fi-modal .choices__item--choice::before,
+.fi-modal .choices__item--choice::after,
+.fi-modal [role="option"]::before,
+.fi-modal [role="option"]::after,
+.fi-form .choices__item--choice::before,
+.fi-form .choices__item--choice::after,
+.fi-form [role="option"]::before,
+.fi-form [role="option"]::after,
+.fi-fo-field-wrp .choices__item--choice::before,
+.fi-fo-field-wrp .choices__item--choice::after,
+.fi-fo-field-wrp [role="option"]::before,
+.fi-fo-field-wrp [role="option"]::after {
+    content: none !important;
+    display: none !important;
+}
+
+.fi-modal .choices__item--choice.is-highlighted,
+.fi-modal [role="option"]:hover,
+.fi-modal [role="option"][aria-selected="true"],
+.fi-form .choices__item--choice.is-highlighted,
+.fi-form [role="option"]:hover,
+.fi-form [role="option"][aria-selected="true"],
+.fi-fo-field-wrp .choices__item--choice.is-highlighted,
+.fi-fo-field-wrp [role="option"]:hover,
+.fi-fo-field-wrp [role="option"][aria-selected="true"] {
+    background: rgba(20,184,166,.12) !important;
+    color: #0f766e !important;
+}
+
+.dark .fi-modal .choices__item--choice.is-highlighted,
+.dark .fi-modal [role="option"]:hover,
+.dark .fi-modal [role="option"][aria-selected="true"],
+.dark .fi-form .choices__item--choice.is-highlighted,
+.dark .fi-form [role="option"]:hover,
+.dark .fi-form [role="option"][aria-selected="true"],
+.dark .fi-fo-field-wrp .choices__item--choice.is-highlighted,
+.dark .fi-fo-field-wrp [role="option"]:hover,
+.dark .fi-fo-field-wrp [role="option"][aria-selected="true"] {
+    background: rgba(45,212,191,.16) !important;
+    color: #99f6e4 !important;
+}
+
+/* Responsive */
+@media (max-width: 1180px) {
+    .pe-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    .pe-info-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    .pe-title-block h1,
+    .pe-title {
+        font-size: clamp(42px, 8vw, 72px) !important;
+    }
+}
+
+@media (max-width: 760px) {
+    .pe-hero {
+        padding: 26px 20px !important;
+        border-radius: 26px !important;
+    }
+
+    .pe-grid,
+    .pe-info-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .pe-actions {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+    }
+
+    .pe-actions > *,
+    .pe-actions a,
+    .pe-actions button,
+    .pe-actions .fi-btn {
+        width: 100% !important;
+    }
+
+    .pe-title-block h1,
+    .pe-title {
+        font-size: clamp(38px, 12vw, 54px) !important;
+    }
+}
+</style>
+
+</x-filament-panels::page>
+
+<style>
+    /*
+     * FINAL scoped override for Pre-Employment profile restored header.
+     * Keeps native Filament header hidden globally as before, but makes this custom header visible
+     * as a dark MD3 hero box like Employment / Pre-Employment list.
+     */
+    .sfpe-page-header-restored {
+        max-width: 1040px !important;
+        width: min(1040px, calc(100vw - 3rem)) !important;
+        margin: 0 auto 1.5rem !important;
+        padding: 2.35rem 2.6rem !important;
+        border-radius: 28px !important;
+        position: relative !important;
+        overflow: hidden !important;
+        isolation: isolate !important;
+        background:
+            radial-gradient(circle at 85% 10%, rgba(45, 212, 191, 0.25), transparent 38%),
+            linear-gradient(135deg, #0f172a 0%, #13395f 56%, #27777b 100%) !important;
+        border: 1px solid rgba(255, 255, 255, 0.14) !important;
+        box-shadow: 0 22px 52px rgba(15, 23, 42, 0.22) !important;
+        opacity: 1 !important;
+        filter: none !important;
+    }
+
+    .sfpe-page-header-restored::before {
+        content: "" !important;
+        position: absolute !important;
+        inset: 0 !important;
+        z-index: -1 !important;
+        background:
+            linear-gradient(120deg, rgba(255, 255, 255, 0.06), transparent 38%),
+            radial-gradient(circle at 20% 95%, rgba(251, 191, 36, 0.12), transparent 34%) !important;
+        pointer-events: none !important;
+    }
+
+    .sfpe-page-header-restored::after {
+        content: "" !important;
+        position: absolute !important;
+        inset-inline: 0 !important;
+        bottom: 0 !important;
+        height: 4px !important;
+        background: linear-gradient(90deg, #14b8a6, #fbbf24) !important;
+        opacity: 1 !important;
+        z-index: 1 !important;
+    }
+
+    .sfpe-page-header-restored .sfpe-page-breadcrumbs {
+        color: rgba(226, 232, 240, 0.88) !important;
+        opacity: 1 !important;
+        filter: none !important;
+        position: relative !important;
+        z-index: 2 !important;
+        margin-bottom: .65rem !important;
+        font-size: .92rem !important;
+        font-weight: 760 !important;
+    }
+
+    .sfpe-page-header-restored .sfpe-page-title {
+        color: #ffffff !important;
+        opacity: 1 !important;
+        filter: none !important;
+        text-shadow: none !important;
+        position: relative !important;
+        z-index: 2 !important;
+        margin: 0 !important;
+        max-width: 900px !important;
+        font-size: clamp(2.25rem, 4.4vw, 4.25rem) !important;
+        font-weight: 920 !important;
+        line-height: .96 !important;
+        letter-spacing: -.065em !important;
+    }
+
+    .sfpe-page-header-restored .sfpe-page-subtitle {
+        color: rgba(226, 232, 240, 0.86) !important;
+        opacity: 1 !important;
+        filter: none !important;
+        position: relative !important;
+        z-index: 2 !important;
+        margin-top: 1rem !important;
+        max-width: 860px !important;
+        font-size: .98rem !important;
+        font-weight: 620 !important;
+        line-height: 1.6 !important;
+    }
+
+    @media (max-width: 720px) {
+        .sfpe-page-header-restored {
+            width: calc(100vw - 2rem) !important;
+            padding: 1.7rem !important;
+            border-radius: 24px !important;
+        }
+
+        .sfpe-page-header-restored .sfpe-page-title {
+            font-size: 2.35rem !important;
+            line-height: 1 !important;
+        }
+    }
+
+    @media print {
+        .sfpe-page-header-restored {
+            background: #0f172a !important;
+            box-shadow: none !important;
+            border: 1px solid #0f172a !important;
+            break-inside: avoid !important;
+        }
+    }
+</style>
+
+
+<style>
+    /*
+     * Final layout polish:
+     * - Actions live inside the dark Pre-Employment hero.
+     * - Header no longer crops from the right.
+     * - Same general feeling as Employment profile hero.
+     */
+    .sfpe-page-header-restored {
+        width: min(1120px, calc(100vw - 3rem)) !important;
+        max-width: 1120px !important;
+        margin: 0 auto 1.35rem !important;
+        padding: 2.2rem 2.4rem 2.35rem !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    .sfpe-page-header-restored .sfpe-page-title {
+        max-width: 100% !important;
+        font-size: clamp(2.2rem, 4vw, 3.75rem) !important;
+        line-height: .98 !important;
+        letter-spacing: -.06em !important;
+        overflow-wrap: anywhere !important;
+        word-break: normal !important;
+    }
+
+    .sfpe-page-header-restored .sfpe-page-subtitle {
+        max-width: 860px !important;
+        margin-bottom: 1.25rem !important;
+    }
+
+    .sfpe-page-header-restored .sfpe-force-action-bar {
+        max-width: none !important;
+        width: 100% !important;
+        margin: 1.25rem 0 0 !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: .7rem !important;
+        align-items: center !important;
+        position: relative !important;
+        z-index: 3 !important;
+    }
+
+    .sfpe-page-header-restored .sfpe-force-btn {
+        min-height: 42px !important;
+        padding: .68rem 1rem !important;
+        border-radius: 999px !important;
+        font-size: .86rem !important;
+        font-weight: 900 !important;
+        box-shadow: 0 12px 24px rgba(0, 0, 0, .16) !important;
+        border: 1px solid rgba(255, 255, 255, .18) !important;
+    }
+
+    .sfpe-page-header-restored .sfpe-force-light {
+        background: rgba(255, 255, 255, .94) !important;
+        color: #0f172a !important;
+    }
+
+    .sfpe-page-header-restored .sfpe-force-warning {
+        background: #fbbf24 !important;
+        color: #111827 !important;
+    }
+
+    .sfpe-page-header-restored .sfpe-force-success {
+        background: #22c55e !important;
+        color: #052e16 !important;
+    }
+
+    .sfpe-page-header-restored .sfpe-force-teal {
+        background: #5eead4 !important;
+        color: #134e4a !important;
+    }
+
+    .sfpe-page-header-restored .sfpe-force-teal-solid {
+        background: #14b8a6 !important;
+        color: #042f2e !important;
+    }
+
+    @media (max-width: 900px) {
+        .sfpe-page-header-restored {
+            width: calc(100vw - 2rem) !important;
+            padding: 1.65rem !important;
+        }
+
+        .sfpe-page-header-restored .sfpe-page-title {
+            font-size: clamp(2rem, 9vw, 3rem) !important;
+            letter-spacing: -.05em !important;
+        }
+
+        .sfpe-page-header-restored .sfpe-force-action-bar {
+            gap: .55rem !important;
+        }
+
+        .sfpe-page-header-restored .sfpe-force-btn {
+            width: 100% !important;
+        }
+    }
+
+    @media print {
+        .sfpe-page-header-restored .sfpe-force-action-bar {
+            display: none !important;
+        }
+    }
+</style>
+
+<style>
+    /*
+     * Final crop fix for Pre-Employment dark hero.
+     * Keep actions inside hero, but prevent long candidate names/title from overflowing.
+     */
+    .sfpe-page-header-restored {
+        width: min(1040px, calc(100vw - 3rem)) !important;
+        max-width: 1040px !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+    }
+
+    .sfpe-page-header-restored .sfpe-page-title {
+        max-width: 720px !important;
+        font-size: clamp(2.05rem, 3.35vw, 3.35rem) !important;
+        line-height: .98 !important;
+        letter-spacing: -.055em !important;
+        white-space: normal !important;
+        overflow-wrap: normal !important;
+        word-break: normal !important;
+    }
+
+    .sfpe-page-header-restored .sfpe-page-subtitle {
+        max-width: 760px !important;
+    }
+
+    .sfpe-page-header-restored .sfpe-force-action-bar {
+        max-width: 880px !important;
+        margin-top: 1.2rem !important;
+    }
+
+    .sfpe-page-header-restored .sfpe-force-btn {
+        flex: 0 0 auto !important;
+    }
+
+    @media (max-width: 1100px) {
+        .sfpe-page-header-restored .sfpe-page-title {
+            max-width: 100% !important;
+            font-size: clamp(2rem, 6vw, 3rem) !important;
+        }
+
+        .sfpe-page-header-restored .sfpe-force-action-bar {
+            max-width: 100% !important;
+        }
+    }
+</style>
+
+
+<style id="sfpe-employment-like-hero-v1">
+    .sfpe-employment-hero {
+        width: min(100%, 1280px);
+        margin: 0 auto 22px;
+        border-radius: 32px;
+        padding: 30px;
+        color: #fff;
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .16), transparent 34%),
+            linear-gradient(135deg, #111827, #1f2937 62%, #234b74);
+        border: 1px solid rgba(148, 163, 184, .22);
+        box-shadow: 0 22px 60px rgba(15, 23, 42, .16);
+        box-sizing: border-box;
+        overflow: hidden;
+    }
+
+    .sfpe-employment-head {
+        display: grid;
+        grid-template-columns: minmax(260px, .9fr) minmax(420px, 1.1fr);
+        gap: 22px;
+        align-items: start;
+    }
+
+    .sfpe-kicker {
+        font-size: 13px;
+        font-weight: 850;
+        color: #94a3b8;
+        margin-bottom: 8px;
+    }
+
+    .sfpe-title {
+        margin: 0;
+        font-size: clamp(42px, 5vw, 72px);
+        line-height: .94;
+        letter-spacing: -.065em;
+        font-weight: 950;
+        color: #fff;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+    }
+
+    .sfpe-hero-subtitle {
+        margin: 14px 0 0;
+        color: #cbd5e1;
+        font-size: 14px;
+        font-weight: 650;
+        line-height: 1.6;
+        max-width: 760px;
+    }
+
+    .sfpe-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+
+    .sfpe-btn {
+        border: 0;
+        cursor: pointer;
+        border-radius: 999px;
+        min-height: 42px;
+        padding: 11px 16px;
+        font-size: 13px;
+        font-weight: 900;
+        color: #fff;
+        background: rgba(255,255,255,.12);
+        border: 1px solid rgba(255,255,255,.14);
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        text-decoration: none !important;
+    }
+
+    .sfpe-btn .material-symbols-rounded {
+        font-size: 18px;
+        line-height: 1;
+    }
+
+    .sfpe-btn-blue { background: #2563eb; }
+    .sfpe-btn-green { background: #22c55e; color: #052e16; }
+    .sfpe-btn-yellow { background: #f59e0b; color: #111827; }
+    .sfpe-btn-red { background: #dc2626; }
+    .sfpe-btn-gray { background: rgba(255,255,255,.14); color: #fff; }
+    .sfpe-btn-light { background: #f8fafc; color: #0f172a; }
+    .sfpe-btn-teal { background: #5eead4; color: #134e4a; }
+    .sfpe-btn-teal-solid { background: #14b8a6; color: #042f2e; }
+
+    .sfpe-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+        margin-top: 24px;
+    }
+
+    .sfpe-summary-card {
+        border-radius: 22px;
+        padding: 18px;
+        border: 1px solid rgba(255,255,255,.12);
+        background: rgba(255,255,255,.08);
+    }
+
+    .sfpe-label {
+        font-size: 11px;
+        font-weight: 950;
+        letter-spacing: .13em;
+        text-transform: uppercase;
+        color: #94a3b8;
+        margin-bottom: 9px;
+    }
+
+    .sfpe-value {
+        font-size: 24px;
+        line-height: 1.1;
+        font-weight: 950;
+        letter-spacing: -.04em;
+        color: #fff;
+        overflow-wrap: anywhere;
+    }
+
+    .sfpe-meta {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #94a3b8;
+        font-weight: 650;
+    }
+
+    .sfpe-candidate-requests-card {
+        width: min(100%, 1280px);
+        margin-left: auto;
+        margin-right: auto;
+        break-inside: avoid;
+    }
+
+    .sfpe-request-thread {
+        display: grid;
+        gap: .85rem;
+    }
+
+    .sfpe-request-item {
+        background: rgba(255, 255, 255, .78);
+        border: 1px solid rgba(15, 23, 42, .10);
+        border-radius: 20px;
+        padding: 1rem;
+    }
+
+    .sfpe-request-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: .85rem;
+    }
+
+    .sfpe-request-title {
+        font-size: .98rem;
+        font-weight: 900;
+        letter-spacing: -.02em;
+        color: #0f172a;
+    }
+
+    .sfpe-request-date {
+        margin-top: .18rem;
+        color: #64748b;
+        font-size: .78rem;
+        font-weight: 650;
+    }
+
+    .sfpe-request-status {
+        display: inline-flex;
+        width: fit-content;
+        border-radius: 999px;
+        padding: .35rem .65rem;
+        background: rgba(37, 99, 235, .10);
+        color: #1d4ed8;
+        border: 1px solid rgba(37, 99, 235, .18);
+        font-size: .76rem;
+        font-weight: 900;
+        text-transform: capitalize;
+        white-space: nowrap;
+    }
+
+    .sfpe-request-metrics {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: .65rem;
+        margin-bottom: .85rem;
+    }
+
+    .sfpe-request-metrics div {
+        border-radius: 16px;
+        background: rgba(248,250,252,.9);
+        border: 1px solid rgba(15,23,42,.08);
+        padding: .75rem;
+    }
+
+    .sfpe-request-metrics span {
+        display: block;
+        color: #64748b;
+        font-size: .70rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        margin-bottom: .25rem;
+    }
+
+    .sfpe-request-metrics strong {
+        display: block;
+        color: #0f172a;
+        font-weight: 900;
+        overflow-wrap: anywhere;
+    }
+
+    .sfpe-message-stack {
+        display: grid;
+        gap: .65rem;
+    }
+
+    .sfpe-message {
+        border-radius: 18px;
+        padding: .85rem .95rem;
+        border: 1px solid rgba(15, 23, 42, .10);
+    }
+
+    .sfpe-message-candidate { background: rgba(37, 99, 235, .08); }
+    .sfpe-message-company { background: rgba(34, 197, 94, .10); }
+
+    .sfpe-message-label {
+        color: #64748b;
+        font-size: .72rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: .045em;
+        margin-bottom: .28rem;
+    }
+
+    .sfpe-message-text {
+        color: #0f172a;
+        font-weight: 750;
+        line-height: 1.45;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .sfpe-upload-list {
+        margin-top: .85rem;
+        display: grid;
+        gap: .55rem;
+    }
+
+    .sfpe-upload-title {
+        color: #0f172a;
+        font-weight: 900;
+        font-size: .82rem;
+    }
+
+    .sfpe-upload-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .75rem;
+        border-radius: 16px;
+        background: rgba(248,250,252,.9);
+        border: 1px solid rgba(15,23,42,.08);
+        padding: .75rem;
+    }
+
+    .sfpe-upload-row strong,
+    .sfpe-upload-row span {
+        display: block;
+    }
+
+    .sfpe-upload-row strong {
+        color: #0f172a;
+        font-size: .84rem;
+        font-weight: 900;
+    }
+
+    .sfpe-upload-row span {
+        color: #64748b;
+        margin-top: .2rem;
+        font-size: .75rem;
+        font-weight: 650;
+    }
+
+    .sfpe-pill-link {
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #1d4ed8 !important;
+        padding: .45rem .65rem;
+        font-size: .75rem;
+        font-weight: 900;
+        text-decoration: none !important;
+        white-space: nowrap;
+    }
+
+    .sfpe-empty-line {
+        background: rgba(248, 250, 252, .8);
+        border: 1px dashed rgba(15, 23, 42, .14);
+        border-radius: 18px;
+        padding: 1rem;
+        color: #64748b;
+        font-weight: 700;
+    }
+
+    @media (max-width: 1450px) {
+        .sfpe-employment-head {
+            grid-template-columns: 1fr;
+        }
+
+        .sfpe-actions {
+            justify-content: flex-start;
+        }
+    }
+
+    @media (max-width: 1100px) {
+        .sfpe-summary-grid,
+        .sfpe-request-metrics {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media print {
+        .sfpe-actions {
+            display: none !important;
+        }
+
+        .sfpe-employment-hero,
+        .sfpe-candidate-requests-card {
+            break-inside: avoid;
+        }
+    }
+</style>
+
+
+<style id="sfpe-candidate-requests-detailed-v2">
+    .sfpe-candidate-requests-card {
+        width: min(100%, 1280px) !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        overflow: hidden !important;
+    }
+
+    .sfpe-negotiation-card {
+        border-radius: 28px !important;
+        padding: 1.4rem !important;
+        background:
+            radial-gradient(circle at top right, rgba(20, 184, 166, .08), transparent 35%),
+            rgba(255,255,255,.96) !important;
+        border: 1px solid rgba(15,23,42,.10) !important;
+        box-shadow: 0 16px 42px rgba(15,23,42,.06) !important;
+    }
+
+    .sfpe-request-badge {
+        width: fit-content;
+        border-radius: 999px;
+        padding: .35rem .7rem;
+        background: rgba(20, 184, 166, .10);
+        border: 1px solid rgba(20, 184, 166, .22);
+        color: #0f766e;
+        font-size: .72rem;
+        font-weight: 950;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+        margin-bottom: .55rem;
+    }
+
+    .sfpe-request-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .5rem;
+        margin-top: .7rem;
+    }
+
+    .sfpe-request-tags span {
+        border-radius: 999px;
+        padding: .42rem .7rem;
+        background: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid rgba(37,99,235,.16);
+        font-size: .78rem;
+        font-weight: 850;
+        text-transform: capitalize;
+    }
+
+    .sfpe-request-columns {
+        display: grid;
+        grid-template-columns: minmax(0, 1.35fr) minmax(320px, .8fr);
+        gap: 1rem;
+        margin-top: 1.1rem;
+    }
+
+    .sfpe-negotiation-history,
+    .sfpe-side-panel {
+        border-radius: 22px;
+        background: rgba(248,250,252,.82);
+        border: 1px solid rgba(15,23,42,.08);
+        padding: 1rem;
+    }
+
+    .sfpe-request-side {
+        display: grid;
+        gap: 1rem;
+        align-content: start;
+    }
+
+    .sfpe-panel-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .75rem;
+        color: #64748b;
+        font-size: .78rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .15em;
+        margin-bottom: .9rem;
+    }
+
+    .sfpe-thread-timeline {
+        display: grid;
+        gap: .85rem;
+        position: relative;
+        padding-left: 1.25rem;
+    }
+
+    .sfpe-thread-timeline::before {
+        content: "";
+        position: absolute;
+        left: .36rem;
+        top: .55rem;
+        bottom: .55rem;
+        width: 2px;
+        background: rgba(148,163,184,.35);
+    }
+
+    .sfpe-thread-row {
+        position: relative;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: .75rem;
+        align-items: start;
+    }
+
+    .sfpe-thread-dot {
+        width: .72rem;
+        height: .72rem;
+        border-radius: 999px;
+        margin-top: 1rem;
+        background: #14b8a6;
+        border: 3px solid rgba(20,184,166,.18);
+        position: relative;
+        z-index: 1;
+        transform: translateX(-1.25rem);
+    }
+
+    .sfpe-thread-row.is-candidate .sfpe-thread-dot {
+        background: #3b82f6;
+        border-color: rgba(59,130,246,.18);
+    }
+
+    .sfpe-thread-card {
+        border-radius: 20px;
+        padding: 1rem;
+        border: 1px solid rgba(20,184,166,.20);
+        background: rgba(236,253,245,.65);
+    }
+
+    .sfpe-thread-row.is-candidate .sfpe-thread-card {
+        border-color: rgba(59,130,246,.18);
+        background: rgba(239,246,255,.72);
+    }
+
+    .sfpe-thread-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: .7rem;
+    }
+
+    .sfpe-thread-head strong {
+        color: #0f766e;
+        font-size: .85rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .1em;
+    }
+
+    .sfpe-thread-row.is-candidate .sfpe-thread-head strong {
+        color: #2563eb;
+    }
+
+    .sfpe-thread-head span {
+        color: #64748b;
+        font-size: .76rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .sfpe-thread-main {
+        color: #0f172a;
+        font-weight: 850;
+        margin-bottom: .6rem;
+    }
+
+    .sfpe-thread-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .55rem;
+    }
+
+    .sfpe-thread-pills span {
+        border-radius: 999px;
+        padding: .48rem .7rem;
+        background: rgba(255,255,255,.85);
+        border: 1px solid rgba(15,23,42,.08);
+        color: #0f172a;
+        font-size: .78rem;
+        font-weight: 900;
+    }
+
+    .sfpe-thread-notes {
+        margin-top: .65rem;
+        color: #475569;
+        font-weight: 700;
+        white-space: pre-wrap;
+    }
+
+    .sfpe-summary-line {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: .72rem 0;
+        border-bottom: 1px solid rgba(15,23,42,.08);
+    }
+
+    .sfpe-summary-line:last-child {
+        border-bottom: 0;
+    }
+
+    .sfpe-summary-line span {
+        color: #64748b;
+        font-weight: 850;
+    }
+
+    .sfpe-summary-line strong {
+        color: #0f172a;
+        font-weight: 950;
+        text-align: right;
+    }
+
+    .sfpe-file-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        display: grid;
+        place-items: center;
+        background: #dbeafe;
+        color: #1d4ed8;
+        font-size: .7rem;
+        font-weight: 950;
+        flex: 0 0 auto;
+    }
+
+    .sfpe-file-info {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .sfpe-file-info strong {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    @media (max-width: 1100px) {
+        .sfpe-request-columns {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media print {
+        .sfpe-candidate-requests-card,
+        .sfpe-negotiation-card {
+            break-inside: avoid;
+        }
+    }
+</style>
+
+
+<style id="sfpe-print-expenses-requests-v3">
+    .sfpe-candidate-requests-card,
+    .sfpe-expenses-card {
+        width: min(100%, 1280px) !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        overflow: hidden !important;
+        break-inside: avoid;
+    }
+
+    .sfpe-request-columns {
+        display: grid;
+        grid-template-columns: minmax(0, 1.35fr) minmax(320px, .8fr);
+        gap: 1rem;
+        margin-top: 1.1rem;
+    }
+
+    .sfpe-negotiation-card {
+        border-radius: 28px !important;
+        padding: 1.4rem !important;
+        background: rgba(255,255,255,.96) !important;
+        border: 1px solid rgba(15,23,42,.10) !important;
+        box-shadow: 0 16px 42px rgba(15,23,42,.06) !important;
+        break-inside: avoid;
+    }
+
+    .sfpe-request-badge,
+    .sfpe-request-tags span,
+    .sfpe-request-status,
+    .sfpe-thread-pills span,
+    .sfpe-pill-link,
+    .sfpe-mini-action-btn {
+        border-radius: 999px;
+        font-weight: 900;
+    }
+
+    .sfpe-request-badge {
+        width: fit-content;
+        padding: .35rem .7rem;
+        background: rgba(20, 184, 166, .10);
+        border: 1px solid rgba(20, 184, 166, .22);
+        color: #0f766e;
+        font-size: .72rem;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+        margin-bottom: .55rem;
+    }
+
+    .sfpe-request-title {
+        font-size: 1.05rem;
+        font-weight: 950;
+        color: #0f172a;
+    }
+
+    .sfpe-request-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .5rem;
+        margin-top: .7rem;
+    }
+
+    .sfpe-request-tags span {
+        padding: .42rem .7rem;
+        background: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid rgba(37,99,235,.16);
+        font-size: .78rem;
+        text-transform: capitalize;
+    }
+
+    .sfpe-negotiation-history,
+    .sfpe-side-panel {
+        border-radius: 22px;
+        background: rgba(248,250,252,.86);
+        border: 1px solid rgba(15,23,42,.08);
+        padding: 1rem;
+    }
+
+    .sfpe-request-side {
+        display: grid;
+        gap: 1rem;
+        align-content: start;
+    }
+
+    .sfpe-panel-title {
+        display: flex;
+        justify-content: space-between;
+        color: #64748b;
+        font-size: .78rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .15em;
+        margin-bottom: .9rem;
+    }
+
+    .sfpe-thread-timeline {
+        display: grid;
+        gap: .85rem;
+        position: relative;
+        padding-left: 1.25rem;
+    }
+
+    .sfpe-thread-timeline::before {
+        content: "";
+        position: absolute;
+        left: .36rem;
+        top: .55rem;
+        bottom: .55rem;
+        width: 2px;
+        background: rgba(148,163,184,.35);
+    }
+
+    .sfpe-thread-row {
+        position: relative;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: .75rem;
+        align-items: start;
+    }
+
+    .sfpe-thread-dot {
+        width: .72rem;
+        height: .72rem;
+        border-radius: 999px;
+        margin-top: 1rem;
+        background: #14b8a6;
+        border: 3px solid rgba(20,184,166,.18);
+        position: relative;
+        z-index: 1;
+        transform: translateX(-1.25rem);
+    }
+
+    .sfpe-thread-row.is-candidate .sfpe-thread-dot {
+        background: #3b82f6;
+        border-color: rgba(59,130,246,.18);
+    }
+
+    .sfpe-thread-card {
+        border-radius: 20px;
+        padding: 1rem;
+        border: 1px solid rgba(20,184,166,.20);
+        background: rgba(236,253,245,.65);
+    }
+
+    .sfpe-thread-row.is-candidate .sfpe-thread-card {
+        border-color: rgba(59,130,246,.18);
+        background: rgba(239,246,255,.72);
+    }
+
+    .sfpe-thread-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: .7rem;
+    }
+
+    .sfpe-thread-head strong {
+        color: #0f766e;
+        font-size: .85rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .1em;
+    }
+
+    .sfpe-thread-row.is-candidate .sfpe-thread-head strong {
+        color: #2563eb;
+    }
+
+    .sfpe-thread-head span {
+        color: #64748b;
+        font-size: .76rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .sfpe-thread-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .55rem;
+    }
+
+    .sfpe-thread-pills span {
+        padding: .48rem .7rem;
+        background: rgba(255,255,255,.85);
+        border: 1px solid rgba(15,23,42,.08);
+        color: #0f172a;
+        font-size: .78rem;
+    }
+
+    .sfpe-summary-line {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: .72rem 0;
+        border-bottom: 1px solid rgba(15,23,42,.08);
+    }
+
+    .sfpe-summary-line:last-child {
+        border-bottom: 0;
+    }
+
+    .sfpe-summary-line span {
+        color: #64748b;
+        font-weight: 850;
+    }
+
+    .sfpe-summary-line strong {
+        color: #0f172a;
+        font-weight: 950;
+        text-align: right;
+    }
+
+    .sfpe-file-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        display: grid;
+        place-items: center;
+        background: #dbeafe;
+        color: #1d4ed8;
+        font-size: .7rem;
+        font-weight: 950;
+        flex: 0 0 auto;
+    }
+
+    .sfpe-file-info {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .sfpe-file-info strong {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .sfpe-expense-total {
+        border-radius: 20px;
+        padding: 1rem;
+        background: rgba(239,246,255,.86);
+        border: 1px solid rgba(37,99,235,.12);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: .9rem;
+    }
+
+    .sfpe-expense-total span {
+        color: #64748b;
+        font-weight: 850;
+    }
+
+    .sfpe-expense-total strong {
+        color: #0f172a;
+        font-size: 1.1rem;
+        font-weight: 950;
+    }
+
+    .sfpe-expense-scroll {
+        max-height: 320px;
+        overflow-y: auto;
+        display: grid;
+        gap: .65rem;
+        padding-right: .25rem;
+    }
+
+    .sfpe-expense-row {
+        border-radius: 18px;
+        padding: .85rem 1rem;
+        background: rgba(248,250,252,.9);
+        border: 1px solid rgba(15,23,42,.08);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .sfpe-expense-row strong {
+        display: block;
+        color: #0f172a;
+        font-weight: 950;
+    }
+
+    .sfpe-expense-row span {
+        display: block;
+        margin-top: .25rem;
+        color: #64748b;
+        font-size: .78rem;
+        font-weight: 750;
+    }
+
+    .sfpe-expense-amount {
+        color: #0f172a;
+        font-weight: 950;
+        white-space: nowrap;
+    }
+
+    .sfpe-mini-action-btn {
+        border: 0;
+        background: #ef4444;
+        color: white;
+        padding: .65rem .95rem;
+        cursor: pointer;
+    }
+
+    @media (max-width: 1100px) {
+        .sfpe-request-columns {
+            grid-template-columns: 1fr;
+        }
+
+        .sfpe-expense-row,
+        .sfpe-expense-total {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+    }
+
+    @media print {
+        @page {
+            size: A4;
+            margin: 12mm;
+        }
+
+        .fi-sidebar,
+        .fi-topbar,
+        .sfpe-actions,
+        .sfpe-mini-action-btn,
+        button,
+        nav,
+        aside {
+            display: none !important;
+        }
+
+        .fi-main,
+        .fi-page,
+        .fi-page-content,
+        main {
+            background: white !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+            max-width: none !important;
+        }
+
+        .sfpe-employment-hero,
+        .pe-card,
+        .sfpe-candidate-requests-card,
+        .sfpe-expenses-card {
+            box-shadow: none !important;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+
+        .sfpe-expense-scroll {
+            max-height: none !important;
+            overflow: visible !important;
+        }
+
+        .sfpe-request-columns {
+            grid-template-columns: 1fr !important;
+        }
+
+        a {
+            text-decoration: none !important;
+        }
+    }
+</style>
+
+
+<style id="sfpe-final-header-requests-expenses-print-v4">
+    /* Fix clipped card headers/titles */
+    .pe-card,
+    .sfpe-candidate-requests-card,
+    .sfpe-expenses-card,
+    .sfpe-timeline-print-area {
+        overflow: visible !important;
+        width: min(100%, 1280px) !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        box-sizing: border-box !important;
+    }
+
+    .pe-card-head {
+        padding: 1.25rem 1.5rem !important;
+        overflow: visible !important;
+        min-height: auto !important;
+    }
+
+    .pe-card-title {
+        line-height: 1.25 !important;
+        overflow: visible !important;
+        padding-top: .15rem !important;
+    }
+
+    .pe-card-subtitle {
+        line-height: 1.45 !important;
+        overflow: visible !important;
+    }
+
+    .sfpe-request-columns {
+        display: grid;
+        grid-template-columns: minmax(0, 1.35fr) minmax(320px, .8fr);
+        gap: 1rem;
+        margin-top: 1.1rem;
+    }
+
+    .sfpe-negotiation-card {
+        border-radius: 28px !important;
+        padding: 1.4rem !important;
+        background: rgba(255,255,255,.96) !important;
+        border: 1px solid rgba(15,23,42,.10) !important;
+        box-shadow: 0 16px 42px rgba(15,23,42,.06) !important;
+        break-inside: avoid;
+    }
+
+    .sfpe-thread-timeline {
+        display: grid;
+        gap: .85rem;
+        position: relative;
+        padding-left: 1.25rem;
+    }
+
+    .sfpe-thread-timeline::before {
+        content: "";
+        position: absolute;
+        left: .36rem;
+        top: .55rem;
+        bottom: .55rem;
+        width: 2px;
+        background: rgba(148,163,184,.35);
+    }
+
+    .sfpe-thread-row {
+        position: relative;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: .75rem;
+        align-items: start;
+    }
+
+    .sfpe-thread-dot {
+        width: .72rem;
+        height: .72rem;
+        border-radius: 999px;
+        margin-top: 1rem;
+        background: #14b8a6;
+        border: 3px solid rgba(20,184,166,.18);
+        position: relative;
+        z-index: 1;
+        transform: translateX(-1.25rem);
+    }
+
+    .sfpe-thread-row.is-candidate .sfpe-thread-dot {
+        background: #3b82f6;
+        border-color: rgba(59,130,246,.18);
+    }
+
+    .sfpe-thread-card {
+        border-radius: 20px;
+        padding: 1rem;
+        border: 1px solid rgba(20,184,166,.20);
+        background: rgba(236,253,245,.65);
+    }
+
+    .sfpe-thread-row.is-candidate .sfpe-thread-card {
+        border-color: rgba(59,130,246,.18);
+        background: rgba(239,246,255,.72);
+    }
+
+    .sfpe-thread-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: .7rem;
+    }
+
+    .sfpe-thread-head strong {
+        color: #0f766e;
+        font-size: .85rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .1em;
+    }
+
+    .sfpe-thread-row.is-candidate .sfpe-thread-head strong {
+        color: #2563eb;
+    }
+
+    .sfpe-thread-head span {
+        color: #64748b;
+        font-size: .76rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .sfpe-thread-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .55rem;
+    }
+
+    .sfpe-thread-pills span {
+        border-radius: 999px;
+        padding: .48rem .7rem;
+        background: rgba(255,255,255,.85);
+        border: 1px solid rgba(15,23,42,.08);
+        color: #0f172a;
+        font-size: .78rem;
+        font-weight: 900;
+    }
+
+    .sfpe-expense-total {
+        border-radius: 20px;
+        padding: 1rem;
+        background: rgba(239,246,255,.86);
+        border: 1px solid rgba(37,99,235,.12);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: .9rem;
+    }
+
+    .sfpe-expense-total span {
+        color: #64748b;
+        font-weight: 850;
+    }
+
+    .sfpe-expense-total strong {
+        color: #0f172a;
+        font-size: 1.1rem;
+        font-weight: 950;
+    }
+
+    .sfpe-expense-scroll {
+        max-height: 320px;
+        overflow-y: auto;
+        display: grid;
+        gap: .65rem;
+        padding-right: .25rem;
+    }
+
+    .sfpe-expense-row {
+        border-radius: 18px;
+        padding: .85rem 1rem;
+        background: rgba(248,250,252,.9);
+        border: 1px solid rgba(15,23,42,.08);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .sfpe-expense-row strong {
+        display: block;
+        color: #0f172a;
+        font-weight: 950;
+    }
+
+    .sfpe-expense-row span {
+        display: block;
+        margin-top: .25rem;
+        color: #64748b;
+        font-size: .78rem;
+        font-weight: 750;
+    }
+
+    .sfpe-expense-amount {
+        color: #0f172a;
+        font-weight: 950;
+        white-space: nowrap;
+    }
+
+    .sfpe-mini-action-btn,
+    .sfpe-print-timeline-btn {
+        border: 0;
+        border-radius: 999px;
+        color: white;
+        padding: .65rem .95rem;
+        font-weight: 900;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .sfpe-mini-action-btn {
+        background: #ef4444;
+    }
+
+    .sfpe-print-timeline-btn {
+        background: #334155;
+    }
+
+    @media (max-width: 1100px) {
+        .sfpe-request-columns {
+            grid-template-columns: 1fr;
+        }
+
+        .sfpe-expense-row,
+        .sfpe-expense-total {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+    }
+
+    @media print {
+        @page {
+            size: A4;
+            margin: 12mm;
+        }
+
+        body.sfpe-print-timeline-only * {
+            visibility: hidden !important;
+        }
+
+        body.sfpe-print-timeline-only .sfpe-timeline-print-area,
+        body.sfpe-print-timeline-only .sfpe-timeline-print-area * {
+            visibility: visible !important;
+        }
+
+        body.sfpe-print-timeline-only .sfpe-timeline-print-area {
+            position: absolute !important;
+            inset: 0 auto auto 0 !important;
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            background: white !important;
+        }
+
+        body.sfpe-print-timeline-only .sfpe-print-timeline-btn,
+        body.sfpe-print-timeline-only button {
+            display: none !important;
+        }
+
+        body:not(.sfpe-print-timeline-only) .fi-sidebar,
+        body:not(.sfpe-print-timeline-only) .fi-topbar,
+        body:not(.sfpe-print-timeline-only) .sfpe-actions,
+        body:not(.sfpe-print-timeline-only) .sfpe-mini-action-btn,
+        body:not(.sfpe-print-timeline-only) button,
+        body:not(.sfpe-print-timeline-only) nav,
+        body:not(.sfpe-print-timeline-only) aside {
+            display: none !important;
+        }
+
+        .sfpe-expense-scroll {
+            max-height: none !important;
+            overflow: visible !important;
+        }
+    }
+</style>

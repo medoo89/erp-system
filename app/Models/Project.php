@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Services\CodeGeneratorService;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Project extends Model
 {
@@ -200,4 +201,119 @@ class Project extends Model
             2
         );
     }
+
+    public function projectContracts()
+    {
+        return $this->hasMany(\App\Models\ProjectContract::class);
+    }
+
+    public function activeProjectContracts()
+    {
+        return $this->projectContracts()
+            ->where('is_active', true)
+            ->whereNotIn('status', [\App\Models\ProjectContract::STATUS_CANCELLED]);
+    }
+
+    public function contractValueTotalsByCurrency(): array
+    {
+        return \App\Models\ProjectContract::valueTotalsForProject((int) $this->id);
+    }
+
+    public function contractTaxTotalsByCurrency(): array
+    {
+        return \App\Models\ProjectContract::taxTotalsForProject((int) $this->id);
+    }
+
+    public function salaryConsumptionTotalsByCurrency(): array
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('salary_slips')) {
+            return [];
+        }
+
+        $amountColumn = null;
+
+        foreach (['final_payable_amount', 'net_salary', 'total_amount', 'amount'] as $column) {
+            if (\Illuminate\Support\Facades\Schema::hasColumn('salary_slips', $column)) {
+                $amountColumn = $column;
+                break;
+            }
+        }
+
+        if (! $amountColumn) {
+            return [];
+        }
+
+        $query = \App\Models\SalarySlip::query()
+            ->where('project_id', $this->id);
+
+        if (\Illuminate\Support\Facades\Schema::hasColumn('salary_slips', 'status')) {
+            $query->whereNotIn('status', ['cancelled', 'rejected', 'void']);
+        }
+
+        if (! \Illuminate\Support\Facades\Schema::hasColumn('salary_slips', 'currency')) {
+            $amount = round((float) $query->sum($amountColumn), 2);
+            return abs($amount) > 0 ? ['EUR' => $amount] : [];
+        }
+
+        return $query
+            ->selectRaw("currency, SUM({$amountColumn}) as total_amount")
+            ->groupBy('currency')
+            ->pluck('total_amount', 'currency')
+            ->map(fn ($value) => round((float) $value, 2))
+            ->filter(fn ($value) => abs((float) $value) > 0)
+            ->toArray();
+    }
+
+    public function contractBalanceTotalsByCurrency(): array
+    {
+        $values = $this->contractValueTotalsByCurrency();
+        $consumed = $this->salaryConsumptionTotalsByCurrency();
+
+        $currencies = array_unique(array_merge(array_keys($values), array_keys($consumed)));
+        $result = [];
+
+        foreach ($currencies as $currency) {
+            $result[$currency] = round((float) ($values[$currency] ?? 0) - (float) ($consumed[$currency] ?? 0), 2);
+        }
+
+        return $result;
+    }
+
+    public function contractConsumptionPercentByCurrency(): array
+    {
+        $values = $this->contractValueTotalsByCurrency();
+        $consumed = $this->salaryConsumptionTotalsByCurrency();
+
+        $result = [];
+
+        foreach ($values as $currency => $value) {
+            $value = (float) $value;
+
+            if ($value <= 0) {
+                $result[$currency] = 0;
+                continue;
+            }
+
+            $result[$currency] = round(((float) ($consumed[$currency] ?? 0) / $value) * 100, 2);
+        }
+
+        return $result;
+    }
+
+    public function contractHealthByCurrency(): array
+    {
+        $percents = $this->contractConsumptionPercentByCurrency();
+        $result = [];
+
+        foreach ($percents as $currency => $percent) {
+            $result[$currency] = match (true) {
+                $percent >= 95 => 'red',
+                $percent >= 80 => 'yellow',
+                default => 'green',
+            };
+        }
+
+        return $result;
+    }
+
 }

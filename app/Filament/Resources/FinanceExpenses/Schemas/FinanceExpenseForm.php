@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\FinanceExpenses\Schemas;
 
+use App\Models\ProjectContract;
+
 use App\Models\CandidateFinanceProfile;
 use App\Models\Client;
 use App\Models\Employment;
@@ -294,12 +296,58 @@ class FinanceExpenseForm
                             ->visible(fn ($get) => $get('expense_scope') === FinanceExpense::SCOPE_AD_HOC),
 
                         Select::make('project_id')
+                        ->default(fn () => request()->query('project_id'))
                             ->label('Project')
                             ->options(Project::query()->orderBy('name')->pluck('name', 'id')->toArray())
                             ->searchable()
                             ->preload()
                             ->native(false)
                             ->visible(fn ($get) => $get('expense_scope') === FinanceExpense::SCOPE_AD_HOC),
+
+                    Select::make('project_contract_id')
+                        ->label('Contract / Agreement / Order Counter')
+                        ->default(fn () => request()->query('project_contract_id'))
+                        ->options(function ($get = null): array {
+                            $projectId = null;
+
+                            try {
+                                if (is_callable($get)) {
+                                    $projectId = $get('project_id');
+                                }
+                            } catch (\Throwable $e) {
+                                $projectId = null;
+                            }
+
+                            $query = ProjectContract::query()
+                                ->orderByDesc('id');
+
+                            if ($projectId) {
+                                $query->where('project_id', $projectId);
+                            }
+
+                            return $query
+                                ->get()
+                                ->mapWithKeys(function (ProjectContract $contract): array {
+                                    $title = $contract->title
+                                        ?? $contract->contract_no
+                                        ?? ('Contract #' . $contract->id);
+
+                                    $no = $contract->contract_no ? (' • ' . $contract->contract_no) : '';
+                                    $type = $contract->type ? (' • ' . strtoupper((string) $contract->type)) : '';
+                                    $currency = $contract->currency ? (' • ' . $contract->currency) : '';
+
+                                    return [
+                                        $contract->id => $title . $no . $type . $currency,
+                                    ];
+                                })
+                                ->toArray();
+                        })
+                        ->searchable()
+                        ->preload()
+                        ->nullable()
+                        ->helperText('For classification only. This does not reduce the client contract balance.')
+                        ->live(),
+
 
                         Select::make('candidate_finance_profile_id')
                             ->label('Finance Profile')

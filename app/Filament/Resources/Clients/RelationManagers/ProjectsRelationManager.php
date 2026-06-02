@@ -2,8 +2,11 @@
 
 namespace App\Filament\Resources\Clients\RelationManagers;
 
+use App\Filament\Resources\Projects\ProjectResource;
 use App\Filament\Resources\Projects\Schemas\ProjectForm;
 use Filament\Actions\CreateAction;
+use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables;
@@ -13,7 +16,7 @@ class ProjectsRelationManager extends RelationManager
 {
     protected static string $relationship = 'projects';
 
-    protected static ?string $title = 'Projects';
+    protected static ?string $title = 'Linked Projects';
 
     protected static ?string $modelLabel = 'Project';
 
@@ -34,6 +37,7 @@ class ProjectsRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('name')
             ->defaultSort('id', 'desc')
+            ->recordUrl(fn ($record): string => ProjectResource::getUrl('view', ['record' => $record]))
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->label('Project')
@@ -52,6 +56,17 @@ class ProjectsRelationManager extends RelationManager
                     ->searchable()
                     ->toggleable()
                     ->formatStateUsing(fn ($state) => filled($state) ? $state : '-'),
+
+                Tables\Columns\TextColumn::make('status')
+                    ->label('Status')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => filled($state) ? ucfirst(str_replace('_', ' ', $state)) : '-')
+                    ->color(fn ($state) => match ((string) $state) {
+                        'active' => 'success',
+                        'on_hold' => 'warning',
+                        'completed', 'closed' => 'info',
+                        default => 'gray',
+                    }),
 
                 Tables\Columns\TextColumn::make('jobs_count')
                     ->label('Jobs')
@@ -79,9 +94,17 @@ class ProjectsRelationManager extends RelationManager
                         return $data;
                     }),
             ])
-            ->recordActions([]);
-    }
+            ->recordActions([
+                ViewAction::make()
+                    ->visible(fn () => (bool) auth()->user()?->canErp('projects', 'view'))
+                    ->url(fn ($record): string => ProjectResource::getUrl('view', ['record' => $record])),
 
+                EditAction::make()
+                    ->visible(fn () => (bool) auth()->user()?->canErp('projects', 'edit'))
+                    ->url(fn ($record): string => ProjectResource::getUrl('edit', ['record' => $record])),
+            ])
+            ->bulkActions([]);
+    }
 
     public static function canViewForRecord(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): bool
     {

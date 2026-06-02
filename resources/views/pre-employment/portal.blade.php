@@ -407,11 +407,15 @@
             ->keys()
             ->values();
 
-        $visibleFields = $preEmployment->portalFields ?? collect();
+        $visibleFields = collect($pendingPortalFields ?? ($preEmployment->portalFields ?? collect()));
 
+        /*
+         * Controller already removes completed/uploaded file requests.
+         * This Blade fallback keeps old submitted values hidden too.
+         */
         $pendingFields = $visibleFields->filter(function ($field) use ($alreadySubmittedFieldIds) {
             return ! $alreadySubmittedFieldIds->contains($field->id);
-        });
+        })->values();
 
         $submittedReimbursementClaims = collect();
 

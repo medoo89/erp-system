@@ -399,7 +399,66 @@
             }
         }
 
-    </style>
+    
+<style>
+    .sfja-salary-decision-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 18px;
+        align-items: center;
+    }
+
+    .sfja-salary-decision-btn {
+        appearance: none;
+        border: 0;
+        min-height: 46px;
+        padding: 0 20px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 900;
+        letter-spacing: .03em;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        cursor: pointer;
+        box-shadow: 0 14px 30px rgba(15, 23, 42, .12);
+        transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
+        white-space: nowrap;
+    }
+
+    .sfja-salary-decision-btn:hover {
+        transform: translateY(-1px);
+        filter: brightness(1.02);
+    }
+
+    .sfja-salary-decision-btn .material-symbols-rounded {
+        font-size: 20px;
+        line-height: 1;
+    }
+
+    .sfja-salary-decision-btn.approve {
+        background: linear-gradient(135deg, #16a34a, #22c55e);
+        color: #fff;
+    }
+
+    .sfja-salary-decision-btn.decline {
+        background: linear-gradient(135deg, #dc2626, #ef4444);
+        color: #fff;
+    }
+
+    .sfja-salary-decision-btn.final {
+        background: linear-gradient(135deg, #f59e0b, #f97316);
+        color: #111827;
+    }
+
+    .dark .sfja-salary-decision-btn {
+        box-shadow: 0 14px 30px rgba(0, 0, 0, .28);
+    }
+</style>
+
+</style>
 
 <style id="sf-candidate-request-decision-colors">
     /*
@@ -1764,8 +1823,61 @@
                                     @endforeach
                                 </div>
                             @endif
+<div class="sfja-request-actions">
 
-                            <div class="sfja-request-actions">
+                                            @php
+                                                $sfjaRequestStatus = strtolower((string) ($request->request_status ?? ''));
+                                                $sfjaRequestType = strtolower((string) ($request->type ?? ''));
+                                                $sfjaIsSalaryNegotiation = $sfjaRequestType === 'salary_negotiation';
+                                                $sfjaIsFinalOffer = (bool) ($request->is_final_offer ?? false);
+                                                $sfjaHasCandidateCounterOffer = filled($request->candidate_counter_offer)
+                                                    || filled(data_get($decoded, 'counter_offer'))
+                                                    || filled(data_get($decoded, 'candidate_counter_offer'));
+
+                                                $sfjaCanShowNegotiationDecisionButtons = $sfjaIsSalaryNegotiation
+                                                    && ! $sfjaIsFinalOffer
+                                                    && ! in_array($sfjaRequestStatus, ['accepted', 'approved', 'declined', 'rejected', 'closed'], true)
+                                                    && (
+                                                        $sfjaHasCandidateCounterOffer
+                                                        || in_array($sfjaRequestStatus, ['submitted', 'replied', 'responded', 'reconsidered', 'countered', 'counter_offer', 'candidate_counter_offer'], true)
+                                                    );
+                                            @endphp
+
+                                            @if ($sfjaCanShowNegotiationDecisionButtons)
+                                                <div class="sfja-salary-decision-actions">
+                                                    <button
+                                                        type="button"
+                                                        class="sfja-salary-decision-btn approve"
+                                                        wire:click="approveCandidateCounterOffer({{ $request->id }})"
+                                                        wire:loading.attr="disabled"
+                                                    >
+                                                        <span class="material-symbols-rounded">check_circle</span>
+                                                        Approve Counter Offer
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        class="sfja-salary-decision-btn decline"
+                                                        wire:click="declineCandidateCounterOffer({{ $request->id }})"
+                                                        wire:loading.attr="disabled"
+                                                    >
+                                                        <span class="material-symbols-rounded">cancel</span>
+                                                        Decline Offer
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        class="sfja-salary-decision-btn final"
+                                                        wire:click="openFinalOfferAction({{ $request->id }})"
+                                                        wire:loading.attr="disabled"
+                                                    >
+                                                        <span class="material-symbols-rounded">workspace_premium</span>
+                                                        Send Final Offer
+                                                    </button>
+                                                </div>
+                                            @endif
+
+
                                 <a href="{{ $requestPortalUrl }}" target="_blank" class="sfja-btn sfja-btn-gray">Open Portal</a>
 
                                 <button type="button" wire:click="resendCandidateRequestEmail({{ $request->id }})" class="sfja-btn sfja-btn-blue">

@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\ClientInvoices\Tables;
 
+use Filament\Tables\Columns\TextColumn;
+
 use App\Filament\Resources\ClientInvoices\ClientInvoiceResource;
 use App\Models\Client;
 use App\Models\ClientInvoice;
@@ -24,6 +26,28 @@ class ClientInvoicesTable
             ->recordUrl(fn ($record): string => ClientInvoiceResource::getUrl('view', ['record' => $record]))
             ->searchPlaceholder('Search invoice no, client, or project')
             ->columns([
+
+                TextColumn::make('projectContract.title')
+                    ->label('Contract')
+                    ->formatStateUsing(fn ($state, $record) => $record->projectContract?->title
+                        ?? $record->projectContract?->contract_no
+                        ?? ($record->project_contract_id ? ('Contract #' . $record->project_contract_id) : '-'))
+                    ->badge()
+                    ->toggleable()
+                    ->placeholder('-'),
+
+                TextColumn::make('contract_consumption_percent')
+                    ->label('Contract %')
+                    ->formatStateUsing(fn ($state) => number_format((float) $state, 2) . '%')
+                    ->toggleable()
+                    ->placeholder('0%'),
+
+                TextColumn::make('allocated_contract_tax_amount')
+                    ->label('Allocated Tax')
+                    ->formatStateUsing(fn ($state, $record) => number_format((float) $state, 2) . ' ' . ($record->allocated_contract_tax_currency ?? ''))
+                    ->toggleable()
+                    ->placeholder('0.00'),
+
                 Tables\Columns\TextColumn::make('invoice_number')
                     ->label('Invoice No.')
                     ->searchable()
@@ -48,10 +72,32 @@ class ClientInvoicesTable
                     ->sortable()
                     ->default('-'),
 
+
+                Tables\Columns\TextColumn::make('work_days_summary')
+                    ->label('Work Days')
+                    ->state(fn ($record) => 'Paid: ' . number_format((float) $record->paidWorkDaysCount(), 2)
+                        . ' | Not Paid: ' . $record->notPaidWorkDaysCount()
+                        . ' | Absent: ' . $record->absentWorkDaysCount())
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('period')
                     ->label('Period')
                     ->state(fn ($record) => ($record->period_start ? $record->period_start->format('Y-m-d') : '-') . ' → ' . ($record->period_end ? $record->period_end->format('Y-m-d') : '-')),
 
+
+                Tables\Columns\TextColumn::make('split_documents_summary')
+                    ->label('Split Docs')
+                    ->state(function ($record) {
+                        $docs = $record->documents;
+
+                        if ($docs->isEmpty()) {
+                            return '-';
+                        }
+
+                        return $docs
+                            ->map(fn ($doc) => strtoupper((string) $doc->document_type) . ': ' . number_format((float) $doc->amount, 2) . ' ' . ($doc->currency ?? ''))
+                            ->implode(' | ');
+                    })
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('total_amount')
                     ->label('Total')
                     ->formatStateUsing(fn ($state, $record) => number_format((float) $state, 2) . ' ' . ($record->display_currency ?: $record->foreign_currency ?: ''))

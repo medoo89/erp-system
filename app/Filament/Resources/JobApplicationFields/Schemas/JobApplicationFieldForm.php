@@ -3,9 +3,10 @@
 namespace App\Filament\Resources\JobApplicationFields\Schemas;
 
 use App\Models\Job;
+use App\Models\JobApplicationField;
 use Filament\Forms;
-use Filament\Schemas\Schema;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 
 class JobApplicationFieldForm
 {
@@ -46,17 +47,19 @@ class JobApplicationFieldForm
 
                         Forms\Components\Select::make('field_type')
                             ->label('Field Type')
-                            ->options([
-                                'text' => 'Text',
-                                'textarea' => 'Textarea',
-                                'number' => 'Number',
-                                'date' => 'Date',
-                                'file' => 'File Upload',
-                                'select' => 'Dropdown',
-                                'checkbox' => 'Checkbox',
-                            ])
+                            ->options(JobApplicationField::fieldTypeOptions())
                             ->required()
-                            ->live(),
+                            ->live()
+                            ->afterStateUpdated(function ($state, callable $set): void {
+                                if (! in_array($state, [
+                                    JobApplicationField::TYPE_SELECT,
+                                    JobApplicationField::TYPE_CHECKBOX,
+                                    JobApplicationField::TYPE_MULTI_CHECKBOX,
+                                ], true)) {
+                                    $set('options', []);
+                                }
+                            })
+                            ->helperText('Checkbox = one selected option. Multi Checkbox = multiple selected options. Dropdown = one selected option.'),
 
                         Forms\Components\Select::make('field_group')
                             ->label('Field Group')
@@ -71,10 +74,10 @@ class JobApplicationFieldForm
                             ->label('Placeholder')
                             ->maxLength(255)
                             ->visible(fn ($get) => in_array($get('field_type'), [
-                                'text',
-                                'textarea',
-                                'number',
-                            ])),
+                                JobApplicationField::TYPE_TEXT,
+                                JobApplicationField::TYPE_TEXTAREA,
+                                JobApplicationField::TYPE_NUMBER,
+                            ], true)),
 
                         Forms\Components\Textarea::make('help_text')
                             ->label('Help Text')
@@ -92,6 +95,50 @@ class JobApplicationFieldForm
                             ->default(0),
                     ])
                     ->columns(2),
+
+                Section::make('Field Options')
+                    ->description('Add the choices that should appear to the applicant. This section appears only for Dropdown, Checkbox, and Multi Checkbox fields.')
+                    ->schema([
+                        Forms\Components\Repeater::make('options')
+                            ->relationship('options')
+                            ->label('Options')
+                            ->schema([
+                                Forms\Components\TextInput::make('option_label')
+                                    ->label('Option Label')
+                                    ->required()
+                                    ->maxLength(255)
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(function ($state, callable $set, callable $get): void {
+                                        if (blank($get('option_value')) && filled($state)) {
+                                            $set('option_value', str($state)->snake()->lower()->toString());
+                                        }
+                                    }),
+
+                                Forms\Components\TextInput::make('option_value')
+                                    ->label('Option Value')
+                                    ->required()
+                                    ->maxLength(255)
+                                    ->helperText('Auto-generated from label. You can edit it if needed.'),
+
+                                Forms\Components\TextInput::make('sort_order')
+                                    ->label('Order')
+                                    ->numeric()
+                                    ->default(0),
+                            ])
+                            ->columns(3)
+                            ->defaultItems(1)
+                            ->minItems(1)
+                            ->addActionLabel('Add Option')
+                            ->reorderable()
+                            ->collapsible()
+                            ->columnSpanFull(),
+                    ])
+                    ->visible(fn ($get) => in_array($get('field_type'), [
+                        JobApplicationField::TYPE_SELECT,
+                        JobApplicationField::TYPE_CHECKBOX,
+                        JobApplicationField::TYPE_MULTI_CHECKBOX,
+                    ], true))
+                    ->columns(1),
             ]);
     }
 }

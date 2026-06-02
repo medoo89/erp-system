@@ -6,6 +6,38 @@ use Illuminate\Database\Eloquent\Model;
 
 class JobApplicationField extends Model
 {
+    public const TYPE_TEXT = 'text';
+    public const TYPE_TEXTAREA = 'textarea';
+    public const TYPE_NUMBER = 'number';
+    public const TYPE_DATE = 'date';
+    public const TYPE_FILE = 'file';
+    public const TYPE_SELECT = 'select';
+    public const TYPE_CHECKBOX = 'checkbox';
+    public const TYPE_MULTI_CHECKBOX = 'multi_checkbox';
+
+    public static function fieldTypeOptions(): array
+    {
+        return [
+            self::TYPE_TEXT => 'Text',
+            self::TYPE_TEXTAREA => 'Textarea',
+            self::TYPE_NUMBER => 'Number',
+            self::TYPE_DATE => 'Date',
+            self::TYPE_FILE => 'File Upload',
+            self::TYPE_SELECT => 'Dropdown / Select',
+            self::TYPE_CHECKBOX => 'Checkbox - Single Choice',
+            self::TYPE_MULTI_CHECKBOX => 'Multi Checkbox - Multiple Choices',
+        ];
+    }
+
+    public function usesOptions(): bool
+    {
+        return in_array($this->field_type, [
+            self::TYPE_SELECT,
+            self::TYPE_CHECKBOX,
+            self::TYPE_MULTI_CHECKBOX,
+        ], true);
+    }
+
     protected $fillable = [
         'job_id',
         'label',

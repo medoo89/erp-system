@@ -10,6 +10,7 @@ use App\Filament\Resources\PreEmployments\PreEmploymentResource;
 use App\Mail\PreEmploymentPortalRequestMail;
 
 use App\Models\CandidateFinanceProfile;
+use App\Models\CalendarEvent;
 
 use App\Models\Employment;
 use App\Models\FinanceExpense;
@@ -32,6 +33,7 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 
 use Filament\Forms\Components\Textarea;
+use Filament\Schemas\Components\Grid;
 use Filament\Forms\Components\Toggle;
 
 use Filament\Forms\Components\TextInput;
@@ -41,6 +43,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 
 class ViewPreEmployment extends ViewRecord
 
@@ -606,17 +609,12 @@ public function getTitle(): string
                         ])
                         ->default('other')
                         ->native(false)
+                        ->live()
                         ->required(),
 
                     TextInput::make('amount')
                         ->label('Amount')
                         ->numeric()
-                        ->live(onBlur: true)
-                        ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                            if ($get('paid_by') === FinanceExpense::PAID_BY_CANDIDATE && blank($get('reimbursement_amount'))) {
-                                $set('reimbursement_amount', $state);
-                            }
-                        })
                         ->required(),
 
                     Select::make('currency')
@@ -629,12 +627,6 @@ public function getTitle(): string
                         ])
                         ->default('EUR')
                         ->native(false)
-                        ->live()
-                        ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                            if ($get('paid_by') === FinanceExpense::PAID_BY_CANDIDATE) {
-                                $set('reimbursement_currency', $state);
-                            }
-                        })
                         ->required(),
 
                     DatePicker::make('expense_date')
@@ -642,63 +634,103 @@ public function getTitle(): string
                         ->default(now())
                         ->required(),
 
+                    Grid::make(2)
+                        ->schema([
+                            DatePicker::make('departure_date')
+                                ->label('Departure Date')
+                                ->visible(fn ($get): bool => $get('category') === 'ticket'),
+
+                            DatePicker::make('return_date')
+                                ->label('Return Date')
+                                ->visible(fn ($get): bool => $get('category') === 'ticket'),
+
+                            TextInput::make('route_from')
+                                ->label('From')
+                                ->placeholder('Tripoli / Tunis / Istanbul...')
+                                ->visible(fn ($get): bool => $get('category') === 'ticket'),
+
+                            TextInput::make('route_to')
+                                ->label('To')
+                                ->placeholder('Malta / Field / Hotel...')
+                                ->visible(fn ($get): bool => $get('category') === 'ticket'),
+                        ]),
+
+                    Grid::make(2)
+                        ->schema([
+                            DatePicker::make('check_in_date')
+                                ->label('Check-in Date')
+                                ->visible(fn ($get): bool => in_array($get('category'), ['hotel', 'accommodation'], true)),
+
+                            DatePicker::make('check_out_date')
+                                ->label('Check-out Date')
+                                ->visible(fn ($get): bool => in_array($get('category'), ['hotel', 'accommodation'], true)),
+
+                            TextInput::make('hotel_name')
+                                ->label('Hotel / Accommodation Name')
+                                ->visible(fn ($get): bool => in_array($get('category'), ['hotel', 'accommodation'], true)),
+
+                            TextInput::make('location')
+                                ->label('Location')
+                                ->visible(fn ($get): bool => in_array($get('category'), ['hotel', 'accommodation'], true)),
+                        ]),
+
+                    Grid::make(2)
+                        ->schema([
+                            DatePicker::make('training_start_date')
+                                ->label('Training Start Date')
+                                ->visible(fn ($get): bool => $get('category') === 'training'),
+
+                            DatePicker::make('training_end_date')
+                                ->label('Training End Date')
+                                ->visible(fn ($get): bool => $get('category') === 'training'),
+
+                            TextInput::make('training_provider')
+                                ->label('Training Provider')
+                                ->visible(fn ($get): bool => $get('category') === 'training'),
+
+                            TextInput::make('training_location')
+                                ->label('Training Location')
+                                ->visible(fn ($get): bool => $get('category') === 'training'),
+                        ]),
+
+                    Grid::make(2)
+                        ->schema([
+                            DatePicker::make('issue_date')
+                                ->label('Issue Date')
+                                ->visible(fn ($get): bool => in_array($get('category'), ['desert_pass', 'visa'], true)),
+
+                            DatePicker::make('expiry_date')
+                                ->label('Expiry Date')
+                                ->visible(fn ($get): bool => in_array($get('category'), ['desert_pass', 'visa', 'medical'], true)),
+
+                            DatePicker::make('medical_date')
+                                ->label('Medical Date')
+                                ->visible(fn ($get): bool => $get('category') === 'medical'),
+
+                            DatePicker::make('follow_up_date')
+                                ->label('Follow-up Date')
+                                ->visible(fn ($get): bool => $get('category') === 'medical'),
+                        ]),
+
                     Select::make('paid_by')
                         ->label('Paid By')
                         ->options([
                             'company' => 'Company',
                             'candidate' => 'Candidate / Employee',
-                            'client' => 'Client',
-                            'third_party' => 'Third Party',
                         ])
                         ->default('company')
                         ->native(false)
-                        ->live()
                         ->required()
                         ->helperText('Candidate / Employee means out-of-pocket claim, not company-paid yet.'),
-
-                    Select::make('reimbursement_status')
-                        ->label('Reimbursement Status')
-                        ->options([
-                            'not_applicable' => 'Not Applicable',
-                            'pending' => 'Pending',
-                            'approved' => 'Approved',
-                            'paid' => 'Paid',
-                            'rejected' => 'Rejected',
-                        ])
-                        ->default('not_applicable')
-                        ->native(false)
-                        ->visible(fn ($get) => $get('paid_by') === 'candidate')
-                        ->helperText('Use Pending when the candidate paid from pocket and needs reimbursement.'),
-
-                    TextInput::make('reimbursement_amount')
-                        ->label('Reimbursement Amount')
-                        ->numeric()
-                        ->visible(fn ($get) => $get('paid_by') === 'candidate'),
-
-                    Select::make('reimbursement_currency')
-                        ->label('Reimbursement Currency')
-                        ->options([
-                            'EUR' => 'EUR',
-                            'USD' => 'USD',
-                            'LYD' => 'LYD',
-                            'GBP' => 'GBP',
-                        ])
-                        ->default('EUR')
-                        ->native(false)
-                        ->visible(fn ($get) => $get('paid_by') === 'candidate'),
-
-                    Textarea::make('reimbursement_notes')
-                        ->label('Reimbursement Notes')
-                        ->rows(3)
-                        ->visible(fn ($get) => $get('paid_by') === 'candidate'),
 
                     Select::make('status')
                         ->label('Status')
                         ->options([
                             'draft' => 'Draft',
+                            'pending' => 'Pending',
                             'approved' => 'Approved',
                             'paid' => 'Paid',
-                            'cancelled' => 'Cancelled',
+                            'rejected' => 'Rejected',
                         ])
                         ->default('draft')
                         ->native(false)
@@ -706,12 +738,9 @@ public function getTitle(): string
 
                     Textarea::make('description')
                         ->label('Description')
-                        ->rows(3),
-
-                    Textarea::make('notes')
-                        ->label('Notes')
-                        ->rows(3),
-                ])
+                        ->rows(3)
+                        ->columnSpanFull(),
+])
                 ->action(function (array $data): void {
                     $record = $this->record;
 
@@ -720,7 +749,7 @@ public function getTitle(): string
                     $amount = $data['amount'] ?? 0;
                     $currency = $data['currency'] ?? 'EUR';
 
-                    FinanceExpense::query()->create([
+                    $expensePayload = [
                         'job_application_id' => $record->job_application_id,
                         'pre_employment_id' => $record->id,
                         'employment_id' => null,
@@ -736,7 +765,13 @@ public function getTitle(): string
                         'description' => $data['description'] ?? null,
                         'amount' => $amount,
                         'currency' => $currency,
+
+                        /*
+                         * Finance/accounting date only.
+                         * IMPORTANT: expense_date is intentionally NOT synced to calendar.
+                         */
                         'expense_date' => $data['expense_date'] ?? now(),
+
                         'paid_by' => $paidBy,
                         'reimbursement_required' => $isCandidatePaid,
                         'reimbursement_status' => $isCandidatePaid
@@ -750,7 +785,38 @@ public function getTitle(): string
                         'is_company_expense' => $paidBy === FinanceExpense::PAID_BY_COMPANY,
                         'is_manual_expense' => true,
                         'candidate_submitted' => false,
-                    ]);
+                    ];
+
+                    /*
+                     * Save operational date/details only when the finance_expenses table has these columns.
+                     * This keeps the patch safe across local/production database differences.
+                     */
+                    foreach ([
+                        'departure_date',
+                        'return_date',
+                        'route_from',
+                        'route_to',
+                        'check_in_date',
+                        'check_out_date',
+                        'hotel_name',
+                        'location',
+                        'training_start_date',
+                        'training_end_date',
+                        'training_provider',
+                        'training_location',
+                        'issue_date',
+                        'expiry_date',
+                        'medical_date',
+                        'follow_up_date',
+                    ] as $optionalExpenseColumn) {
+                        if (Schema::hasColumn('finance_expenses', $optionalExpenseColumn)) {
+                            $expensePayload[$optionalExpenseColumn] = $data[$optionalExpenseColumn] ?? null;
+                        }
+                    }
+
+                    $expense = FinanceExpense::query()->create($expensePayload);
+
+                    $this->syncPreEmploymentExpenseCalendarEvents($expense, $data);
 
                     Notification::make()
                         ->title('Pre-Employment expense added')
@@ -1456,6 +1522,165 @@ public function getTitle(): string
 
         return 'Final Finance Profile is locked.';
 
+    }
+
+    /**
+     * Sync Pre-Employment expense operational dates to the shared ERP/Public calendar.
+     *
+     * IMPORTANT:
+     * - expense_date is not used here by design.
+     * - Only operational dates like ticket departure, hotel check-in/out, training dates,
+     *   visa/desert pass issue/expiry, and medical/follow-up dates create events.
+     * - Events are linked to the FinanceExpense record so when the expense later receives
+     *   employment_id during conversion, the event remains connected without duplication.
+     */
+    protected function syncPreEmploymentExpenseCalendarEvents(FinanceExpense $expense, array $data): void
+    {
+        if (! Schema::hasTable('calendar_events')) {
+            return;
+        }
+
+        $category = (string) ($data['category'] ?? $expense->category ?? FinanceExpense::CATEGORY_OTHER);
+        $candidateName = (string) ($this->record?->candidate_name ?: 'Candidate');
+        $expenseTitle = (string) ($data['title'] ?? $expense->title ?? 'Pre-Employment Expense');
+
+        $eventMap = [
+            'ticket_departure' => [
+                'field' => 'departure_date',
+                'label' => 'Ticket Departure',
+                'type' => 'ticket_departure',
+                'color' => '#2563eb',
+                'categories' => ['ticket'],
+            ],
+            'ticket_return' => [
+                'field' => 'return_date',
+                'label' => 'Ticket Return',
+                'type' => 'ticket_return',
+                'color' => '#7c3aed',
+                'categories' => ['ticket'],
+            ],
+            'hotel_check_in' => [
+                'field' => 'check_in_date',
+                'label' => 'Hotel / Accommodation Check-in',
+                'type' => 'hotel_check_in',
+                'color' => '#0ea5e9',
+                'categories' => ['hotel', 'accommodation'],
+            ],
+            'hotel_check_out' => [
+                'field' => 'check_out_date',
+                'label' => 'Hotel / Accommodation Check-out',
+                'type' => 'hotel_check_out',
+                'color' => '#0284c7',
+                'categories' => ['hotel', 'accommodation'],
+            ],
+            'training_start' => [
+                'field' => 'training_start_date',
+                'label' => 'Training Start',
+                'type' => 'training_start',
+                'color' => '#10b981',
+                'categories' => ['training'],
+            ],
+            'training_end' => [
+                'field' => 'training_end_date',
+                'label' => 'Training End',
+                'type' => 'training_end',
+                'color' => '#059669',
+                'categories' => ['training'],
+            ],
+            'issue_date' => [
+                'field' => 'issue_date',
+                'label' => 'Issue Date',
+                'type' => 'document_issue',
+                'color' => '#f59e0b',
+                'categories' => ['desert_pass', 'visa'],
+            ],
+            'expiry_date' => [
+                'field' => 'expiry_date',
+                'label' => 'Expiry Date',
+                'type' => 'document_expiry',
+                'color' => '#dc2626',
+                'categories' => ['desert_pass', 'visa', 'medical'],
+            ],
+            'medical_date' => [
+                'field' => 'medical_date',
+                'label' => 'Medical Date',
+                'type' => 'medical',
+                'color' => '#14b8a6',
+                'categories' => ['medical'],
+            ],
+            'medical_follow_up' => [
+                'field' => 'follow_up_date',
+                'label' => 'Medical Follow-up',
+                'type' => 'medical_follow_up',
+                'color' => '#8b5cf6',
+                'categories' => ['medical'],
+            ],
+        ];
+
+        foreach ($eventMap as $eventKey => $config) {
+            if (! in_array($category, $config['categories'], true)) {
+                $this->deactivatePreEmploymentExpenseCalendarEvent($expense, $eventKey);
+                continue;
+            }
+
+            $date = $data[$config['field']] ?? null;
+
+            if (blank($date)) {
+                $this->deactivatePreEmploymentExpenseCalendarEvent($expense, $eventKey);
+                continue;
+            }
+
+            $notes = trim(implode("\n", array_filter([
+                'Source: Pre-Employment Expense',
+                'Candidate: ' . $candidateName,
+                'Category: ' . ucfirst(str_replace('_', ' ', $category)),
+                'Expense: ' . $expenseTitle,
+                filled($data['route_from'] ?? null) || filled($data['route_to'] ?? null)
+                    ? 'Route: ' . trim(($data['route_from'] ?? '-') . ' → ' . ($data['route_to'] ?? '-'))
+                    : null,
+                filled($data['hotel_name'] ?? null) ? 'Hotel / Accommodation: ' . $data['hotel_name'] : null,
+                filled($data['location'] ?? null) ? 'Location: ' . $data['location'] : null,
+                filled($data['training_provider'] ?? null) ? 'Training Provider: ' . $data['training_provider'] : null,
+                filled($data['training_location'] ?? null) ? 'Training Location: ' . $data['training_location'] : null,
+                'Status: ' . ucfirst(str_replace('_', ' ', (string) ($data['status'] ?? $expense->status ?? 'draft'))),
+                'Calendar Key: pre_employment_expense:' . $expense->id . ':' . $eventKey,
+            ])));
+
+            CalendarEvent::query()->updateOrCreate(
+                [
+                    'linked_type' => FinanceExpense::class,
+                    'linked_id' => $expense->id,
+                    'event_type' => 'pre_employment_expense_' . $eventKey,
+                ],
+                [
+                    'title' => $config['label'] . ': ' . $candidateName,
+                    'notes' => $notes,
+                    'event_date' => $date,
+                    'is_all_day' => true,
+                    'color' => $config['color'],
+                    'job_id' => $this->record?->job_id,
+                    'is_active' => true,
+                    'created_by' => auth()->id(),
+                    'updated_by' => auth()->id(),
+                ]
+            );
+        }
+    }
+
+    protected function deactivatePreEmploymentExpenseCalendarEvent(FinanceExpense $expense, string $eventKey): void
+    {
+        if (! Schema::hasTable('calendar_events')) {
+            return;
+        }
+
+        CalendarEvent::query()
+            ->where('linked_type', FinanceExpense::class)
+            ->where('linked_id', $expense->id)
+            ->where('event_type', 'pre_employment_expense_' . $eventKey)
+            ->update([
+                'is_active' => false,
+                'updated_by' => auth()->id(),
+            ]);
     }
 
     public static function canAccess(array $parameters = []): bool

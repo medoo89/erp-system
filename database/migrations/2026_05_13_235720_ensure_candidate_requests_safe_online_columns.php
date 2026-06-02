@@ -48,7 +48,9 @@ return new class extends Migration
         });
 
         // Important for salary negotiation thread/history JSON.
-        DB::statement('ALTER TABLE candidate_requests MODIFY candidate_response LONGTEXT NULL');
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement('ALTER TABLE candidate_requests MODIFY candidate_response LONGTEXT NULL');
+        }
     }
 
     public function down(): void

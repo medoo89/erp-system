@@ -38,7 +38,14 @@ class PreEmploymentPortalController extends Controller
 
         $values = $preEmployment->portalValues->keyBy('portal_field_id');
 
-        return view('pre-employment.portal', compact('preEmployment', 'values'));
+        /*
+         * Candidate portal must show ONLY currently pending fields.
+         * Old submitted/uploaded file requests must not appear again.
+         */
+        $pendingPortalFields = $this->pendingPortalFields($preEmployment, $values);
+        $preEmployment->setRelation('portalFields', $pendingPortalFields);
+
+        return view('pre-employment.portal', compact('preEmployment', 'values', 'pendingPortalFields'));
     }
 
     public function submit(Request $request, string $token)
@@ -56,9 +63,14 @@ class PreEmploymentPortalController extends Controller
                     ->where('visible_to_candidate', true)
                     ->orderBy('sort_order')
                     ->orderBy('id'),
+                'portalValues',
             ])
             ->where('portal_token', $token)
             ->firstOrFail();
+
+        $values = $preEmployment->portalValues->keyBy('portal_field_id');
+        $pendingPortalFields = $this->pendingPortalFields($preEmployment, $values);
+        $preEmployment->setRelation('portalFields', $pendingPortalFields);
 
         $rules = [];
 
@@ -354,6 +366,54 @@ class PreEmploymentPortalController extends Controller
             ->with('success', 'Your reimbursement claim has been submitted successfully and is pending review.');
     }
 
+
+
+    /**
+     * Return only fields that still need candidate action.
+     *
+     * Rules:
+     * - If a portal value already exists for this field, it is completed.
+     * - If signed_file_path exists on the field, it is completed.
+     * - For file fields, if a current active PreEmploymentFile already exists
+     *   in the same normalized category, do not ask the candidate again.
+     */
+    protected function pendingPortalFields(PreEmployment $preEmployment, $values)
+    {
+        $values = collect($values);
+
+        return collect($preEmployment->portalFields ?? [])
+            ->filter(function ($field) use ($preEmployment, $values) {
+                return ! $this->portalFieldAlreadyCompleted($preEmployment, $field, $values);
+            })
+            ->values();
+    }
+
+    protected function portalFieldAlreadyCompleted(PreEmployment $preEmployment, $field, $values): bool
+    {
+        $existingValue = $values->get($field->id);
+
+        if ($existingValue && filled($existingValue->value)) {
+            return true;
+        }
+
+        if (filled($field->signed_file_path ?? null)) {
+            return true;
+        }
+
+        if (($field->field_type ?? null) !== 'file') {
+            return false;
+        }
+
+        $category = $this->categoryForField($field);
+
+        return PreEmploymentFile::query()
+            ->where('pre_employment_id', $preEmployment->id)
+            ->where('category', $category)
+            ->where('is_active', true)
+            ->where('is_current', true)
+            ->whereNotNull('file_path')
+            ->exists();
+    }
 
     protected function categoryForField($field): string
     {

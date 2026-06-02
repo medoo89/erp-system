@@ -2181,3 +2181,154 @@
 
 
 </x-filament-panels::page>
+
+{{-- SF EMPLOYMENT REQUEST HISTORY BRIDGE START --}}
+<script id="sf-employment-request-history-bridge-js">
+    (() => {
+        /*
+         | Employment page bridge:
+         | If candidate/job-application request blocks exist on the page,
+         | keep them visible as history-style rows inside Employment Operations when a History panel exists.
+         | This is frontend-safe and does not change backend data.
+         */
+
+        const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+
+        const getOps = () => {
+            const title = Array.from(document.querySelectorAll('.sf-tabs-title, h2, h3'))
+                .find((el) => normalize(el.textContent).includes('employment operations'));
+
+            return title?.closest('section, .sf-tabs-card, div') || null;
+        };
+
+        const makeHistoryPanelIfMissing = (ops) => {
+            let panel = ops.querySelector('.sf-panel-history, [data-sf-history-panel="1"]');
+
+            if (panel) return panel;
+
+            /*
+             | Do not force a new visible tab if the Employment page has no history tab yet.
+             | This only prepares a hidden internal panel if request data exists.
+             */
+            const hasRequestData = Array.from(document.querySelectorAll('details, .sfpe-ja-request, .sfpe-ja-timeline-row, .candidate-request, [class*="request"]'))
+                .some((el) => normalize(el.textContent).includes('candidate request') || normalize(el.textContent).includes('file requested'));
+
+            if (!hasRequestData) return null;
+
+            const tabs = ops.querySelector('.sf-tabs');
+            const content = ops.querySelector('.sf-tab-content');
+
+            if (!tabs || !content || ops.querySelector('#sf-tab-history')) return null;
+
+            const input = document.createElement('input');
+            input.type = 'radio';
+            input.name = 'sf-tabs';
+            input.id = 'sf-tab-history';
+            input.style.display = 'none';
+
+            const label = document.createElement('label');
+            label.setAttribute('for', 'sf-tab-history');
+            label.textContent = 'History';
+
+            tabs.appendChild(label);
+            ops.insertBefore(input, tabs);
+
+            panel = document.createElement('div');
+            panel.className = 'sf-tab-panel sf-panel-history';
+            panel.dataset.sfHistoryPanel = '1';
+
+            const wrap = document.createElement('div');
+            wrap.className = 'sf-table-wrap';
+
+            const table = document.createElement('table');
+            table.className = 'sf-ops-table';
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>Update</th>
+                        <th>Source</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            `;
+
+            wrap.appendChild(table);
+            panel.appendChild(wrap);
+            content.appendChild(panel);
+
+            const style = document.createElement('style');
+            style.textContent = `
+                .sf-tabs-card:has(#sf-tab-history:checked) .sf-tab-panel { display: none !important; }
+                .sf-tabs-card:has(#sf-tab-history:checked) .sf-panel-history { display: block !important; }
+                .sf-tabs-card:has(#sf-tab-history:checked) label[for="sf-tab-history"] {
+                    background:#2563eb !important;
+                    color:#fff !important;
+                    border-color:#2563eb !important;
+                }
+            `;
+            document.head.appendChild(style);
+
+            return panel;
+        };
+
+        const appendRequestRows = (ops) => {
+            const panel = makeHistoryPanelIfMissing(ops);
+            if (!panel) return;
+
+            const tbody = panel.querySelector('tbody');
+            if (!tbody) return;
+
+            const requestBlocks = Array.from(document.querySelectorAll('details, .sfpe-ja-request, .sfpe-ja-timeline-row, .candidate-request, [class*="request"]'))
+                .filter((el) => !ops.contains(el))
+                .filter((el) => {
+                    const text = normalize(el.textContent);
+                    return text.includes('candidate request')
+                        || text.includes('file requested')
+                        || text.includes('salary negotiation')
+                        || text.includes('requested file');
+                })
+                .slice(0, 60);
+
+            requestBlocks.forEach((el, index) => {
+                const raw = (el.textContent || '').replace(/\s+/g, ' ').trim();
+                if (!raw) return;
+
+                const title = el.querySelector('strong')?.textContent?.trim() || raw.slice(0, 80);
+                const key = 'employment-request-history-' + index + '-' + title.slice(0, 30);
+
+                if (tbody.querySelector(`[data-sf-request-key="${CSS.escape(key)}"]`)) return;
+
+                const dateMatch = raw.match(/\b\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2})?\b|\b\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4}(?:\s+\d{2}:\d{2})?\b/);
+
+                const tr = document.createElement('tr');
+                tr.dataset.sfRequestKey = key;
+
+                tr.innerHTML = `
+                    <td>${title}</td>
+                    <td>Candidate Request</td>
+                    <td><span class="sf-status-pill">History</span></td>
+                    <td>${dateMatch ? dateMatch[0] : '—'}</td>
+                `;
+
+                tbody.appendChild(tr);
+            });
+        };
+
+        const apply = () => {
+            const ops = getOps();
+            if (!ops) return;
+
+            appendRequestRows(ops);
+        };
+
+        document.addEventListener('DOMContentLoaded', apply);
+        document.addEventListener('livewire:navigated', apply);
+        window.addEventListener('load', apply);
+
+        setTimeout(apply, 200);
+        setTimeout(apply, 900);
+    })();
+</script>
+{{-- SF EMPLOYMENT REQUEST HISTORY BRIDGE END --}}

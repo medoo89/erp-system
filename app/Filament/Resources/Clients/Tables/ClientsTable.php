@@ -2,8 +2,11 @@
 
 namespace App\Filament\Resources\Clients\Tables;
 
-use App\Filament\Pages\ClientProfilePage;
-use Filament\Tables;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
 class ClientsTable
@@ -11,59 +14,58 @@ class ClientsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->defaultSort('id', 'desc')
-            ->recordUrl(fn ($record) => ClientProfilePage::getUrl(['client' => $record->id]))
             ->columns([
-                Tables\Columns\TextColumn::make('name')
-                    ->label('Client')
+                TextColumn::make('name')
+                    ->label('Client Name')
                     ->searchable()
                     ->sortable()
                     ->weight('bold'),
 
-                Tables\Columns\TextColumn::make('code')
-                    ->label('Client Code')
+                TextColumn::make('client_code')
+                    ->label('Code')
                     ->searchable()
-                    ->sortable()
-                    ->formatStateUsing(fn ($state) => filled($state) ? $state : '-'),
+                    ->sortable(),
 
-                Tables\Columns\TextColumn::make('contact_person')
+                TextColumn::make('contact_person')
                     ->label('Contact Person')
                     ->searchable()
-                    ->toggleable()
-                    ->formatStateUsing(fn ($state) => filled($state) ? $state : '-'),
+                    ->toggleable(),
 
-                Tables\Columns\TextColumn::make('email')
-                    ->label('Email')
-                    ->searchable()
-                    ->toggleable()
-                    ->formatStateUsing(fn ($state) => filled($state) ? $state : '-'),
-
-                Tables\Columns\TextColumn::make('phone')
+                TextColumn::make('phone')
                     ->label('Phone')
                     ->searchable()
-                    ->toggleable()
-                    ->formatStateUsing(fn ($state) => filled($state) ? $state : '-'),
+                    ->toggleable(),
 
-                Tables\Columns\TextColumn::make('projects_count')
+                TextColumn::make('email')
+                    ->label('Email')
+                    ->searchable()
+                    ->toggleable(),
+
+                TextColumn::make('projects_count')
                     ->label('Projects')
                     ->counts('projects')
-                    ->badge()
-                    ->color('info'),
+                    ->sortable(),
 
-                Tables\Columns\IconColumn::make('is_active')
-                    ->label('Active')
-                    ->boolean(),
+                TextColumn::make('updated_at')
+                    ->label('Updated')
+                    ->date('Y-m-d')
+                    ->sortable(),
+            ])
+            ->actions([
+                ViewAction::make()
+                    ->label('View')
+                    ->icon('heroicon-o-eye'),
 
-                Tables\Columns\TextColumn::make('created_at')
-                    ->label('Created')
-                    ->dateTime('M j, Y')
-                    ->sortable()
-                    ->toggleable(),
+                EditAction::make()
+                    ->label('Edit')
+                    ->icon('heroicon-o-pencil-square')
+                    ->visible(fn (): bool => (bool) auth()->user()?->canErp('clients', 'edit')),
             ])
-            ->filters([
-                Tables\Filters\TernaryFilter::make('is_active')
-                    ->label('Active'),
-            ])
-            ->recordActions([]);
+            ->bulkActions([
+                BulkActionGroup::make([
+                    DeleteBulkAction::make()
+                        ->visible(fn (): bool => (bool) auth()->user()?->canErp('clients', 'delete')),
+                ]),
+            ]);
     }
 }

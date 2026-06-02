@@ -141,4 +141,69 @@ class JobApplication extends Model
         return $this->hasMany(\App\Models\CandidateRequest::class)
             ->latest();
     }
+
+    /**
+     * Sync the visible request workflow badge in Job Applications list.
+     *
+     * Rules:
+     * - No candidate requests: null
+     * - At least one request and no reply yet: awaiting_response
+     * - Any candidate reply/upload/decision found: response_received
+     */
+    public function syncCandidateRequestStatusFromRequests(): void
+    {
+        $requests = $this->candidateRequests()->get();
+
+        if ($requests->isEmpty()) {
+            $this->forceFill([
+                'candidate_request_status' => null,
+            ])->saveQuietly();
+
+            return;
+        }
+
+        $hasResponse = $requests->contains(function ($request): bool {
+            $status = strtolower((string) ($request->request_status ?? ''));
+
+            if (in_array($status, [
+                'response_received',
+                'responded',
+                'submitted',
+                'accepted',
+                'approved',
+                'declined',
+                'rejected',
+                'completed',
+                'closed',
+            ], true)) {
+                return true;
+            }
+
+            $rawResponse = trim((string) ($request->candidate_response ?? ''));
+
+            if ($rawResponse === '') {
+                return false;
+            }
+
+            $decoded = json_decode($rawResponse, true);
+
+            if (is_array($decoded)) {
+                $hasThread = ! empty($decoded['thread'] ?? []);
+                $hasUploadedFiles = ! empty($decoded['uploaded_files'] ?? []);
+                $hasNotes = ! empty($decoded['note_responses'] ?? []);
+                $hasDecision = filled($decoded['decision'] ?? null)
+                    || filled($decoded['candidate_decision'] ?? null)
+                    || filled($decoded['response'] ?? null);
+
+                return $hasThread || $hasUploadedFiles || $hasNotes || $hasDecision;
+            }
+
+            return true;
+        });
+
+        $this->forceFill([
+            'candidate_request_status' => $hasResponse ? 'response_received' : 'awaiting_response',
+        ])->saveQuietly();
+    }
+
 }

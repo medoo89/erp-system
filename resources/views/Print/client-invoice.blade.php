@@ -495,6 +495,144 @@
             background: #1f4e76;
         }
 
+        
+        .main-timesheet-wrap {
+            margin-top: 10px;
+        }
+
+        .main-timesheet-title {
+            border-radius: 16px 16px 0 0;
+            background: #eaf4f8;
+            border: 1px solid #cfe0ea;
+            border-bottom: 0;
+            color: #12365a;
+            padding: 7px 10px;
+            font-size: 9px;
+            font-weight: 950;
+            letter-spacing: .13em;
+            text-transform: uppercase;
+        }
+
+        .main-timesheet {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+            border: 1px solid #111827;
+            font-size: 5.2px;
+        }
+
+        .main-timesheet th,
+        .main-timesheet td {
+            border: 1px solid #111827;
+            text-align: center;
+            vertical-align: middle;
+            padding: 1px;
+            line-height: 1;
+        }
+
+        .main-timesheet .month-head {
+            background: #ffffff;
+            color: #111827;
+            font-size: 8px;
+            font-weight: 950;
+            padding: 4px;
+            letter-spacing: .04em;
+        }
+
+        .main-timesheet .no-col {
+            width: 3% !important;
+            max-width: 3% !important;
+            min-width: 3% !important;
+            font-weight: 950 !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+
+        .main-timesheet .name-col {
+            width: 22% !important;
+            max-width: 22% !important;
+            min-width: 22% !important;
+            text-align: left !important;
+            padding: 2px 7px !important;
+            font-weight: 950 !important;
+            overflow: hidden !important;
+            white-space: normal !important;
+            word-break: normal !important;
+            overflow-wrap: break-word !important;
+            line-height: 1.15 !important;
+            font-size: 7.3px !important;
+        }
+
+        .main-timesheet .name-text {
+            display: block !important;
+            writing-mode: horizontal-tb !important;
+            transform: none !important;
+            white-space: normal !important;
+            word-break: normal !important;
+            overflow-wrap: break-word !important;
+            line-height: 1.15 !important;
+            font-size: 7.3px !important;
+            font-weight: 950 !important;
+        }
+
+        .main-timesheet .day-col {
+            width: auto !important;
+            height: 18px !important;
+            overflow: hidden !important;
+            white-space: nowrap !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+
+        .main-timesheet .day-head {
+            height: 26px !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+        }
+
+        .main-timesheet .day-vertical {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            writing-mode: horizontal-tb !important;
+            transform: none !important;
+            line-height: 1 !important;
+            font-size: 6px !important;
+            font-weight: 950 !important;
+            color: #0f766e !important;
+            max-height: none !important;
+            white-space: nowrap !important;
+        }
+
+        .main-timesheet .mark {
+            font-size: 7px;
+            font-weight: 950;
+        }
+
+        .main-timesheet .paid {
+            color: #047857;
+        }
+
+        .main-timesheet .absent {
+            color: #dc2626;
+        }
+
+        .main-timesheet .not-paid {
+            color: #475569;
+        }
+
+        .main-timesheet .total-row td {
+            background: #f8fafc;
+            font-weight: 950;
+        }
+
+        .main-timesheet-legend {
+            margin-top: 4px;
+            color: #475569;
+            font-size: 7px;
+            font-weight: 800;
+        }
+
         @media print {
             html,
             body {
@@ -1527,10 +1665,32 @@
             }
         }
 
+    
+        .main-timesheet-full {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            grid-column: 1 / -1 !important;
+            clear: both !important;
+        }
+
+    
+        .brand-reg {
+            margin-top: 5px;
+            color: #475569;
+            font-size: 8.5px;
+            font-weight: 850;
+            letter-spacing: .02em;
+        }
+
     </style>
 </head>
 
 <body>
+
+    @php
+        $commercialRegistrationNo = env('SADA_FEZZAN_COMMERCIAL_REGISTRATION', '-');
+    @endphp
     <div class="invoice-page">
         <section class="hero">
             <div class="hero-top"></div>
@@ -1548,7 +1708,8 @@
                     <div>
                         <h1 class="brand-name">Sada Fezzan</h1>
                         <div class="brand-kicker">Commercial Invoice</div>
-                        <div class="brand-sub">Sada Fezzan For Oil Services</div>
+                        <div class="brand-sub">Sada Fezzan For Oil Services
+                    <div class="brand-reg">Commercial Reg. No: {{ $commercialRegistrationNo }}</div></div>
                     </div>
                 </div>
 
@@ -1698,9 +1859,182 @@
             </table>
         </section>
 
+        @php
+            if (method_exists($invoice, 'generateTimesheetFromSalarySlips') && $invoice->workDays->isEmpty()) {
+                $invoice->generateTimesheetFromSalarySlips(true);
+                $invoice->refresh();
+                $invoice->load(['lines.salarySlip.days', 'lines.salarySlip.employment', 'workDays.employment']);
+            }
+
+            $mainPeriodStart = $invoice->period_start
+                ? \Carbon\Carbon::parse($invoice->period_start)
+                : ($invoice->workDays->min('work_date') ? \Carbon\Carbon::parse($invoice->workDays->min('work_date')) : now()->startOfMonth());
+
+            $mainPeriodEnd = $invoice->period_end
+                ? \Carbon\Carbon::parse($invoice->period_end)
+                : ($invoice->workDays->max('work_date') ? \Carbon\Carbon::parse($invoice->workDays->max('work_date')) : now()->endOfMonth());
+
+            $mainTsDays = collect();
+            $mainCursor = $mainPeriodStart->copy();
+
+            while ($mainCursor->lte($mainPeriodEnd)) {
+                $mainTsDays->push($mainCursor->copy());
+                $mainCursor->addDay();
+            }
+
+            $mainWorkDaysByLine = $invoice->workDays->groupBy('client_invoice_line_id');
+            $mainDailyTotals = [];
+
+            foreach ($mainTsDays as $day) {
+                $key = $day->format('Y-m-d');
+
+                $mainDailyTotals[$key] = (float) $invoice->workDays
+                    ->filter(fn ($item) => optional($item->work_date)->format('Y-m-d') === $key)
+                    ->where('day_status', \App\Models\ClientInvoiceWorkDay::STATUS_PAID)
+                    ->sum('billable_units');
+            }
+        @endphp
+
+        <section class="main-timesheet-wrap main-timesheet-full">
+            <div class="main-timesheet-title">Work Days / Timesheet</div>
+
+            <table class="main-timesheet">
+                <colgroup>
+                    <col style="width:3%;">
+                    <col style="width:22%;">
+                    @foreach($mainTsDays as $day)
+                        <col style="width:{{ 75 / max(1, $mainTsDays->count()) }}%;">
+                    @endforeach
+                </colgroup>
+
+                <thead>
+                    <tr>
+                        <th colspan="{{ 2 + $mainTsDays->count() }}" class="month-head">
+                            Summary Monthly Sheet — {{ $mainPeriodStart->format('F Y') }}
+                        </th>
+                    </tr>
+                    <tr>
+                        <th class="no-col">#</th>
+                        <th class="name-col">Name</th>
+                        @foreach($mainTsDays as $day)
+                            <th class="day-col day-head">
+                                <span class="day-vertical">{{ $day->format('d') }}</span>
+                            </th>
+                        @endforeach
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @forelse($invoice->lines as $index => $line)
+                        @php
+                            $lineDays = $mainWorkDaysByLine->get($line->id, collect());
+                            $employeeName = $line->candidate_name ?: ($line->salarySlip?->employment?->full_name ?? '-');
+                        @endphp
+
+                        <tr>
+                            <td class="no-col">{{ $index + 1 }}</td>
+                            <td class="name-col">
+                                <span class="name-text">{{ $employeeName }}</span>
+                            </td>
+
+                            @foreach($mainTsDays as $day)
+                                @php
+                                    $dateKey = $day->format('Y-m-d');
+
+                                    $workDay = $lineDays->first(function ($item) use ($dateKey) {
+                                        return optional($item->work_date)->format('Y-m-d') === $dateKey;
+                                    });
+
+                                    $symbol = '';
+                                    $class = '';
+
+                                    if ($workDay) {
+                                        if ($workDay->day_status === \App\Models\ClientInvoiceWorkDay::STATUS_PAID) {
+                                            $symbol = 'P';
+                                            $class = 'paid';
+                                        } elseif ($workDay->day_status === \App\Models\ClientInvoiceWorkDay::STATUS_ABSENT) {
+                                            $symbol = 'A';
+                                            $class = 'absent';
+                                        } else {
+                                            $symbol = '0';
+                                            $class = 'not-paid';
+                                        }
+                                    }
+                                @endphp
+
+                                <td class="day-col mark {{ $class }}">{{ $symbol }}</td>
+                            @endforeach
+                        </tr>
+                    @empty
+                        <tr>
+                            <td class="no-col">1</td>
+                            <td class="name-col">-</td>
+                            @foreach($mainTsDays as $day)
+                                <td class="day-col"></td>
+                            @endforeach
+                        </tr>
+                    @endforelse
+
+                    <tr class="total-row">
+                        <td colspan="2">DAILY TOTAL</td>
+                        @foreach($mainTsDays as $day)
+                            <td class="day-col">{{ number_format((float) ($mainDailyTotals[$day->format('Y-m-d')] ?? 0), 0) }}</td>
+                        @endforeach
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="main-timesheet-legend">
+                P = Paid Day / 0 = Not Paid / A = Absent. Generated from Salary Slip attendance days.
+            </div>
+        </section>
+
+
+
+
+
         <section class="terms-totals">
             <div class="card">
-                <div class="card-title">Terms & Notes</div>
+                
+
+        @php
+            if (method_exists($invoice, 'generateTimesheetFromSalarySlips') && $invoice->workDays->isEmpty()) {
+                $invoice->generateTimesheetFromSalarySlips(true);
+                $invoice->refresh();
+                $invoice->load(['lines.salarySlip.days', 'lines.salarySlip.employment', 'workDays.employment']);
+            }
+
+            $mainPeriodStart = $invoice->period_start
+                ? \Carbon\Carbon::parse($invoice->period_start)
+                : ($invoice->workDays->min('work_date') ? \Carbon\Carbon::parse($invoice->workDays->min('work_date')) : now()->startOfMonth());
+
+            $mainPeriodEnd = $invoice->period_end
+                ? \Carbon\Carbon::parse($invoice->period_end)
+                : ($invoice->workDays->max('work_date') ? \Carbon\Carbon::parse($invoice->workDays->max('work_date')) : now()->endOfMonth());
+
+            $mainTsDays = collect();
+            $mainCursor = $mainPeriodStart->copy();
+
+            while ($mainCursor->lte($mainPeriodEnd)) {
+                $mainTsDays->push($mainCursor->copy());
+                $mainCursor->addDay();
+            }
+
+            $mainWorkDaysByLine = $invoice->workDays->groupBy('client_invoice_line_id');
+            $mainDailyTotals = [];
+
+            foreach ($mainTsDays as $day) {
+                $key = $day->format('Y-m-d');
+
+                $mainDailyTotals[$key] = (float) $invoice->workDays
+                    ->filter(fn ($item) => optional($item->work_date)->format('Y-m-d') === $key)
+                    ->where('day_status', \App\Models\ClientInvoiceWorkDay::STATUS_PAID)
+                    ->sum('billable_units');
+            }
+        @endphp
+
+
+<div class="card-title">Terms & Notes</div>
                 <div class="card-body">
                     <div class="terms-text">{!! nl2br(e($termsText)) !!}</div>
                 </div>

@@ -30,7 +30,7 @@
             <div class="sf-sub">Client: {{ $client->name ?? '-' }}</div>
 
             <div class="sf-actions">
-                <a href="{{ \App\Filament\Pages\ClientProfilePage::getUrl(['client' => $client->id]) }}" class="sf-btn sf-btn-primary">Back to Client</a>
+                <a href="{{ \App\Filament\Resources\Clients\ClientResource::getUrl('view', ['record' => $client]) }}" class="sf-btn sf-btn-primary">Back to Client</a>
                 <a href="{{ \App\Filament\Resources\Clients\ClientResource::getUrl('index') }}" class="sf-btn sf-btn-secondary">Back to Clients</a>
             </div>
         </div>

@@ -1,449 +1,766 @@
 <x-filament-panels::page>
-    <style>
-        .fi-header,
-        .fi-page-header,
-        .fi-page-header-heading,
-        .fi-page-header-breadcrumbs,
-        .fi-page-header-actions,
-        .fi-page-header-ctas {
-            display: none !important;
+@php
+    $project = $project ?? $this->record ?? $record ?? null;
+
+    $projectId = $project->id ?? null;
+
+    $projectName = $project->project_name
+        ?? $project->name
+        ?? $project->title
+        ?? ('Project #' . ($project->id ?? ''));
+
+    $projectCode = $project->project_code
+        ?? $project->code
+        ?? '-';
+
+    $client = $project->client ?? null;
+    $clientName = $client?->name
+        ?? $client?->company_name
+        ?? $project->client_name
+        ?? '-';
+
+    $status = $project->status ?? 'active';
+    $statusLabel = ucfirst(str_replace('_', ' ', (string) $status));
+
+    $fmt = function ($amount, $currency = null): string {
+        $value = number_format((float) $amount, 2);
+        return $currency ? $value . ' ' . strtoupper((string) $currency) : $value;
+    };
+
+    $safeTable = fn (string $table): bool => \Illuminate\Support\Facades\Schema::hasTable($table);
+    $safeColumn = fn (string $table, string $column): bool => \Illuminate\Support\Facades\Schema::hasTable($table) && \Illuminate\Support\Facades\Schema::hasColumn($table, $column);
+
+    $employeesCount = 0;
+    if ($safeTable('employments') && $safeColumn('employments', 'project_id')) {
+        $employeesCount = \Illuminate\Support\Facades\DB::table('employments')->where('project_id', $projectId)->count();
+    }
+
+    $contractRows = collect();
+    if ($safeTable('project_contracts')) {
+        $contractRows = \Illuminate\Support\Facades\DB::table('project_contracts')
+            ->where('project_id', $projectId)
+            ->orderByDesc('id')
+            ->get();
+    }
+
+    $contractsCount = $contractRows->count();
+
+    $contractTotals = [];
+    $taxPaidTotals = [];
+
+    foreach ($contractRows as $contract) {
+        $currency = strtoupper((string) ($contract->currency ?? 'EUR'));
+        $contractTotals[$currency] = ($contractTotals[$currency] ?? 0) + (float) ($contract->contract_value ?? 0);
+
+        $taxCurrency = strtoupper((string) ($contract->tax_currency ?? 'LYD'));
+        $taxPaidTotals[$taxCurrency] = ($taxPaidTotals[$taxCurrency] ?? 0) + (float) ($contract->tax_paid ?? 0);
+    }
+
+    $invoiceTotals = [];
+    $allocatedTaxTotals = [];
+
+    if ($safeTable('client_invoices') && $safeColumn('client_invoices', 'project_id')) {
+        $invoiceRows = \Illuminate\Support\Facades\DB::table('client_invoices')
+            ->where('project_id', $projectId)
+            ->whereNotIn('status', ['cancelled', 'rejected'])
+            ->get();
+
+        foreach ($invoiceRows as $invoice) {
+            if (isset($invoice->foreign_amount_due) && (float) $invoice->foreign_amount_due > 0) {
+                $currency = strtoupper((string) ($invoice->foreign_currency ?? 'EUR'));
+                $invoiceTotals[$currency] = ($invoiceTotals[$currency] ?? 0) + (float) $invoice->foreign_amount_due;
+            } elseif (isset($invoice->foreign_amount) && (float) $invoice->foreign_amount > 0) {
+                $currency = strtoupper((string) ($invoice->foreign_currency ?? 'EUR'));
+                $invoiceTotals[$currency] = ($invoiceTotals[$currency] ?? 0) + (float) $invoice->foreign_amount;
+            }
+
+            if (isset($invoice->local_amount_due) && (float) $invoice->local_amount_due > 0) {
+                $currency = strtoupper((string) ($invoice->local_currency ?? 'LYD'));
+                $invoiceTotals[$currency] = ($invoiceTotals[$currency] ?? 0) + (float) $invoice->local_amount_due;
+            } elseif (isset($invoice->local_amount) && (float) $invoice->local_amount > 0) {
+                $currency = strtoupper((string) ($invoice->local_currency ?? 'LYD'));
+                $invoiceTotals[$currency] = ($invoiceTotals[$currency] ?? 0) + (float) $invoice->local_amount;
+            }
+
+            if (
+                (! isset($invoice->foreign_amount_due) || (float) $invoice->foreign_amount_due <= 0)
+                && (! isset($invoice->local_amount_due) || (float) $invoice->local_amount_due <= 0)
+                && (! isset($invoice->foreign_amount) || (float) $invoice->foreign_amount <= 0)
+                && (! isset($invoice->local_amount) || (float) $invoice->local_amount <= 0)
+            ) {
+                foreach (['contract_consumption_amount', 'total_amount', 'grand_total', 'invoice_total', 'total', 'subtotal', 'amount'] as $amountColumn) {
+                    if (isset($invoice->{$amountColumn}) && is_numeric($invoice->{$amountColumn})) {
+                        $currency = strtoupper((string) ($invoice->currency ?? $invoice->display_currency ?? 'EUR'));
+                        $invoiceTotals[$currency] = ($invoiceTotals[$currency] ?? 0) + (float) $invoice->{$amountColumn};
+                        break;
+                    }
+                }
+            }
+
+            if (isset($invoice->allocated_contract_tax_amount) && (float) $invoice->allocated_contract_tax_amount > 0) {
+                $currency = strtoupper((string) ($invoice->allocated_contract_tax_currency ?? 'LYD'));
+                $allocatedTaxTotals[$currency] = ($allocatedTaxTotals[$currency] ?? 0) + (float) $invoice->allocated_contract_tax_amount;
+            }
+        }
+    }
+
+    $expenseTotals = [];
+    $latestExpenses = collect();
+
+    if ($safeTable('finance_expenses') && $safeColumn('finance_expenses', 'project_id')) {
+        $latestExpenses = \Illuminate\Support\Facades\DB::table('finance_expenses')
+            ->where('project_id', $projectId)
+            ->orderByDesc('id')
+            ->limit(5)
+            ->get();
+
+        $amountColumn = \Illuminate\Support\Facades\Schema::hasColumn('finance_expenses', 'amount')
+            ? 'amount'
+            : (\Illuminate\Support\Facades\Schema::hasColumn('finance_expenses', 'total_amount') ? 'total_amount' : null);
+
+        if ($amountColumn) {
+            $expenseRows = \Illuminate\Support\Facades\DB::table('finance_expenses')
+                ->where('project_id', $projectId)
+                ->whereNotIn('status', ['cancelled', 'rejected'])
+                ->selectRaw('COALESCE(currency, "LYD") as currency, SUM(COALESCE(' . $amountColumn . ', 0)) as total_amount')
+                ->groupBy('currency')
+                ->get();
+
+            foreach ($expenseRows as $row) {
+                $currency = strtoupper((string) ($row->currency ?? 'LYD'));
+                $expenseTotals[$currency] = (float) ($row->total_amount ?? 0);
+            }
+        }
+    }
+
+    $formatTotals = function (array $totals) use ($fmt): string {
+        if (empty($totals)) {
+            return '0.00';
         }
 
-        .sf-shell {
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
+        return collect($totals)
+            ->map(fn ($amount, $currency) => $fmt($amount, $currency))
+            ->implode(' / ');
+    };
+
+    $mainCurrency = array_key_first($contractTotals) ?: 'EUR';
+    $mainContractValue = (float) ($contractTotals[$mainCurrency] ?? 0);
+    $mainConsumed = (float) ($invoiceTotals[$mainCurrency] ?? 0);
+    $mainRemaining = $mainContractValue - $mainConsumed;
+    $remainingPercent = $mainContractValue > 0 ? round(($mainRemaining / $mainContractValue) * 100, 1) : 0;
+
+    $balanceState = $remainingPercent < 20
+        ? 'danger'
+        : ($remainingPercent <= 50 ? 'warning' : 'safe');
+
+    $balanceMessage = match ($balanceState) {
+        'danger' => 'Critical balance. Remaining is below 20%.',
+        'warning' => 'Warning balance. Remaining is between 20% and 50%.',
+        default => 'Healthy balance. Invoices are within safe range.',
+    };
+
+    $addContractUrl = url('/admin/project-contracts/create?project_id=' . $projectId);
+    $addExpenseUrl = url('/admin/finance-expenses/create?project_id=' . $projectId);
+    $editProjectUrl = url('/admin/projects/' . $projectId . '/edit');
+    $generateInvoiceUrl = url('/admin/client-invoices/create?project_id=' . $projectId);
+
+    $backClientUrl = $client?->id
+        ? url('/admin/clients/' . $client->id)
+        : url('/admin/clients');
+
+    $contractList = $contractRows->take(5);
+@endphp
+
+<style>
+    .sf-clean-project-page {
+        width: min(1040px, calc(100vw - 64px));
+        margin: 0 auto 80px;
+        color: #0f172a;
+    }
+
+    .sf-clean-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 34px;
+        padding: 34px 38px;
+        background:
+            radial-gradient(circle at top right, rgba(34, 211, 238, .18), transparent 36%),
+            linear-gradient(135deg, #0b2a4a 0%, #0e3a5b 50%, #0f766e 100%);
+        color: white;
+        box-shadow: 0 26px 60px rgba(15, 39, 67, .18);
+        border-bottom: 5px solid #22d3ee;
+    }
+
+    .sf-clean-hero-inner {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 28px;
+        align-items: start;
+    }
+
+    .sf-clean-kicker {
+        font-size: 11px;
+        font-weight: 950;
+        letter-spacing: .22em;
+        text-transform: uppercase;
+        opacity: .82;
+        margin-bottom: 10px;
+    }
+
+    .sf-clean-title {
+        font-size: clamp(44px, 6vw, 74px);
+        line-height: .9;
+        font-weight: 1000;
+        letter-spacing: -.06em;
+        margin: 0;
+        max-width: 520px;
+    }
+
+    .sf-clean-subtitle {
+        margin-top: 18px;
+        font-size: 14px;
+        font-weight: 850;
+        color: rgba(255,255,255,.82);
+    }
+
+    .sf-clean-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        justify-content: flex-end;
+        max-width: 560px;
+    }
+
+    .sf-clean-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 44px;
+        padding: 0 20px;
+        border-radius: 999px;
+        color: #fff;
+        font-size: 13px;
+        font-weight: 950;
+        text-decoration: none;
+        box-shadow: 0 14px 28px rgba(15,23,42,.18);
+        border: 1px solid rgba(255,255,255,.18);
+        white-space: nowrap;
+    }
+
+    .sf-clean-btn.green { background: linear-gradient(135deg, #10b981, #14b8a6); }
+    .sf-clean-btn.red { background: linear-gradient(135deg, #ef4444, #dc2626); }
+    .sf-clean-btn.blue { background: linear-gradient(135deg, #0ea5e9, #2563eb); }
+    .sf-clean-btn.gray { background: rgba(255,255,255,.16); }
+    .sf-clean-btn.yellow {
+        background: linear-gradient(135deg, #facc15, #f59e0b);
+        color: #111827;
+    }
+
+    .sf-clean-top-stats {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 18px;
+        margin: 22px 0;
+    }
+
+    .sf-clean-stat,
+    .sf-clean-card,
+    .sf-clean-fin-card {
+        background:
+            radial-gradient(circle at top right, rgba(34,211,238,.10), transparent 34%),
+            rgba(255,255,255,.96);
+        border: 1px solid rgba(148,163,184,.18);
+        box-shadow: 0 22px 48px rgba(15,23,42,.075);
+    }
+
+    .sf-clean-stat {
+        border-radius: 28px;
+        padding: 22px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .sf-clean-stat::before,
+    .sf-clean-card::before,
+    .sf-clean-fin-card::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 5px;
+        background: linear-gradient(90deg, #22d3ee, #2563eb);
+    }
+
+    .sf-clean-label {
+        display: inline-flex;
+        padding: 7px 12px;
+        border-radius: 999px;
+        background: #e0f2fe;
+        color: #1d4ed8;
+        font-size: 10px;
+        font-weight: 950;
+        letter-spacing: .20em;
+        text-transform: uppercase;
+        margin-bottom: 12px;
+    }
+
+    .sf-clean-stat-title {
+        color: #234b74;
+        font-size: 12px;
+        font-weight: 950;
+        letter-spacing: .18em;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+    }
+
+    .sf-clean-stat-value {
+        color: #234b74;
+        font-size: 28px;
+        line-height: 1.05;
+        font-weight: 1000;
+        letter-spacing: -.04em;
+    }
+
+    .sf-clean-stat-note {
+        margin-top: 8px;
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .sf-clean-finance-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 18px;
+        margin: 22px 0;
+    }
+
+    .sf-clean-fin-card {
+        position: relative;
+        overflow: hidden;
+        border-radius: 30px;
+        padding: 22px;
+        min-height: 178px;
+    }
+
+    .sf-clean-fin-card.warning::before {
+        background: linear-gradient(90deg, #facc15, #f97316);
+    }
+
+    .sf-clean-fin-card.danger::before,
+    .sf-clean-fin-card.expense::before {
+        background: linear-gradient(90deg, #fb7185, #dc2626);
+    }
+
+    .sf-clean-fin-card.tax::before {
+        background: linear-gradient(90deg, #8b5cf6, #2563eb);
+    }
+
+    .sf-clean-fin-title {
+        color: #234b74;
+        font-size: 14px;
+        font-weight: 950;
+        margin-bottom: 8px;
+    }
+
+    .sf-clean-fin-value {
+        font-size: 28px;
+        line-height: 1.05;
+        font-weight: 1000;
+        letter-spacing: -.04em;
+        color: #0f172a;
+        margin-bottom: 10px;
+        word-break: break-word;
+    }
+
+    .sf-clean-fin-note {
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.45;
+    }
+
+    .sf-clean-fin-note.safe { color: #0f766e; font-weight: 950; }
+    .sf-clean-fin-note.warning { color: #b45309; font-weight: 950; }
+    .sf-clean-fin-note.danger { color: #dc2626; font-weight: 950; }
+
+    .sf-clean-line {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding-top: 10px;
+        margin-top: 10px;
+        border-top: 1px solid rgba(148,163,184,.18);
+        color: #334155;
+        font-size: 12px;
+        font-weight: 900;
+    }
+
+    .sf-clean-pill {
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: #ecfeff;
+        color: #0f766e;
+        border: 1px solid rgba(20,184,166,.20);
+        font-size: 11px;
+        font-weight: 950;
+    }
+
+    .sf-clean-pill.warning {
+        background: #fffbeb;
+        color: #b45309;
+        border-color: rgba(245,158,11,.30);
+    }
+
+    .sf-clean-pill.danger {
+        background: #fef2f2;
+        color: #dc2626;
+        border-color: rgba(239,68,68,.30);
+    }
+
+    .sf-clean-main-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
+        gap: 22px;
+        margin-top: 22px;
+    }
+
+    .sf-clean-card {
+        position: relative;
+        overflow: hidden;
+        border-radius: 30px;
+        padding: 24px;
+    }
+
+    .sf-clean-card-title {
+        color: #0f172a;
+        font-size: 24px;
+        line-height: 1.1;
+        font-weight: 1000;
+        letter-spacing: -.04em;
+        margin: 0 0 18px;
+    }
+
+    .sf-clean-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .sf-clean-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: center;
+        padding: 15px 16px;
+        border-radius: 18px;
+        background: rgba(248,250,252,.92);
+        border: 1px solid rgba(148,163,184,.10);
+    }
+
+    .sf-clean-row-label {
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 950;
+        letter-spacing: .18em;
+        text-transform: uppercase;
+    }
+
+    .sf-clean-row-value {
+        color: #0f172a;
+        font-size: 14px;
+        font-weight: 950;
+        text-align: right;
+    }
+
+    .sf-clean-empty {
+        padding: 18px;
+        border-radius: 20px;
+        border: 1px dashed rgba(148,163,184,.38);
+        background: rgba(248,250,252,.74);
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 850;
+    }
+
+    .sf-clean-bottom-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 22px;
+        margin-top: 22px;
+    }
+
+    @media (max-width: 1100px) {
+        .sf-clean-project-page {
+            width: calc(100vw - 32px);
         }
 
-        .sf-hero {
-            border-radius: 30px;
-            padding: 28px;
-            border: 1px solid #dbe7ee;
-            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
-            overflow: hidden;
-            position: relative;
-            background: linear-gradient(135deg, #ffffff 0%, #f8fbfd 60%, #eef8fb 100%);
-        }
-
-        .sf-hero::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background:
-                radial-gradient(circle at top right, rgba(255,255,255,.85), transparent 36%),
-                linear-gradient(135deg, rgba(255,255,255,.10), rgba(255,255,255,0));
-            pointer-events: none;
-        }
-
-        .sf-hero--planning {
-            background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 55%, #fde68a 100%);
-        }
-
-        .sf-hero--active {
-            background: linear-gradient(135deg, #ecfeff 0%, #cffafe 45%, #dbeafe 100%);
-        }
-
-        .sf-hero--hold {
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%);
-        }
-
-        .sf-hero--completed {
-            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 50%, #bbf7d0 100%);
-        }
-
-        .sf-hero--cancelled {
-            background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 50%, #fecdd3 100%);
-        }
-
-        .sf-hero-head {
-            position: relative;
-            z-index: 1;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 18px;
-            flex-wrap: wrap;
-        }
-
-        .sf-hero-title .kicker {
-            font-size: 14px;
-            font-weight: 700;
-            color: #64748b;
-            margin-bottom: 10px;
-        }
-
-        .sf-hero-title h1 {
-            margin: 0;
-            font-size: clamp(42px, 5vw, 72px);
-            line-height: .92;
-            letter-spacing: -.05em;
-            font-weight: 900;
-            color: #12385f;
-        }
-
-        .sf-meta-wrap {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            align-items: flex-end;
-        }
-
-        .sf-status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            padding: 12px 16px;
-            border-radius: 999px;
-            border: 1px solid rgba(148,163,184,.45);
-            background: rgba(255,255,255,.88);
-            backdrop-filter: blur(8px);
-            color: #0f172a;
-            font-size: 14px;
-            font-weight: 800;
-            box-shadow: 0 8px 20px rgba(15,23,42,.05);
-        }
-
-        .sf-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: flex-end;
-        }
-
-        .sf-btn {
-            border: none;
-            outline: none;
-            cursor: pointer;
-            border-radius: 16px;
-            padding: 12px 16px;
-            font-size: 14px;
-            font-weight: 900;
-            letter-spacing: -.02em;
-            transition: 160ms ease;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            box-shadow: 0 10px 22px rgba(15,23,42,.08);
-        }
-
-        .sf-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 14px 28px rgba(15,23,42,.11);
-        }
-
-        .sf-btn-primary {
-            background: linear-gradient(135deg, #14b8a6 0%, #0f766e 100%);
-            color: #fff;
-        }
-
-        .sf-btn-soft {
-            background: rgba(255,255,255,.92);
-            color: #0f172a;
-            border: 1px solid #dbe4ea;
-        }
-
-        .sf-stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 14px;
-        }
-
-        .sf-stat {
-            border-radius: 22px;
-            padding: 18px 20px;
-            background: #fff;
-            border: 1px solid #dbe4ea;
-            box-shadow: 0 10px 22px rgba(15,23,42,.05);
-        }
-
-        .sf-stat .label {
-            font-size: 13px;
-            font-weight: 800;
-            color: #64748b;
-            margin-bottom: 8px;
-        }
-
-        .sf-stat .value {
-            font-size: 30px;
-            font-weight: 900;
-            color: #0f172a;
-            line-height: 1;
-        }
-
-        .sf-grid {
-            display: grid;
-            grid-template-columns: 1.2fr .8fr;
-            gap: 18px;
-        }
-
-        .sf-panel {
-            background: #fff;
-            border: 1px solid #dbe7ee;
-            border-radius: 24px;
-            padding: 22px;
-            box-shadow: 0 12px 24px rgba(15,23,42,.04);
-        }
-
-        .sf-panel h3 {
-            margin: 0 0 6px;
-            font-size: 20px;
-            font-weight: 900;
-            color: #0f172a;
-        }
-
-        .sf-panel .sub {
-            font-size: 13px;
-            font-weight: 700;
-            color: #64748b;
-            margin-bottom: 16px;
-        }
-
-        .sf-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .sf-table td {
-            padding: 10px 0;
-            border-bottom: 1px solid #eef2f7;
-            vertical-align: top;
-        }
-
-        .sf-table tr:last-child td {
-            border-bottom: none;
-        }
-
-        .sf-table td:first-child {
-            width: 34%;
-            color: #64748b;
-            font-weight: 800;
-        }
-
-        .sf-table td:last-child {
-            color: #0f172a;
-            font-weight: 700;
-        }
-
-        .sf-currency-cards {
-            display: grid;
+        .sf-clean-hero-inner,
+        .sf-clean-main-grid,
+        .sf-clean-bottom-grid {
             grid-template-columns: 1fr;
-            gap: 14px;
         }
 
-        .sf-currency-card {
-            border: 1px solid #dbe7ee;
-            border-radius: 18px;
-            padding: 16px 16px 14px;
-            background: #fbfdff;
+        .sf-clean-actions {
+            justify-content: flex-start;
         }
 
-        .sf-currency-card .ccy {
-            font-size: 16px;
-            font-weight: 900;
-            color: #0f172a;
-            margin-bottom: 4px;
+        .sf-clean-top-stats,
+        .sf-clean-finance-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 720px) {
+        .sf-clean-project-page {
+            width: calc(100vw - 20px);
         }
 
-        .sf-currency-card .meta {
-            font-size: 13px;
-            color: #64748b;
-            font-weight: 700;
-            margin-bottom: 6px;
+        .sf-clean-hero {
+            padding: 28px 24px;
+            border-radius: 28px;
         }
 
-        .sf-currency-card .amount {
-            font-size: 28px;
-            font-weight: 900;
-            color: #0f172a;
-            line-height: 1.05;
+        .sf-clean-title {
+            font-size: 44px;
         }
 
-        .sf-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
+        .sf-clean-top-stats,
+        .sf-clean-finance-grid {
+            grid-template-columns: 1fr;
         }
+    }
 
-        .sf-list-item {
-            padding: 14px 16px;
-            border: 1px solid #e2e8f0;
-            border-radius: 18px;
-            background: #fff;
-        }
+    .dark .sf-clean-stat,
+    .dark .sf-clean-card,
+    .dark .sf-clean-fin-card {
+        background:
+            radial-gradient(circle at top right, rgba(34,211,238,.12), transparent 34%),
+            rgba(15,23,42,.92);
+        border-color: rgba(148,163,184,.18);
+    }
 
-        .sf-list-item .title {
-            font-size: 15px;
-            font-weight: 900;
-            color: #0f172a;
-        }
+    .dark .sf-clean-card-title,
+    .dark .sf-clean-fin-value,
+    .dark .sf-clean-row-value {
+        color: #f8fafc;
+    }
 
-        .sf-list-item .meta {
-            font-size: 13px;
-            color: #64748b;
-            margin-top: 4px;
-            font-weight: 700;
-        }
+    .dark .sf-clean-row {
+        background: rgba(15,23,42,.60);
+    }
+</style>
 
-        .sf-empty {
-            padding: 18px;
-            border-radius: 18px;
-            background: #f8fafc;
-            border: 1px dashed #cbd5e1;
-            color: #64748b;
-            font-weight: 700;
-        }
-
-        @media (max-width: 1024px) {
-            .sf-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .sf-meta-wrap {
-                align-items: flex-start;
-            }
-
-            .sf-actions {
-                justify-content: flex-start;
-            }
-        }
-    </style>
-
-    @php
-        $stats = $this->projectStats();
-        $expenses = $stats['expenses'] ?? [];
-        $latestEmployees = $this->latestEmployees();
-        $latestExpenses = $this->latestExpenses();
-    @endphp
-
-    <div class="sf-shell">
-        <section class="sf-hero {{ $this->projectHeroClass() }}">
-            <div class="sf-hero-head">
-                <div class="sf-hero-title">
-                    <div class="kicker">Projects</div>
-                    <h1>{{ $record->name ?? 'Project' }}</h1>
-                </div>
-
-                <div class="sf-meta-wrap">
-                    <div class="sf-status-badge">
-                        <span>Current Status</span>
-                        <span>•</span>
-                        <span>{{ $this->projectStatusLabel() }}</span>
-                    </div>
-
-                    <div class="sf-actions">
-                        <button type="button" wire:click="mountAction('generateInvoice')" class="sf-btn sf-btn-primary">
-                            Generate Invoice
-                        </button>
-
-                        <a href="{{ \App\Filament\Resources\Projects\ProjectResource::getUrl('edit', ['record' => $record]) }}" class="sf-btn sf-btn-soft">
-                            Edit Project
-                        </a>
-                    </div>
+<div class="sf-clean-project-page">
+    <section class="sf-clean-hero">
+        <div class="sf-clean-hero-inner">
+            <div>
+                <div class="sf-clean-kicker">Projects › Review</div>
+                <h1 class="sf-clean-title">{{ $projectName }}</h1>
+                <div class="sf-clean-subtitle">
+                    Client: {{ $clientName }} · Code: {{ $projectCode }}
                 </div>
             </div>
-        </section>
 
-        <section class="sf-stats-grid">
-            <div class="sf-stat">
-                <div class="label">Client</div>
-                <div class="value" style="font-size: 22px;">{{ $record->client?->name ?: '-' }}</div>
+            <div class="sf-clean-actions">
+                <a href="{{ $addContractUrl }}" class="sf-clean-btn green">⊕ Add Contract</a>
+                <a href="{{ $addExpenseUrl }}" class="sf-clean-btn red">▣ Add Expense</a>
+                <a href="{{ $backClientUrl }}" class="sf-clean-btn gray">← Back Client</a>
+                <a href="{{ $generateInvoiceUrl }}" class="sf-clean-btn blue">▣ Generate Invoice</a>
+                <a href="{{ $editProjectUrl }}" class="sf-clean-btn yellow">✎ Edit Project</a>
             </div>
+        </div>
+    </section>
 
-            <div class="sf-stat">
-                <div class="label">Jobs</div>
-                <div class="value">{{ $stats['jobs_count'] ?? 0 }}</div>
-            </div>
-
-            <div class="sf-stat">
-                <div class="label">Employees</div>
-                <div class="value">{{ $stats['employees_count'] ?? 0 }}</div>
-            </div>
-
-            <div class="sf-stat">
-                <div class="label">Active Employees</div>
-                <div class="value">{{ $stats['active_employees_count'] ?? 0 }}</div>
-            </div>
-        </section>
-
-        @livewire(\App\Filament\Resources\Projects\Widgets\ProjectFinanceSummary::class, ['record' => $record])
-
-        <div class="sf-grid">
-            <section class="sf-panel">
-                <h3>Project Overview</h3>
-                <div class="sub">Operational and commercial identity for this project.</div>
-
-                <table class="sf-table">
-                    <tr><td>Project Name</td><td>{{ $record->name ?: '-' }}</td></tr>
-                    <tr><td>Project Code</td><td>{{ $record->project_code ?: '-' }}</td></tr>
-                    <tr><td>Client</td><td>{{ $record->client?->name ?: '-' }}</td></tr>
-                    <tr><td>Location</td><td>{{ $record->location ?: '-' }}</td></tr>
-                    <tr><td>Site Type</td><td>{{ $record->code ?: '-' }}</td></tr>
-                    <tr><td>Start Date</td><td>{{ !empty($record->start_date) ? \Illuminate\Support\Carbon::parse($record->start_date)->format('Y-m-d') : '-' }}</td></tr>
-                    <tr><td>End Date</td><td>{{ !empty($record->end_date) ? \Illuminate\Support\Carbon::parse($record->end_date)->format('Y-m-d') : '-' }}</td></tr>
-                    <tr><td>Description</td><td>{{ $record->description ?: '-' }}</td></tr>
-                    <tr><td>Notes</td><td>{{ $record->notes ?: '-' }}</td></tr>
-                </table>
-            </section>
-
-            <section class="sf-panel">
-                <h3>Expense Snapshot</h3>
-                <div class="sub">Direct project-level expenses by currency.</div>
-
-                <div class="sf-currency-cards">
-                    @foreach (['USD', 'EUR', 'GBP', 'LYD'] as $currency)
-                        <div class="sf-currency-card">
-                            <div class="ccy">{{ $currency }}</div>
-                            <div class="meta">Linked project expenses</div>
-                            <div class="amount">{{ number_format((float) ($expenses[$currency] ?? 0), 2) }} {{ $currency }}</div>
-                        </div>
-                    @endforeach
-                </div>
-            </section>
+    <section class="sf-clean-top-stats">
+        <div class="sf-clean-stat">
+            <div class="sf-clean-stat-title">Client</div>
+            <div class="sf-clean-stat-value" style="font-size:20px;">{{ $clientName }}</div>
+            <div class="sf-clean-stat-note">Linked client</div>
         </div>
 
-        <div class="sf-grid">
-            <section class="sf-panel">
-                <h3>Latest Employees</h3>
-                <div class="sub">Employees currently or previously linked to this project.</div>
-
-                <div class="sf-list">
-                    @forelse ($latestEmployees as $employee)
-                        <div class="sf-list-item">
-                            <div class="title">{{ $employee->employee_name ?: '-' }}</div>
-                            <div class="meta">
-                                {{ $employee->position_title ?: '-' }} • {{ $employee->status ?: '-' }}
-                            </div>
-                        </div>
-                    @empty
-                        <div class="sf-empty">No employees linked to this project yet.</div>
-                    @endforelse
-                </div>
-            </section>
-
-            <section class="sf-panel">
-                <h3>Latest Expenses</h3>
-                <div class="sub">Recent costs linked directly to this project.</div>
-
-                <div class="sf-list">
-                    @forelse ($latestExpenses as $expense)
-                        <div class="sf-list-item">
-                            <div class="title">
-                                {{ $expense->title ?: ($expense->category ? ucfirst(str_replace('_', ' ', $expense->category)) : 'Expense') }}
-                            </div>
-                            <div class="meta">
-                                {{ number_format((float) $expense->amount, 2) }} {{ $expense->currency ?: '' }}
-                                •
-                                {{ optional($expense->expense_date)->format('Y-m-d') ?: '-' }}
-                            </div>
-                        </div>
-                    @empty
-                        <div class="sf-empty">No direct project expenses yet.</div>
-                    @endforelse
-                </div>
-            </section>
+        <div class="sf-clean-stat">
+            <div class="sf-clean-stat-title">Employees</div>
+            <div class="sf-clean-stat-value">{{ $employeesCount }}</div>
+            <div class="sf-clean-stat-note">Linked employees</div>
         </div>
 
-        {{ $this->infolist }}
-    </div>
+        <div class="sf-clean-stat">
+            <div class="sf-clean-stat-title">Contracts</div>
+            <div class="sf-clean-stat-value">{{ $contractsCount }}</div>
+            <div class="sf-clean-stat-note">Project contract records</div>
+        </div>
+
+        <div class="sf-clean-stat">
+            <div class="sf-clean-stat-title">Status</div>
+            <div class="sf-clean-stat-value">✓</div>
+            <div class="sf-clean-stat-note">{{ $statusLabel }}</div>
+        </div>
+    </section>
+
+    <section class="sf-clean-finance-grid">
+        <div class="sf-clean-fin-card {{ $balanceState }}">
+            <div class="sf-clean-label">Contract</div>
+            <div class="sf-clean-fin-title">Remaining Contract Balance</div>
+            <div class="sf-clean-fin-value">{{ $fmt($mainRemaining, $mainCurrency) }}</div>
+            <div class="sf-clean-fin-note {{ $balanceState }}">{{ $balanceMessage }}</div>
+            <div class="sf-clean-line">
+                <span>Total Contract</span>
+                <strong>{{ $formatTotals($contractTotals) }}</strong>
+            </div>
+            <div class="sf-clean-line">
+                <span>Remaining</span>
+                <span class="sf-clean-pill {{ $balanceState }}">{{ $remainingPercent }}%</span>
+            </div>
+        </div>
+
+        <div class="sf-clean-fin-card">
+            <div class="sf-clean-label">Invoices</div>
+            <div class="sf-clean-fin-title">Client Invoices Consumed</div>
+            <div class="sf-clean-fin-value">{{ $formatTotals($invoiceTotals) }}</div>
+            <div class="sf-clean-fin-note">Only client invoices consume the contract balance.</div>
+            <div class="sf-clean-line">
+                <span>Consumption source</span>
+                <strong>Invoices only</strong>
+            </div>
+        </div>
+
+        <div class="sf-clean-fin-card expense">
+            <div class="sf-clean-label">Expenses</div>
+            <div class="sf-clean-fin-title">Company Costs Linked</div>
+            <div class="sf-clean-fin-value">{{ $formatTotals($expenseTotals) }}</div>
+            <div class="sf-clean-fin-note danger">Tracking only. Does not reduce contract balance.</div>
+            <div class="sf-clean-line">
+                <span>Contract effect</span>
+                <strong>0.00</strong>
+            </div>
+        </div>
+
+        <div class="sf-clean-fin-card tax">
+            <div class="sf-clean-label">Tax</div>
+            <div class="sf-clean-fin-title">Internal Tax Allocation</div>
+            <div class="sf-clean-fin-value">{{ $formatTotals($allocatedTaxTotals) }}</div>
+            <div class="sf-clean-fin-note">Allocated internally by invoice value vs contract value.</div>
+            <div class="sf-clean-line">
+                <span>Tax Paid</span>
+                <strong>{{ $formatTotals($taxPaidTotals) }}</strong>
+            </div>
+        </div>
+    </section>
+
+    <section class="sf-clean-main-grid">
+        <div class="sf-clean-card">
+            <div class="sf-clean-label">Project Overview</div>
+            <h2 class="sf-clean-card-title">Operational & Commercial Details</h2>
+
+            <div class="sf-clean-list">
+                <div class="sf-clean-row">
+                    <div class="sf-clean-row-label">Project Name</div>
+                    <div class="sf-clean-row-value">{{ $projectName }}</div>
+                </div>
+
+                <div class="sf-clean-row">
+                    <div class="sf-clean-row-label">Project Code</div>
+                    <div class="sf-clean-row-value">{{ $projectCode }}</div>
+                </div>
+
+                <div class="sf-clean-row">
+                    <div class="sf-clean-row-label">Client</div>
+                    <div class="sf-clean-row-value">{{ $clientName }}</div>
+                </div>
+
+                <div class="sf-clean-row">
+                    <div class="sf-clean-row-label">Location</div>
+                    <div class="sf-clean-row-value">{{ $project->location ?? '-' }}</div>
+                </div>
+
+                <div class="sf-clean-row">
+                    <div class="sf-clean-row-label">Site Type</div>
+                    <div class="sf-clean-row-value">{{ $project->site_type ?? '-' }}</div>
+                </div>
+
+                <div class="sf-clean-row">
+                    <div class="sf-clean-row-label">Start Date</div>
+                    <div class="sf-clean-row-value">{{ filled($project?->start_date ?? null) ? \Illuminate\Support\Carbon::parse($project->start_date)->format('Y-m-d') : '-' }}</div>
+                </div>
+
+                <div class="sf-clean-row">
+                    <div class="sf-clean-row-label">End Date</div>
+                    <div class="sf-clean-row-value">{{ filled($project?->end_date ?? null) ? \Illuminate\Support\Carbon::parse($project->end_date)->format('Y-m-d') : '-' }}</div>
+                </div>
+
+                <div class="sf-clean-row">
+                    <div class="sf-clean-row-label">Description</div>
+                    <div class="sf-clean-row-value">{{ $project->description ?? '-' }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sf-clean-card">
+            <div class="sf-clean-label">Finance Snapshot</div>
+            <h2 class="sf-clean-card-title">Expenses by Currency</h2>
+
+            <div class="sf-clean-list">
+                @forelse ($expenseTotals as $currency => $amount)
+                    <div class="sf-clean-row">
+                        <div>
+                            <div class="sf-clean-row-label">{{ $currency }}</div>
+                            <div class="sf-clean-row-value" style="text-align:left;">Project expenses</div>
+                        </div>
+                        <div class="sf-clean-row-value">{{ $fmt($amount, $currency) }}</div>
+                    </div>
+                @empty
+                    <div class="sf-clean-empty">No linked expenses yet.</div>
+                @endforelse
+            </div>
+        </div>
+    </section>
+
+    <section class="sf-clean-bottom-grid">
+        <div class="sf-clean-card">
+            <div class="sf-clean-label">Contract Records</div>
+            <h2 class="sf-clean-card-title">Latest Contracts / Amendments</h2>
+
+            <div class="sf-clean-list">
+                @forelse ($contractList as $contract)
+                    <div class="sf-clean-row">
+                        <div>
+                            <div class="sf-clean-row-label">Contract</div>
+                            <div class="sf-clean-row-value" style="text-align:left;">
+                                {{ $contract->contract_no ?? $contract->title ?? ('Contract #' . $contract->id) }}
+                            </div>
+                        </div>
+                        <div class="sf-clean-row-value">
+                            {{ $fmt($contract->contract_value ?? 0, $contract->currency ?? 'EUR') }}
+                        </div>
+                    </div>
+                @empty
+                    <div class="sf-clean-empty">No contract records yet.</div>
+                @endforelse
+            </div>
+        </div>
+
+        <div class="sf-clean-card">
+            <div class="sf-clean-label">Expenses</div>
+            <h2 class="sf-clean-card-title">Latest Project Expenses</h2>
+
+            <div class="sf-clean-list">
+                @forelse ($latestExpenses as $expense)
+                    <div class="sf-clean-row">
+                        <div>
+                            <div class="sf-clean-row-label">Expense</div>
+                            <div class="sf-clean-row-value" style="text-align:left;">
+                                {{ $expense->title ?? $expense->description ?? $expense->expense_type ?? ('Expense #' . $expense->id) }}
+                            </div>
+                        </div>
+                        <div class="sf-clean-row-value">
+                            {{ $fmt($expense->amount ?? $expense->total_amount ?? 0, $expense->currency ?? 'LYD') }}
+                        </div>
+                    </div>
+                @empty
+                    <div class="sf-clean-empty">No latest expenses yet.</div>
+                @endforelse
+            </div>
+        </div>
+    </section>
+</div>
 </x-filament-panels::page>

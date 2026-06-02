@@ -1,0 +1,334 @@
+
+@php
+    $slipRecord = $record ?? $salarySlip ?? $slip ?? null;
+
+    if ($slipRecord) {
+        try {
+            $slipRecord->loadMissing('days');
+        } catch (\Throwable $e) {
+            //
+        }
+    }
+
+    $sfDays = collect($slipRecord->days ?? []);
+
+    $sfPresentCount = $sfDays->where('attendance_status', 'present')->count();
+    $sfAbsentCount = $sfDays->where('attendance_status', 'absent')->count();
+    $sfSickCount = $sfDays->where('attendance_status', 'sick')->count();
+    $sfLeaveCount = $sfDays->where('attendance_status', 'leave')->count();
+    $sfUnpaidLeaveCount = $sfDays->where('attendance_status', 'unpaid_leave')->count();
+    $sfHolidayCount = $sfDays->where('attendance_status', 'holiday')->count();
+    $sfTravelCount = $sfDays->where('attendance_status', 'travel')->count();
+    $sfOtherCount = $sfDays->where('attendance_status', 'other')->count();
+
+    $sfPaidDays = $sfDays->filter(function ($day) {
+        $status = $day->attendance_status ?: 'present';
+
+        if (in_array($status, ['absent', 'unpaid_leave'], true)) {
+            return false;
+        }
+
+        if (property_exists($day, 'is_paid') || isset($day->is_paid_day)) {
+            return (bool) $day->is_paid_day;
+        }
+
+        if (property_exists($day, 'paid') || false) {
+            return false;
+        }
+
+        return true;
+    })->count();
+
+    $sfNotWorkedDays = $sfDays->count() - $sfPaidDays;
+
+    $sfDailyRate = (float) ($slipRecord->daily_rate ?? 0);
+    $sfMonthlySalary = (float) ($slipRecord->monthly_salary ?? 0);
+    $sfAdjustments = (float) ($slipRecord->adjustments_amount ?? 0);
+    $sfDeductions = (float) ($slipRecord->deductions_amount ?? 0);
+
+    if (($slipRecord->salary_basis ?? null) === \App\Models\SalarySlip::BASIS_MONTHLY && $sfMonthlySalary > 0) {
+        $sfBaseAmount = round(($sfMonthlySalary / max(1, $sfDays->count())) * $sfPaidDays, 2);
+    } else {
+        $sfBaseAmount = round($sfDailyRate * $sfPaidDays, 2);
+    }
+
+    $sfNetAmount = round($sfBaseAmount + $sfAdjustments - $sfDeductions, 2);
+@endphp
+@php
+    /*
+     |--------------------------------------------------------------------------
+     | Sada Fezzan Salary Slip Attendance / Financial Summary Override
+     |--------------------------------------------------------------------------
+     | The visual page uses $summary in several places. We force $summary here
+     | from actual attendance rows so Draft/old days_worked/net_amount values
+     | cannot override the correct result.
+     */
+    $summary = $summary ?? [];
+
+    $summary['worked_days'] = $sfPaidDays;
+    $summary['paid_days'] = $sfPaidDays;
+    $summary['not_worked_unpaid'] = $sfNotWorkedDays;
+
+    $summary['present'] = $sfPresentCount;
+    $summary['absent'] = $sfAbsentCount;
+    $summary['sick'] = $sfSickCount;
+    $summary['leave'] = $sfLeaveCount;
+    $summary['unpaid_leave'] = $sfUnpaidLeaveCount;
+    $summary['holiday'] = $sfHolidayCount;
+    $summary['travel'] = $sfTravelCount;
+    $summary['other'] = $sfOtherCount;
+
+    $summary['gross_amount'] = $sfBaseAmount;
+    $summary['base_amount'] = $sfBaseAmount;
+    $summary['additions'] = $sfAdjustments;
+    $summary['deductions'] = $sfDeductions;
+    $summary['daily_rate'] = $sfDailyRate;
+    $summary['net_amount'] = $sfNetAmount;
+    $summary['final_net_amount'] = $sfNetAmount;
+@endphp
+
+@php
+    $record = $this->record;
+    $theme = $this->getStatusTheme();
+    $summary = $this->getAttendanceSummary();
+    $attachments = $this->getSlipAttachments();
+
+    $employeeName = $this->getEmployeeDisplayName();
+    $jobTitle = $this->getEmployeeJobTitle();
+    $employeeCode = $this->getEmployeeCode();
+
+    $periodLabel = trim(($record->month ?? $record->period_month ?? '') . ' ' . ($record->year ?? $record->period_year ?? ''));
+    if ($periodLabel === '') {
+        $periodLabel = $this->safeDate($record->period_start ?? $record->start_date ?? null) . ' - ' . $this->safeDate($record->period_end ?? $record->end_date ?? null);
+    }
+
+    $currency = $record->currency ?? 'EUR';
+
+    $grossAmount = $sfBaseAmount;
+    $deductions = $sfDeductions;
+    $additions = $record->additions_total ?? $record->total_additions ?? $record->addition_amount ?? 0;
+    $netAmount = $sfNetAmount;
+
+    $sfLinkedReimbursements = \App\Models\FinanceExpense::query()
+        ->where('reimbursed_salary_slip_id', $record->id)
+        ->where('paid_by', \App\Models\FinanceExpense::PAID_BY_CANDIDATE)
+        ->whereIn('reimbursement_status', [
+            \App\Models\FinanceExpense::REIMBURSEMENT_APPROVED,
+            \App\Models\FinanceExpense::REIMBURSEMENT_PAID,
+        ])
+        ->get();
+
+    $sfLinkedReimbursementTotals = $sfLinkedReimbursements
+        ->groupBy(fn ($expense) => strtoupper((string) ($expense->reimbursement_currency ?: $expense->currency ?: $currency)))
+        ->map(fn ($items) => (float) $items->sum(fn ($expense) => (float) ($expense->reimbursement_amount ?: $expense->amount ?: 0)))
+        ->toArray();
+
+    $sfLinkedReimbursementSameCurrency = (float) ($sfLinkedReimbursementTotals[strtoupper((string) $currency)] ?? 0);
+
+    $sfLinkedReimbursementText = collect($sfLinkedReimbursementTotals)
+        ->map(fn ($amount, $cur) => number_format((float) $amount, 2) . ' ' . strtoupper((string) $cur))
+        ->values()
+        ->implode(' · ');
+
+    if ($sfLinkedReimbursementText === '') {
+        $sfLinkedReimbursementText = '0.00 ' . strtoupper((string) $currency);
+    }
+
+    $additions = (float) $additions + $sfLinkedReimbursementSameCurrency;
+    $netAmount = (float) $netAmount + $sfLinkedReimbursementSameCurrency;
+@endphp
+
+<x-filament-panels::page>
+
+
+
+
+
+
+
+
+
+
+
+
+<style>
+/* SADA FINAL 2026-05-07: Salary Slip financial overview fixed layout */
+.sf-slip-page .sf-card:has(.sf-linked-reimbursement-strip) {
+    overflow: hidden !important;
+}
+
+.sf-slip-page .sf-card:has(.sf-linked-reimbursement-strip) .sf-section-head {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+    width: 100% !important;
+    overflow: hidden !important;
+}
+
+.sf-slip-page .sf-card:has(.sf-linked-reimbursement-strip) .sf-section-head > div:first-child {
+    min-width: 0 !important;
+    width: 100% !important;
+}
+
+.sf-slip-page .sf-linked-reimbursement-strip {
+    width: 100% !important;
+    max-width: 100% !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 18px !important;
+    margin-top: 22px !important;
+    overflow: hidden !important;
+}
+
+.sf-slip-page .sf-linked-reimbursement-strip > div {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    padding: 24px 26px !important;
+    border-radius: 28px !important;
+    background: linear-gradient(135deg, #f8fafc 0%, #ffffff 58%, #f1f5f9 100%) !important;
+    border: 1px solid rgba(15, 23, 42, .08) !important;
+    box-shadow: 0 18px 44px rgba(15, 23, 42, .06) !important;
+}
+
+.sf-slip-page .sf-linked-reimbursement-strip span {
+    display: block !important;
+    color: #64748b !important;
+    font-size: 11px !important;
+    line-height: 1.55 !important;
+    letter-spacing: .22em !important;
+    text-transform: uppercase !important;
+    font-weight: 950 !important;
+    white-space: normal !important;
+}
+
+.sf-slip-page .sf-linked-reimbursement-strip strong {
+    display: block !important;
+    margin-top: 14px !important;
+    color: #0f172a !important;
+    font-size: clamp(26px, 2.35vw, 44px) !important;
+    line-height: 1 !important;
+    letter-spacing: -.055em !important;
+    font-weight: 950 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+}
+
+.sf-slip-page .sf-card:has(.sf-linked-reimbursement-strip) .sf-section-head > .sf-soft-box {
+    justify-self: end !important;
+    width: min(320px, 100%) !important;
+    text-align: right !important;
+    padding: 20px 24px !important;
+    border-radius: 24px !important;
+}
+
+@media (max-width: 1300px) {
+    .sf-slip-page .sf-linked-reimbursement-strip strong {
+        font-size: clamp(22px, 2vw, 34px) !important;
+    }
+}
+
+@media (max-width: 900px) {
+    .sf-slip-page .sf-linked-reimbursement-strip {
+        grid-template-columns: 1fr !important;
+    }
+
+    .sf-slip-page .sf-linked-reimbursement-strip strong {
+        font-size: 34px !important;
+    }
+
+    .sf-slip-page .sf-card:has(.sf-linked-reimbursement-strip) .sf-section-head > .sf-soft-box {
+        justify-self: stretch !important;
+        width: 100% !important;
+    }
+}
+
+.dark .sf-slip-page .sf-linked-reimbursement-strip > div {
+    background: linear-gradient(135deg, rgba(15,23,42,.92), rgba(30,41,59,.82)) !important;
+    border-color: rgba(255,255,255,.10) !important;
+}
+
+.dark .sf-slip-page .sf-linked-reimbursement-strip span {
+    color: #94a3b8 !important;
+}
+
+.dark .sf-slip-page .sf-linked-reimbursement-strip strong {
+    color: #ffffff !important;
+}
+</style>
+
+</x-filament-panels::page>
+
+
+<style id="sf-candidate-request-decision-colors">
+    /*
+     * Colored decision buttons — visual only.
+     */
+
+    form:has(textarea[name*="negotiation"]) label:has(input[type="radio"]),
+    form:has(textarea[name*="candidate"]) label:has(input[type="radio"]),
+    form:has(textarea[name*="response"]) label:has(input[type="radio"]) {
+        overflow: hidden !important;
+    }
+
+    form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="approve"]),
+    form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="approve"]),
+    form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="approve"]) {
+        background: linear-gradient(135deg, #ecfdf5, #d1fae5) !important;
+        border-color: rgba(34,197,94,.42) !important;
+        color: #047857 !important;
+        box-shadow: 0 12px 28px rgba(34,197,94,.10) !important;
+    }
+
+    form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="decline"]),
+    form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="decline"]),
+    form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="decline"]) {
+        background: linear-gradient(135deg, #fef2f2, #fee2e2) !important;
+        border-color: rgba(239,68,68,.38) !important;
+        color: #b91c1c !important;
+        box-shadow: 0 12px 28px rgba(239,68,68,.10) !important;
+    }
+
+    form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="reconsider"]),
+    form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="reconsider"]),
+    form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="reconsider"]) {
+        background: linear-gradient(135deg, #fff7ed, #ffedd5) !important;
+        border-color: rgba(249,115,22,.38) !important;
+        color: #c2410c !important;
+        box-shadow: 0 12px 28px rgba(249,115,22,.10) !important;
+    }
+
+    form:has(textarea[name*="negotiation"]) label:has(input[type="radio"]:checked),
+    form:has(textarea[name*="candidate"]) label:has(input[type="radio"]:checked),
+    form:has(textarea[name*="response"]) label:has(input[type="radio"]:checked) {
+        transform: translateY(-1px) !important;
+        filter: saturate(1.12) !important;
+        box-shadow: 0 0 0 5px rgba(37,99,235,.10), 0 18px 38px rgba(15,23,42,.12) !important;
+    }
+
+    .dark form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="approve"]),
+    .dark form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="approve"]),
+    .dark form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="approve"]) {
+        background: rgba(6,78,59,.55) !important;
+        border-color: rgba(52,211,153,.34) !important;
+        color: #a7f3d0 !important;
+    }
+
+    .dark form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="decline"]),
+    .dark form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="decline"]),
+    .dark form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="decline"]) {
+        background: rgba(127,29,29,.48) !important;
+        border-color: rgba(248,113,113,.34) !important;
+        color: #fecaca !important;
+    }
+
+    .dark form:has(textarea[name*="negotiation"]) label:has(input[type="radio"][value*="reconsider"]),
+    .dark form:has(textarea[name*="candidate"]) label:has(input[type="radio"][value*="reconsider"]),
+    .dark form:has(textarea[name*="response"]) label:has(input[type="radio"][value*="reconsider"]) {
+        background: rgba(124,45,18,.48) !important;
+        border-color: rgba(251,146,60,.34) !important;
+        color: #fed7aa !important;
+    }
+</style>
+

@@ -1298,6 +1298,43 @@
     $sfAdminBreakdown = collect((array) ($record->reimbursement_breakdown ?? []));
 @endphp
 
+
+@php
+    /*
+     | Admin Salary Slip Financial Overview
+     | Same visual and logic concept as Portal Salary Slip.
+     | Uses stored processed payment totals after finance enters exchange rates.
+     */
+    $sfAdminSalaryCurrency = strtoupper((string) ($record->currency ?: 'EUR'));
+    $sfAdminSalaryNet = (float) ($record->net_amount ?? 0);
+
+    $sfAdminSameCurrencyTotal = (float) ($record->reimbursement_same_currency_total ?? 0);
+    $sfAdminConvertedTotal = (float) ($record->reimbursement_converted_total ?? 0);
+    $sfAdminAllConvertedReimb = round($sfAdminSameCurrencyTotal + $sfAdminConvertedTotal, 2);
+
+    $sfAdminPaymentTotal = (float) ($record->payment_total_amount ?: 0);
+    if ($sfAdminPaymentTotal <= 0) {
+        $sfAdminPaymentTotal = round($sfAdminSalaryNet + $sfAdminAllConvertedReimb, 2);
+    }
+
+    $sfAdminLinkedReimbursements = \App\Models\FinanceExpense::query()
+        ->where('reimbursed_salary_slip_id', $record->id)
+        ->get();
+
+    $sfAdminReimbursementByCurrency = $sfAdminLinkedReimbursements
+        ->groupBy(fn ($item) => strtoupper((string) ($item->reimbursement_currency ?: $item->currency ?: $sfAdminSalaryCurrency)))
+        ->map(function ($items, $cur) {
+            return [
+                'currency' => strtoupper((string) $cur),
+                'amount' => (float) $items->sum(fn ($item) => (float) ($item->reimbursement_amount ?: $item->amount ?: 0)),
+                'items' => $items,
+            ];
+        })
+        ->values();
+
+    $sfAdminBreakdown = collect((array) ($record->reimbursement_breakdown ?? []));
+@endphp
+
 <section class="sf-card sf-admin-finance-portal-style">
     <div class="sf-section-head">
         <div>
@@ -1400,6 +1437,7 @@
         </div>
     </div>
 </section>
+
 
 
 
@@ -3413,6 +3451,57 @@
 </style>
 
 
+
+<style id="sf-salary-download-white-button-final">
+
+    .sf-salary-hero-btn-white {
+        background: rgba(255,255,255,.92) !important;
+        color: #234b74 !important;
+        border: 1px solid rgba(255,255,255,.70) !important;
+        box-shadow: 0 14px 30px rgba(15,23,42,.12) !important;
+    }
+
+    .sf-salary-hero-btn-white *,
+    .sf-salary-hero-btn-white svg,
+    .sf-salary-hero-btn-white span,
+    .sf-salary-hero-btn-white strong {
+        color: #234b74 !important;
+    }
+
+    .dark .sf-salary-hero-btn-white {
+        background: rgba(15,23,42,.72) !important;
+        border-color: rgba(148,163,184,.22) !important;
+        color: #e0f2fe !important;
+    }
+
+    .dark .sf-salary-hero-btn-white *,
+    .dark .sf-salary-hero-btn-white svg,
+    .dark .sf-salary-hero-btn-white span,
+    .dark .sf-salary-hero-btn-white strong {
+        color: #e0f2fe !important;
+    }
+
+</style>
+
+
+<style id="sf-salary-adjustment-purple-button-final">
+    .sf-salary-hero-btn-purple {
+        background: linear-gradient(135deg, #7c3aed, #a855f7) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255,255,255,.24) !important;
+        box-shadow: 0 16px 34px rgba(124,58,237,.28) !important;
+    }
+
+    .sf-salary-hero-btn-purple *,
+    .sf-salary-hero-btn-purple svg,
+    .sf-salary-hero-btn-purple span,
+    .sf-salary-hero-btn-purple strong {
+        color: #ffffff !important;
+    }
+</style>
+
+
+
 <style id="sf-admin-financial-overview-portal-copy-final">
     .sf-admin-finance-portal-style {
         background:
@@ -3549,52 +3638,3 @@
         }
     }
 </style>
-
-<style id="sf-salary-download-white-button-final">
-
-    .sf-salary-hero-btn-white {
-        background: rgba(255,255,255,.92) !important;
-        color: #234b74 !important;
-        border: 1px solid rgba(255,255,255,.70) !important;
-        box-shadow: 0 14px 30px rgba(15,23,42,.12) !important;
-    }
-
-    .sf-salary-hero-btn-white *,
-    .sf-salary-hero-btn-white svg,
-    .sf-salary-hero-btn-white span,
-    .sf-salary-hero-btn-white strong {
-        color: #234b74 !important;
-    }
-
-    .dark .sf-salary-hero-btn-white {
-        background: rgba(15,23,42,.72) !important;
-        border-color: rgba(148,163,184,.22) !important;
-        color: #e0f2fe !important;
-    }
-
-    .dark .sf-salary-hero-btn-white *,
-    .dark .sf-salary-hero-btn-white svg,
-    .dark .sf-salary-hero-btn-white span,
-    .dark .sf-salary-hero-btn-white strong {
-        color: #e0f2fe !important;
-    }
-
-</style>
-
-
-<style id="sf-salary-adjustment-purple-button-final">
-    .sf-salary-hero-btn-purple {
-        background: linear-gradient(135deg, #7c3aed, #a855f7) !important;
-        color: #ffffff !important;
-        border: 1px solid rgba(255,255,255,.24) !important;
-        box-shadow: 0 16px 34px rgba(124,58,237,.28) !important;
-    }
-
-    .sf-salary-hero-btn-purple *,
-    .sf-salary-hero-btn-purple svg,
-    .sf-salary-hero-btn-purple span,
-    .sf-salary-hero-btn-purple strong {
-        color: #ffffff !important;
-    }
-</style>
-

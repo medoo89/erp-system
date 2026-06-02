@@ -2,15 +2,19 @@
 
 namespace App\Filament\Resources\ClientInvoices\Schemas;
 
+use App\Models\ProjectContract;
+
 use App\Models\BankProfile;
 use App\Models\Client;
 use App\Models\ClientInvoice;
 use App\Models\Project;
+use App\Models\SalarySlip;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
@@ -47,7 +51,56 @@ class ClientInvoiceForm
                         ->required()
                         ->native(false),
 
-                    Select::make('project_id')
+                    
+                    \Filament\Forms\Components\Select::make('project_contract_id')
+                        ->label('Contract / Agreement Counter')
+                        ->default(fn () => request()->query('project_contract_id'))
+                        ->options(function ($get = null): array {
+                            $projectId = null;
+
+                            try {
+                                if (is_callable($get)) {
+                                    $projectId = $get('project_id');
+                                }
+                            } catch (\Throwable $e) {
+                                $projectId = null;
+                            }
+
+                            $query = ProjectContract::query()->orderByDesc('id');
+
+                            if ($projectId) {
+                                $query->where('project_id', $projectId);
+                            }
+
+                            return $query
+                                ->get()
+                                ->mapWithKeys(function (ProjectContract $contract): array {
+                                    $title = $contract->title
+                                        ?? $contract->contract_no
+                                        ?? ('Contract #' . $contract->id);
+
+                                    $value = number_format((float) ($contract->contract_value ?? 0), 2);
+                                    $currency = $contract->currency ?? '';
+
+                                    return [
+                                        $contract->id => $title . ' • ' . $value . ' ' . $currency,
+                                    ];
+                                })
+                                ->toArray();
+                        })
+                        ->searchable()
+                        ->preload()
+                        ->nullable()
+                        ->live()
+                        ->helperText('Used for contract balance and internal tax allocation.'),
+
+                    \Filament\Forms\Components\Toggle::make('show_contract_tax_on_invoice_document')
+                        ->label('Show allocated contract tax on invoice document')
+                        ->default(false)
+                        ->helperText('Default is OFF. Tax allocation is internal/admin only unless enabled.'),
+
+Select::make('project_id')
+                        ->default(fn () => request()->query('project_id'))
                         ->label('Project')
                         ->options(
                             Project::query()->orderBy('name')->pluck('name', 'id')->toArray()
@@ -143,6 +196,99 @@ class ClientInvoiceForm
                     Repeater::make('lines')
                         ->relationship('lines')
                         ->schema([
+
+                            Select::make('salary_slip_id')
+                                ->label('Salary Slip')
+                                ->options(function (): array {
+                                    return SalarySlip::query()
+                                        ->with(['employment', 'project'])
+                                        ->orderByDesc('period_start')
+                                        ->limit(250)
+                                        ->get()
+                                        ->mapWithKeys(function (SalarySlip $slip): array {
+                                            $employee = $slip->employment?->full_name
+                                                ?? $slip->employment?->name
+                                                ?? ('Employment #' . $slip->employment_id);
+
+                                            $project = $slip->project?->name
+                                                ?? $slip->project?->project_name
+                                                ?? 'No Project';
+
+                                            $period = optional($slip->period_start)->format('Y-m-d')
+                                                . ' → '
+                                                . optional($slip->period_end)->format('Y-m-d');
+
+                                            $amount = number_format((float) ($slip->net_amount ?? $slip->base_amount ?? 0), 2);
+                                            $currency = $slip->currency ?: '';
+
+                                            return [
+                                                $slip->id => "{$employee} — {$project} — {$period} — {$amount} {$currency}",
+                                            ];
+                                        })
+                                        ->toArray();
+                                })
+                                ->searchable()
+                                ->preload()
+                                ->live()
+                                ->native(false)
+                                ->helperText('Select a salary slip to generate invoice line data and timesheet days.')
+                                ->afterStateUpdated(function ($state, $set, $get): void {
+                                    if (blank($state)) {
+                                        return;
+                                    }
+
+                                    $slip = SalarySlip::query()
+                                        ->with(['employment', 'project', 'days'])
+                                        ->find($state);
+
+                                    if (! $slip) {
+                                        return;
+                                    }
+
+                                    $employee = $slip->employment;
+                                    $project = $slip->project;
+
+                                    $paidUnits = (float) $slip->days
+                                        ->filter(fn ($day) => (bool) ($day->is_paid_day ?? false))
+                                        ->sum(fn ($day) => (float) ($day->pay_multiplier ?? 1));
+
+                                    if ($paidUnits <= 0) {
+                                        $paidUnits = (float) ($slip->days_worked ?? 0);
+                                    }
+
+                                    $unitRate = (float) ($get('unit_rate') ?: $slip->daily_rate ?: 0);
+                                    $amount = round($paidUnits * $unitRate, 2);
+
+                                    $employeeName = $employee?->full_name
+                                        ?? $employee?->name
+                                        ?? $employee?->employee_name
+                                        ?? null;
+
+                                    $position = $employee?->position
+                                        ?? $employee?->job_title
+                                        ?? $employee?->designation
+                                        ?? null;
+
+                                    $projectName = $project?->name
+                                        ?? $project?->project_name
+                                        ?? null;
+
+                                    $set('employment_id', $slip->employment_id);
+                                    $set('project_id', $slip->project_id);
+                                    $set('candidate_name', $employeeName);
+                                    $set('position_title', $position);
+                                    $set('project_name', $projectName);
+                                    $set('service_title', $position ?: 'Manpower Supply / Daily Rate');
+                                    $set('service_period_start', optional($slip->period_start)->format('Y-m-d'));
+                                    $set('service_period_end', optional($slip->period_end)->format('Y-m-d'));
+                                    $set('service_month_label', optional($slip->period_start)->format('F Y'));
+                                    $set('quantity', $paidUnits);
+                                    $set('unit_rate', $unitRate);
+                                    $set('amount', $amount);
+                                    $set('currency', $slip->currency);
+                                    $set('foreign_currency', $slip->currency);
+                                }),
+
                             TextInput::make('service_title')
                                 ->label('Service Title')
                                 ->maxLength(255),

@@ -321,6 +321,21 @@ class ViewJobApplication extends ViewRecord
         $this->newOfferNotes = null;
     }
 
+    /**
+     * Open the Filament final-offer modal from inside the custom Blade Candidate Requests card.
+     * The Blade button must pass the source negotiation request ID before mounting the action.
+     */
+    public function openFinalOfferAction(int $requestId): void
+    {
+        $this->startFinalOffer($requestId);
+
+        if (! $this->activeFinalOfferRequestId) {
+            return;
+        }
+
+        $this->mountAction('send_final_offer_action');
+    }
+
     public function cancelNewOffer(): void
     {
         $this->activeNegotiationRequestId = null;
@@ -431,7 +446,122 @@ class ViewJobApplication extends ViewRecord
             ->success()
             ->send();
     }
-        protected function getHeaderActions(): array
+    
+
+
+
+    public function approveCandidateCounterOffer(int $requestId): void
+    {
+        $candidateRequest = $this->getCandidateRequestById($requestId);
+
+        if (! $candidateRequest) {
+            Notification::make()
+                ->title('Negotiation request not found')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $decodedResponse = $this->decodeCandidateResponse($candidateRequest);
+
+        $counterOffer = $candidateRequest->candidate_counter_offer
+            ?? data_get($decodedResponse, 'counter_offer')
+            ?? data_get($decodedResponse, 'candidate_counter_offer');
+
+        $decoded = $this->appendThreadEntry($candidateRequest, [
+            'sender' => 'hr',
+            'event' => 'approved',
+            'message' => 'HR approved the candidate counter offer.',
+            'salary' => $counterOffer,
+            'currency' => $candidateRequest->currency,
+        ]);
+
+        $candidateRequest->update([
+            'candidate_response' => json_encode($decoded, JSON_UNESCAPED_UNICODE),
+            'request_status' => 'accepted',
+            'accepted_salary' => $counterOffer,
+            'accepted_currency' => $candidateRequest->currency,
+            'negotiation_result' => 'accepted',
+            'responded_at' => now(),
+        ]);
+
+        $this->record->update([
+            'candidate_request_status' => 'accepted',
+        ]);
+
+        try {
+            $this->sendCandidateRequestStatusEmail($candidateRequest->fresh());
+        } catch (\Throwable $e) {
+            Log::error('Candidate counter offer approval email failed', [
+                'job_application_id' => $this->record->id,
+                'candidate_request_id' => $candidateRequest->id,
+                'email' => $this->record->email,
+                'message' => $e->getMessage(),
+            ]);
+        }
+
+        $this->record->refresh();
+
+        Notification::make()
+            ->title('Counter offer approved and candidate notified')
+            ->success()
+            ->send();
+    }
+
+    public function declineCandidateCounterOffer(int $requestId): void
+    {
+        $candidateRequest = $this->getCandidateRequestById($requestId);
+
+        if (! $candidateRequest) {
+            Notification::make()
+                ->title('Negotiation request not found')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $decoded = $this->appendThreadEntry($candidateRequest, [
+            'sender' => 'hr',
+            'event' => 'declined',
+            'message' => 'HR declined the candidate counter offer.',
+            'salary' => $candidateRequest->candidate_counter_offer,
+            'currency' => $candidateRequest->currency,
+        ]);
+
+        $candidateRequest->update([
+            'candidate_response' => json_encode($decoded, JSON_UNESCAPED_UNICODE),
+            'request_status' => 'declined',
+            'negotiation_result' => 'declined',
+            'responded_at' => now(),
+        ]);
+
+        $this->record->update([
+            'candidate_request_status' => 'declined',
+        ]);
+
+        try {
+            $this->sendCandidateRequestStatusEmail($candidateRequest->fresh());
+        } catch (\Throwable $e) {
+            Log::error('Candidate counter offer decline email failed', [
+                'job_application_id' => $this->record->id,
+                'candidate_request_id' => $candidateRequest->id,
+                'email' => $this->record->email,
+                'message' => $e->getMessage(),
+            ]);
+        }
+
+        $this->record->refresh();
+
+        Notification::make()
+            ->title('Counter offer declined and candidate notified')
+            ->warning()
+            ->send();
+    }
+
+
+    protected function getHeaderActions(): array
     {
         $isArchived = (bool) ($this->record->is_archived ?? false);
 
@@ -780,6 +910,158 @@ class ViewJobApplication extends ViewRecord
                     ->send();
             });
 
+
+        $finalOfferAction = Actions\Action::make('send_final_offer_action')
+            ->hidden(fn () => ! (bool) auth()->user()?->canErp('job_applications', 'create_request'))
+            ->label('Send Final Offer')
+            ->icon('heroicon-o-check-badge')
+            ->color('warning')
+            ->form([
+                TextInput::make('proposed_salary')
+                    ->label('Final Offer Salary')
+                    ->numeric()
+                    ->default(function () {
+                        $sourceRequest = $this->activeFinalOfferRequestId
+                            ? $this->getCandidateRequestById($this->activeFinalOfferRequestId)
+                            : null;
+
+                        return $sourceRequest?->candidate_counter_offer
+                            ?? $sourceRequest?->proposed_salary
+                            ?? null;
+                    })
+                    ->required(),
+
+                Select::make('currency')
+                    ->label('Currency')
+                    ->options([
+                        'USD' => 'US Dollar (USD)',
+                        'EUR' => 'Euro (EUR)',
+                        'GBP' => 'British Pound (GBP)',
+                        'LYD' => 'Libyan Dinar (LYD)',
+                    ])
+                    ->default(function () {
+                        $sourceRequest = $this->activeFinalOfferRequestId
+                            ? $this->getCandidateRequestById($this->activeFinalOfferRequestId)
+                            : null;
+
+                        return $sourceRequest?->currency ?: 'USD';
+                    })
+                    ->searchable()
+                    ->required(),
+
+                Textarea::make('notes')
+                    ->label('Final Offer Notes')
+                    ->rows(4)
+                    ->placeholder('Write the final offer message shown to the candidate.'),
+
+                DatePicker::make('due_date')
+                    ->label('Response Due Date'),
+
+                Toggle::make('send_email')
+                    ->label('Send email to candidate')
+                    ->default(true),
+            ])
+            ->requiresConfirmation()
+            ->modalHeading('Send Final Salary Offer')
+            ->modalDescription('This is a final offer. The candidate will only be able to accept or decline.')
+            ->modalSubmitActionLabel('Send Final Offer')
+            ->action(function (array $data): void {
+                $sourceRequest = $this->activeFinalOfferRequestId
+                    ? $this->getCandidateRequestById($this->activeFinalOfferRequestId)
+                    : null;
+
+                if ($sourceRequest) {
+                    $sourceDecoded = $this->appendThreadEntry($sourceRequest, [
+                        'sender' => 'hr',
+                        'event' => 'final_offer_sent',
+                        'message' => 'HR sent a final salary offer to the candidate.',
+                        'salary' => $data['proposed_salary'] ?? null,
+                        'currency' => $data['currency'] ?? 'USD',
+                    ]);
+
+                    $sourceRequest->update([
+                        'candidate_response' => json_encode($sourceDecoded, JSON_UNESCAPED_UNICODE),
+                    ]);
+                }
+
+                $request = $this->record->candidateRequests()->create([
+                    'type' => 'salary_negotiation',
+                    'title' => 'Final Offer',
+                    'notes' => $data['notes'] ?? null,
+                    'request_status' => 'pending',
+                    'due_date' => $data['due_date'] ?? null,
+                    'requires_upload' => false,
+                    'proposed_salary' => $data['proposed_salary'] ?? null,
+                    'currency' => $data['currency'] ?? 'USD',
+                    'requires_approval' => true,
+                    'created_by' => Auth::id(),
+                    'public_token' => (string) Str::uuid(),
+                    'is_final_offer' => true,
+                ]);
+
+                $decoded = [
+                    'thread' => [[
+                        'sender' => 'hr',
+                        'event' => 'final_offer',
+                        'title' => 'Final Offer',
+                        'message' => $request->notes,
+                        'salary' => $request->proposed_salary,
+                        'currency' => $request->currency,
+                        'created_at' => optional($request->created_at)?->toDateTimeString(),
+                    ]],
+                    'uploaded_files' => [],
+                    'note_responses' => [],
+                ];
+
+                $request->update([
+                    'candidate_response' => json_encode($decoded, JSON_UNESCAPED_UNICODE),
+                ]);
+
+                $this->activeNegotiationRequestId = null;
+                $this->activeFinalOfferRequestId = null;
+
+                $this->record->update([
+                    'candidate_request_status' => 'awaiting_response',
+                ]);
+
+                if ((bool) ($data['send_email'] ?? false) && filled($this->record->email)) {
+                    try {
+                        $portalUrl = rtrim(config('app.public_app_url') ?: config('app.url'), '/') . '/candidate-request/' . $request->public_token;
+
+                        Mail::to($this->record->email)->send(
+                            new CandidateRequestMail(
+                                $request->fresh()->load('items', 'jobApplication.job'),
+                                $portalUrl
+                            )
+                        );
+
+                        $request->update([
+                            'email_sent_at' => now(),
+                        ]);
+                    } catch (\Throwable $e) {
+                        Log::error('Final offer email send failed', [
+                            'job_application_id' => $this->record->id,
+                            'candidate_request_id' => $request->id,
+                            'email' => $this->record->email,
+                            'message' => $e->getMessage(),
+                        ]);
+
+                        Notification::make()
+                            ->title('Final offer created, but email could not be sent')
+                            ->warning()
+                            ->send();
+                    }
+                }
+
+                $this->record->refresh();
+
+                Notification::make()
+                    ->title('Final offer sent successfully')
+                    ->success()
+                    ->send();
+            });
+
+
         $deleteCandidateRequestAction = Actions\Action::make('deleteCandidateRequestAction')
                 ->hidden(fn () => ! (bool) auth()->user()?->canErp('job_applications', 'delete_request'))
             ->label('Delete Candidate Request')
@@ -844,6 +1126,7 @@ class ViewJobApplication extends ViewRecord
 
         $moreActions = ActionGroup::make([
             $requestAction,
+            $finalOfferAction,
             Actions\EditAction::make()
                 ->hidden(fn () => ! (bool) auth()->user()?->canErp('job_applications', 'edit')),
             Actions\DeleteAction::make()

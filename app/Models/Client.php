@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Services\CodeGeneratorService;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Client extends Model
 {
@@ -68,4 +69,17 @@ class Client extends Model
             ->latest('effective_from')
             ->latest('id');
     }
+
+    public function projectContracts()
+    {
+        return $this->hasMany(\App\Models\ProjectContract::class);
+    }
+
+    public function activeProjectContracts()
+    {
+        return $this->projectContracts()
+            ->where('is_active', true)
+            ->whereNotIn('status', [\App\Models\ProjectContract::STATUS_CANCELLED]);
+    }
+
 }

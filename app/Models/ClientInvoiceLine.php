@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
 use Illuminate\Database\Eloquent\Model;
 
 class ClientInvoiceLine extends Model
@@ -68,4 +70,24 @@ class ClientInvoiceLine extends Model
     {
         return $this->belongsTo(ClientContractTerm::class, 'client_contract_term_id');
     }
+
+    protected static function booted(): void
+    {
+        static::saved(function (self $line): void {
+            $invoice = method_exists($line, 'invoice') ? $line->invoice : null;
+
+            if ($invoice && method_exists($invoice, 'recalculateContractTaxAllocationQuietly')) {
+                $invoice->recalculateContractTaxAllocationQuietly();
+            }
+        });
+
+        static::deleted(function (self $line): void {
+            $invoice = method_exists($line, 'invoice') ? $line->invoice : null;
+
+            if ($invoice && method_exists($invoice, 'recalculateContractTaxAllocationQuietly')) {
+                $invoice->recalculateContractTaxAllocationQuietly();
+            }
+        });
+    }
+
 }

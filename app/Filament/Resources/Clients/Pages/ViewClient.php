@@ -3,32 +3,50 @@
 namespace App\Filament\Resources\Clients\Pages;
 
 use App\Filament\Resources\Clients\ClientResource;
-use Filament\Actions\Action;
-use Filament\Resources\Pages\ViewRecord;
+use Filament\Actions;
+use Filament\Resources\Pages\EditRecord;
 
-class ViewClient extends ViewRecord
+class ViewClient extends EditRecord
 {
     protected static string $resource = ClientResource::class;
 
+    /*
+    |--------------------------------------------------------------------------
+    | Client View Page
+    |--------------------------------------------------------------------------
+    | We intentionally extend EditRecord instead of ViewRecord because the current
+    | Filament setup was not registering the ViewRecord route.
+    |
+    | This still renders our custom read-only Blade view, not the edit form.
+    */
+
     protected string $view = 'filament.resources.clients.pages.view-client-premium';
+
+    public function getTitle(): string
+    {
+        return (string) ($this->record->name ?? 'Client Review');
+    }
 
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('editClient')
-                ->hidden(fn () => ! (bool) auth()->user()?->canErp('clients', 'edit'))
+            Actions\Action::make('editClient')
                 ->label('Edit Client')
                 ->icon('heroicon-o-pencil-square')
                 ->color('warning')
-                ->url(fn () => static::getResource()::getUrl('edit', [
-                    'record' => $this->record,
-                ])),
+                ->visible(fn (): bool => (bool) auth()->user()?->canErp('clients', 'edit'))
+                ->url(fn () => ClientResource::getUrl('edit', ['record' => $this->record])),
+
+            Actions\Action::make('backToClients')
+                ->label('Back to Clients')
+                ->icon('heroicon-o-arrow-left')
+                ->color('gray')
+                ->url(fn () => ClientResource::getUrl('index')),
         ];
     }
 
-    public static function canAccess(array $parameters = []): bool
+    protected function getFormActions(): array
     {
-        return (bool) (auth()->user()?->canErp('clients', 'view') ?? false);
+        return [];
     }
-
 }
