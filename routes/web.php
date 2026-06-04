@@ -793,3 +793,9 @@ Route::middleware(['auth'])->get(
     [\App\Http\Controllers\ClientInvoiceTimesheetPrintController::class, 'show']
 )->name('client-invoices.print-timesheet');
 
+
+// Sada Fezzan public website root route
+Route::get('/', function () {
+    return view('website.home');
+})->name('website.root');
+
