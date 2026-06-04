@@ -1186,7 +1186,6 @@
 
         <div class="footer-list">
             <strong><span data-en>Contact</span><span data-ar>التواصل</span></strong>
-            <span><span data-en>Phone numbers will be updated</span><span data-ar>سيتم تحديث أرقام الهاتف</span></span>
             <span>info@sfco.ly</span>
         </div>
 
