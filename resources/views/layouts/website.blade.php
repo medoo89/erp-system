@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr" data-theme="dark">
+<html lang="en" dir="ltr" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,7 +7,8 @@
 
     <meta name="description" content="Sada Fezzan Oil Services Company provides oil and gas manpower, mobilization, logistics, maintenance, HSE, and field support services in Libya.">
 
-    <link rel="icon" href="https://sfco.ly/sada-logo-full.png">
+    <link rel="icon" type="image/png" href="/images/sada-fezzan-logo.png?v=sfco1">
+    <link rel="apple-touch-icon" href="/images/sada-fezzan-logo.png?v=sfco1">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1071,7 +1072,7 @@
 <header class="site-header">
     <div class="container header-inner">
         <a href="{{ route('website.home') }}" class="brand">
-            <img src="https://sfco.ly/sada-logo-full.png" alt="Sada Fezzan Logo" class="brand-logo">
+            <img src="/images/sada-horizontal.png" alt="Sada Fezzan Logo" class="brand-logo">
             <div>
                 <div class="brand-title">Sada Fezzan</div>
                 <div class="brand-subtitle">
@@ -1091,11 +1092,7 @@
         </nav>
 
         <div class="header-actions">
-            <button type="button" class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle day and night mode">
-                <span id="themeIcon" class="material-symbols-rounded">dark_mode</span>
-            </button>
-
-            <a href="{{ $jobsUrl }}" class="btn btn-jobs">
+<a href="{{ $jobsUrl }}" class="btn btn-jobs">
                 <span class="material-symbols-rounded">work</span>
                 <span data-en>Job Opportunities</span>
                 <span data-ar>فرص العمل</span>
@@ -1161,13 +1158,7 @@
             <span data-en>العربية</span>
             <span data-ar>English</span>
         </button>
-
-        <button type="button" onclick="toggleTheme(); toggleMobileMenu();">
-            <span class="material-symbols-rounded">routine</span>
-            <span data-en>Day / Night Mode</span>
-            <span data-ar>الوضع النهاري / الليلي</span>
-        </button>
-    </div>
+</div>
 </header>
 
 <main>
@@ -1177,7 +1168,7 @@
 <footer id="contact" class="site-footer">
     <div class="container footer-grid">
         <div>
-            <img src="https://sfco.ly/sada-logo-full.png" alt="Sada Fezzan Logo" class="footer-logo">
+            <img src="/images/sada-horizontal.png" alt="Sada Fezzan Logo" class="footer-logo">
             <p class="footer-text">
                 <span data-en>Sada Fezzan Oil Services Company provides professional support solutions for Libya’s oil and gas sector, including manpower, mobilization, logistics, maintenance, HSE, and field coordination.</span>
                 <span data-ar>شركة صدى فزان للخدمات النفطية تقدم حلول دعم احترافية لقطاع النفط والغاز في ليبيا، تشمل القوى العاملة، التعبئة، اللوجستيات، الصيانة، السلامة، والتنسيق الميداني.</span>
@@ -1202,26 +1193,7 @@
         const menu = document.getElementById('mobileMenu');
         menu.classList.toggle('is-open');
     }
-
-    function applyTheme(theme) {
-        document.documentElement.setAttribute('data-theme', theme);
-
-        const icon = document.getElementById('themeIcon');
-
-        if (icon) {
-            icon.textContent = theme === 'light' ? 'light_mode' : 'dark_mode';
-        }
-
-        localStorage.setItem('sfco_theme', theme);
-    }
-
-    function toggleTheme() {
-        const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-        const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        applyTheme(nextTheme);
-    }
-
-    function applyLanguage(language) {
+function applyLanguage(language) {
         document.documentElement.setAttribute('lang', language);
 
         if (language === 'ar') {
@@ -1240,10 +1212,11 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        const savedTheme = localStorage.getItem('sfco_theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', 'light');
+        
         const savedLanguage = localStorage.getItem('sfco_language') || 'en';
 
-        applyTheme(savedTheme);
+        
         applyLanguage(savedLanguage);
     });
 </script>

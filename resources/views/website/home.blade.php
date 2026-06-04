@@ -107,7 +107,7 @@
 
         <div class="hero-visual">
             <div class="visual-card">
-                <img src="https://sfco.ly/crane.png" alt="Oilfield support visual">
+                <img src="/images/oilfield-hero.svg" alt="Oilfield support visual">
 
                 <div class="floating-note">
                     <div class="floating-note-title">
